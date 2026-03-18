@@ -1,0 +1,184 @@
+import { NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { scoreQuestionAnswers } from '@/lib/scoring'
+import { emitQuestionOpen, emitQuestionClose, emitQuestionResolve, emitLeaderboardUpdate } from '@/lib/socket-emit'
+
+async function verifyCreator(leagueId: string, userId: string) {
+  const league = await prisma.league.findUnique({ where: { id: leagueId } })
+  return league?.creatorId === userId ? league : null
+}
+
+// PATCH: abrir | cerrar | resolver | editar
+export async function PATCH(
+  req: Request,
+  { params }: { params: { id: string; qid: string } }
+) {
+  const session = await auth()
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const league = await verifyCreator(params.id, session.user.id)
+  if (!league) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+
+  const question = await prisma.leagueQuestion.findUnique({
+    where: { id: params.qid },
+  })
+  if (!question || question.leagueId !== params.id) {
+    return NextResponse.json({ error: 'Pregunta no encontrada' }, { status: 404 })
+  }
+
+  const body = await req.json()
+  const { action, correctAnswer, windowSecs, text, options, pointsValue, timing } = body
+
+  // ── Abrir ──────────────────────────────────────────────────────────────────
+  if (action === 'open') {
+    if (question.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Solo se puede abrir una pregunta pendiente' }, { status: 400 })
+    }
+
+    const now = new Date()
+    let closedAt: Date
+
+    if (question.timing === 'PRE_MATCH') {
+      // Cierra al kickoff del partido
+      const match = await prisma.match.findUnique({ where: { id: question.matchId } })
+      closedAt = match?.kickoffAt ?? new Date(now.getTime() + 3600000)
+    } else {
+      // LIVE: cierra después de windowSecs (default 30)
+      const secs = Math.max(10, Math.min(300, Number(windowSecs ?? 30)))
+      closedAt = new Date(now.getTime() + secs * 1000)
+    }
+
+    const updated = await prisma.leagueQuestion.update({
+      where: { id: params.qid },
+      data: { status: 'OPEN', openAt: now, closedAt },
+      include: { _count: { select: { answers: true } } },
+    })
+
+    await emitQuestionOpen(params.id, question.matchId, {
+      questionId: updated.id,
+      text: updated.text,
+      type: updated.type,
+      options: updated.options,
+      pointsValue: updated.pointsValue,
+      closedAt: updated.closedAt?.toISOString() ?? null,
+    })
+
+    return NextResponse.json(updated)
+  }
+
+  // ── Cerrar ─────────────────────────────────────────────────────────────────
+  if (action === 'close') {
+    if (question.status !== 'OPEN') {
+      return NextResponse.json({ error: 'La pregunta no está abierta' }, { status: 400 })
+    }
+    const updated = await prisma.leagueQuestion.update({
+      where: { id: params.qid },
+      data: { status: 'CLOSED', closedAt: new Date() },
+      include: { _count: { select: { answers: true } } },
+    })
+
+    await emitQuestionClose(params.id, question.matchId, {
+      questionId: updated.id,
+    })
+
+    return NextResponse.json(updated)
+  }
+
+  // ── Resolver ───────────────────────────────────────────────────────────────
+  if (action === 'resolve') {
+    if (question.status === 'PENDING') {
+      return NextResponse.json({ error: 'La pregunta debe estar abierta o cerrada para resolverla' }, { status: 400 })
+    }
+    if (!correctAnswer) {
+      return NextResponse.json({ error: 'correctAnswer es requerido' }, { status: 400 })
+    }
+
+    const now = new Date()
+    await prisma.leagueQuestion.update({
+      where: { id: params.qid },
+      data: {
+        status: 'RESOLVED',
+        correctAnswer,
+        resolvedAt: now,
+        closedAt: question.closedAt ?? now,
+      },
+    })
+
+    // Score answers using the real scoring system
+    const result = await scoreQuestionAnswers(params.qid, correctAnswer)
+
+    // Emit resolve event
+    await emitQuestionResolve(params.id, question.matchId, {
+      questionId: params.qid,
+      correctAnswer,
+      scored: result.scored,
+      correct: result.correct,
+    })
+
+    // Emit updated leaderboard
+    const topMembers = await prisma.leagueMember.findMany({
+      where: { leagueId: params.id, status: 'APPROVED' },
+      include: { user: { select: { name: true } } },
+      orderBy: { totalPoints: 'desc' },
+      take: 20,
+    })
+    await emitLeaderboardUpdate(params.id, question.matchId, {
+      rankings: topMembers.map((m, i) => ({
+        userId: m.userId,
+        name: m.user.name,
+        totalPoints: m.totalPoints,
+        rank: i + 1,
+      })),
+    })
+
+    const updated = await prisma.leagueQuestion.findUnique({
+      where: { id: params.qid },
+      include: { _count: { select: { answers: true } } },
+    })
+    return NextResponse.json(updated)
+  }
+
+  // ── Editar (solo PENDING) ──────────────────────────────────────────────────
+  if (action === 'edit' || !action) {
+    if (question.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Solo se pueden editar preguntas pendientes' }, { status: 400 })
+    }
+    const updated = await prisma.leagueQuestion.update({
+      where: { id: params.qid },
+      data: {
+        ...(text && { text: text.trim() }),
+        ...(options && { options }),
+        ...(pointsValue && { pointsValue: Number(pointsValue) }),
+        ...(timing && { timing }),
+      },
+      include: { _count: { select: { answers: true } } },
+    })
+    return NextResponse.json(updated)
+  }
+
+  return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
+}
+
+// DELETE: eliminar pregunta (solo PENDING)
+export async function DELETE(
+  _req: Request,
+  { params }: { params: { id: string; qid: string } }
+) {
+  const session = await auth()
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const league = await verifyCreator(params.id, session.user.id)
+  if (!league) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+
+  const question = await prisma.leagueQuestion.findUnique({ where: { id: params.qid } })
+  if (!question || question.leagueId !== params.id) {
+    return NextResponse.json({ error: 'Pregunta no encontrada' }, { status: 404 })
+  }
+  if (question.status !== 'PENDING') {
+    return NextResponse.json({ error: 'Solo se pueden eliminar preguntas pendientes' }, { status: 400 })
+  }
+
+  await prisma.leagueQuestion.delete({ where: { id: params.qid } })
+  return NextResponse.json({ ok: true })
+}

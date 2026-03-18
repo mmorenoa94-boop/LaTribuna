@@ -1,0 +1,551 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// USUARIOS
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String
+  image         String?
+  passwordHash  String?
+  city          String?
+  phone         String?
+  bio           String?
+  favoriteTeam  String?
+  birthDate     DateTime?
+  gender        Gender?
+  role          UserRole  @default(HINCHA)
+  level         Int       @default(1)
+  xp            Int       @default(0)
+  streak        Int       @default(0)
+  streakLastAt  DateTime?
+  profilePct    Int       @default(15)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  business          Business?
+  wallet            Wallet?
+  leagueMemberships LeagueMember[]
+  predictions       Prediction[]
+  answers           Answer[]
+  notifications     Notification[]
+  interests         UserInterest[]
+  checkins          Checkin[]
+  redemptions       Redemption[]
+  pushSubscriptions PushSubscription[]
+}
+
+enum UserRole {
+  HINCHA
+  NEGOCIO
+  SUPER_ADMIN
+}
+
+enum Gender {
+  MASCULINO
+  FEMENINO
+  OTRO
+  PREFIERO_NO_DECIR
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Business {
+  id            String       @id @default(cuid())
+  userId        String       @unique
+  user          User         @relation(fields: [userId], references: [id])
+  name          String
+  type          BusinessType
+  logoUrl       String?
+  address       String?
+  lat           Float?
+  lng           Float?
+  checkinRadius Int          @default(150)
+  maxCapacity   Int?
+  city          String?
+  phone         String?
+  isPremium     Boolean      @default(false)
+  premiumUntil  DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  leagues    League[]
+  promotions Promotion[]
+  rewards    Reward[]
+  battles    BattleParticipant[]
+  checkins   Checkin[]
+}
+
+enum BusinessType {
+  BAR
+  RESTAURANT
+  CLUB_CASINO
+  OTHER
+}
+
+// LIGAS
+
+model League {
+  id                   String       @id @default(cuid())
+  name                 String
+  description          String?
+  creatorId            String
+  businessId           String?
+  business             Business?    @relation(fields: [businessId], references: [id])
+  type                 LeagueType   @default(PRIVATE)
+  matchMode            MatchMode    @default(PER_MATCH)
+  allowRemote          Boolean      @default(false)
+  requireApproval      Boolean      @default(false)
+  presentialMultiplier Float        @default(1.0)
+  maxMembers           Int          @default(50)
+  inviteCode           String       @unique
+  seasonEndDate        DateTime?
+  minConsumption       Boolean      @default(false)
+  minConsumptionAmount Int?
+  verificationType     VerifType?
+  status               LeagueStatus @default(ACTIVE)
+  createdAt            DateTime     @default(now())
+
+  members   LeagueMember[]
+  matches   LeagueMatch[]
+  questions LeagueQuestion[]
+  prizes    LeaguePrize[]
+  powerups  PowerUp[]
+}
+
+enum LeagueType {
+  PRIVATE
+  INVITE_ONLY
+  PUBLIC
+  BUSINESS
+}
+
+enum MatchMode {
+  PER_MATCH
+  SEASON
+  HYBRID
+}
+
+enum VerifType {
+  QR
+  STAFF_CODE
+  RECEIPT
+}
+
+enum LeagueStatus {
+  ACTIVE
+  FINISHED
+  CANCELLED
+}
+
+model LeagueMember {
+  id                  String       @id @default(cuid())
+  leagueId            String
+  league              League       @relation(fields: [leagueId], references: [id])
+  userId              String
+  user                User         @relation(fields: [userId], references: [id])
+  totalPoints         Int          @default(0)
+  consumptionVerified Boolean      @default(false)
+  status              MemberStatus @default(APPROVED)
+  joinedAt            DateTime     @default(now())
+
+  @@unique([leagueId, userId])
+}
+
+enum MemberStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LeaguePrize {
+  id          String @id @default(cuid())
+  leagueId    String
+  league      League @relation(fields: [leagueId], references: [id])
+  position    Int
+  description String
+  pointsValue Int    @default(0)
+}
+
+// PARTIDOS
+
+model Match {
+  id           String      @id @default(cuid())
+  externalId   String      @unique
+  homeTeam     String
+  awayTeam     String
+  homeLogo     String?
+  awayLogo     String?
+  competition  String
+  venue        String?
+  kickoffAt    DateTime
+  status       MatchStatus @default(SCHEDULED)
+  homeScore    Int?
+  awayScore    Int?
+  minutePlayed Int?
+  rawData      Json?
+  updatedAt    DateTime    @updatedAt
+
+  leagueMatches LeagueMatch[]
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  HALFTIME
+  FINISHED
+  CANCELLED
+}
+
+model LeagueMatch {
+  id       String @id @default(cuid())
+  leagueId String
+  league   League @relation(fields: [leagueId], references: [id])
+  matchId  String
+  match    Match  @relation(fields: [matchId], references: [id])
+
+  @@unique([leagueId, matchId])
+}
+
+// PREGUNTAS Y RESPUESTAS
+
+model LeagueQuestion {
+  id            String         @id @default(cuid())
+  leagueId      String
+  league        League         @relation(fields: [leagueId], references: [id])
+  matchId       String
+  text          String
+  type          QuestionType
+  options       Json
+  correctAnswer String?
+  pointsValue   Int            @default(20)
+  orderIndex    Int            @default(0)
+  timing        QuestionTiming @default(PRE_MATCH)
+  status        QuestionStatus @default(PENDING)
+  openAt        DateTime?
+  closedAt      DateTime?
+  resolvedAt    DateTime?
+
+  predictions Prediction[]
+  answers     Answer[]
+}
+
+enum QuestionType {
+  WINNER
+  SCORE
+  SCORER
+  YES_NO
+  RANGE
+  CUSTOM
+}
+
+enum QuestionTiming {
+  PRE_MATCH
+  LIVE
+}
+
+enum QuestionStatus {
+  PENDING
+  OPEN
+  CLOSED
+  RESOLVED
+}
+
+model Prediction {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id])
+  questionId   String
+  question     LeagueQuestion @relation(fields: [questionId], references: [id])
+  answer       String
+  isCorrect    Boolean?
+  pointsEarned Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([userId, questionId])
+}
+
+model Answer {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id])
+  questionId   String
+  question     LeagueQuestion @relation(fields: [questionId], references: [id])
+  answer       String
+  answeredAt   DateTime       @default(now())
+  isCorrect    Boolean?
+  pointsEarned Int            @default(0)
+
+  @@unique([userId, questionId])
+}
+
+// WALLET
+
+model Wallet {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id          String          @id @default(cuid())
+  walletId    String
+  wallet      Wallet          @relation(fields: [walletId], references: [id])
+  type        TransactionType
+  amount      Int
+  description String
+  referenceId String?
+  createdAt   DateTime        @default(now())
+}
+
+enum TransactionType {
+  MATCH_WIN
+  PREDICTION_WIN
+  PROFILE_BONUS
+  POWER_UP_WIN
+  REDEMPTION
+  EXPIRY
+  ADMIN_ADJUSTMENT
+}
+
+// PREMIOS
+
+model Reward {
+  id          String       @id @default(cuid())
+  businessId  String
+  business    Business     @relation(fields: [businessId], references: [id])
+  name        String
+  description String?
+  imageUrl    String?
+  pointsCost  Int
+  stock       Int?
+  status      RewardStatus @default(ACTIVE)
+  expiresAt   DateTime?
+  createdAt   DateTime     @default(now())
+
+  redemptions Redemption[]
+}
+
+enum RewardStatus {
+  ACTIVE
+  INACTIVE
+  OUT_OF_STOCK
+}
+
+model Redemption {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  rewardId   String
+  reward     Reward           @relation(fields: [rewardId], references: [id])
+  code       String           @unique
+  status     RedemptionStatus @default(PENDING)
+  redeemedAt DateTime?
+  expiresAt  DateTime
+  createdAt  DateTime         @default(now())
+}
+
+enum RedemptionStatus {
+  PENDING
+  REDEEMED
+  EXPIRED
+}
+
+// POWER-UPS
+
+model PowerUp {
+  id           String    @id @default(cuid())
+  leagueId     String
+  league       League    @relation(fields: [leagueId], references: [id])
+  matchId      String
+  question     String
+  options      Json
+  rewardText   String
+  durationSecs Int       @default(30)
+  trigger      PUTrigger @default(MANUAL)
+  triggerMin   Int?
+  status       PUStatus  @default(CONFIGURED)
+  firedAt      DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+enum PUTrigger {
+  MANUAL
+  GOAL
+  HALFTIME
+  MINUTE
+}
+
+enum PUStatus {
+  CONFIGURED
+  FIRED
+  EXPIRED
+}
+
+// PROMOCIONES
+
+model Promotion {
+  id          String       @id @default(cuid())
+  businessId  String
+  business    Business     @relation(fields: [businessId], references: [id])
+  message     String       @db.VarChar(120)
+  segment     PromoSegment @default(ALL_IN_VENUE)
+  channels    Json
+  timing      PromoTiming  @default(IMMEDIATE)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  status      PromoStatus  @default(DRAFT)
+  reach       Int          @default(0)
+  createdAt   DateTime     @default(now())
+}
+
+enum PromoSegment {
+  ALL_IN_VENUE
+  LEAGUE_PLAYERS
+  VERIFIED_CONSUMERS
+  RECURRING
+}
+
+enum PromoTiming {
+  IMMEDIATE
+  HALFTIME
+  SCHEDULED
+}
+
+enum PromoStatus {
+  DRAFT
+  SENT
+  SCHEDULED
+  EXPIRED
+}
+
+// BATALLA DE NEGOCIOS
+
+model Battle {
+  id          String       @id @default(cuid())
+  name        String
+  zone        String
+  organizer   String
+  matchIds    Json
+  prizeDesc   String?
+  prizeAmount Int?
+  startDate   DateTime
+  endDate     DateTime
+  status      BattleStatus @default(UPCOMING)
+  createdAt   DateTime     @default(now())
+
+  participants BattleParticipant[]
+}
+
+enum BattleStatus {
+  UPCOMING
+  ACTIVE
+  FINISHED
+}
+
+model BattleParticipant {
+  id         String   @id @default(cuid())
+  battleId   String
+  battle     Battle   @relation(fields: [battleId], references: [id])
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id])
+  score      Int      @default(0)
+  rank       Int?
+  joinedAt   DateTime @default(now())
+
+  @@unique([battleId, businessId])
+}
+
+// PUSH / NOTIFICACIONES
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  type      String
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+// CHECK-INS
+
+model Checkin {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id])
+  lat        Float
+  lng        Float
+  checkedAt  DateTime  @default(now())
+  checkedOut DateTime?
+}
+
+model UserInterest {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  tag    String
+
+  @@unique([userId, tag])
+}
+

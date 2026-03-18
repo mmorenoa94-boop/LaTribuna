@@ -1,0 +1,39 @@
+{
+  "name": "La Tribuna",
+  "short_name": "La Tribuna",
+  "description": "El juego de los que sí saben",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0C0F",
+  "theme_color": "#0A0C0F",
+  "orientation": "portrait",
+  "lang": "es-CO",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["games", "sports", "entertainment"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Partidos en vivo",
+      "url": "/home",
+      "description": "Ver partidos en vivo"
+    },
+    {
+      "name": "Mis ligas",
+      "url": "/ligas",
+      "description": "Ver mis ligas"
+    }
+  ]
+}

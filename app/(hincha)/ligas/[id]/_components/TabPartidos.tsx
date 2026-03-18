@@ -1,0 +1,350 @@
+'use client'
+import { useState } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { motion, AnimatePresence } from 'framer-motion'
+import { cn, formatMatchMinute } from '@/lib/utils'
+import type { SLeague, SMatch, SQuestion, SPrediction } from './types'
+
+interface Props {
+  league: SLeague
+  userId: string
+  predictions: SPrediction[]
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function TabPartidos({ league, userId, predictions: initialPredictions }: Props) {
+  const [preds, setPreds] = useState<Record<string, SPrediction>>(
+    Object.fromEntries(initialPredictions.map((p) => [p.questionId, p]))
+  )
+
+  if (league.matches.length === 0) {
+    return (
+      <EmptyPartidos />
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      {league.matches.map(({ match }) => {
+        const matchQuestions = league.questions.filter((q) => q.matchId === match.id)
+        return (
+          <MatchCard
+            key={match.id}
+            match={match}
+            questions={matchQuestions}
+            leagueId={league.id}
+            predictions={preds}
+            onPrediction={(questionId, pred) =>
+              setPreds((prev) => ({ ...prev, [questionId]: pred }))
+            }
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+// ── MatchCard ─────────────────────────────────────────────
+
+function MatchCard({
+  match, questions, leagueId, predictions, onPrediction,
+}: {
+  match: SMatch
+  questions: SQuestion[]
+  leagueId: string
+  predictions: Record<string, SPrediction>
+  onPrediction: (questionId: string, pred: SPrediction) => void
+}) {
+  const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
+  const isFinished = match.status === 'FINISHED'
+  const kickoff = new Date(match.kickoffAt)
+
+  return (
+    <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] overflow-hidden">
+      {/* Match header */}
+      <div className={cn(
+        'px-4 pt-4 pb-3',
+        isLive && 'bg-lt-red/5 border-b border-lt-red/20',
+        !isLive && 'border-b border-[rgba(255,255,255,0.05)]'
+      )}>
+        {/* Competition + status */}
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-lt-muted2 font-condensed text-xs uppercase tracking-wide">
+            {match.competition}
+          </span>
+          <MatchStatusBadge match={match} />
+        </div>
+
+        {/* Equipos + marcador */}
+        <div className="flex items-center gap-2">
+          {/* Home */}
+          <div className="flex flex-1 items-center justify-end gap-2">
+            <span className="text-lt-white font-condensed text-base font-700 text-right leading-tight">
+              {match.homeTeam}
+            </span>
+            {match.homeLogo ? (
+              <Image src={match.homeLogo} alt={match.homeTeam} width={32} height={32} className="object-contain flex-shrink-0" />
+            ) : (
+              <TeamPlaceholder />
+            )}
+          </div>
+
+          {/* Marcador */}
+          <div className="flex flex-col items-center min-w-[52px]">
+            {isLive || isFinished ? (
+              <span className={cn(
+                'font-bebas text-2xl leading-none tabular-nums',
+                isLive ? 'text-lt-green' : 'text-lt-white'
+              )}>
+                {match.homeScore ?? 0} - {match.awayScore ?? 0}
+              </span>
+            ) : (
+              <span className="text-lt-muted2 font-condensed text-sm tabular-nums">
+                {kickoff.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+            {isLive && match.minutePlayed && (
+              <span className="text-lt-red text-[10px] font-condensed mt-0.5">
+                {formatMatchMinute(match.minutePlayed)}
+              </span>
+            )}
+            {!isLive && !isFinished && (
+              <span className="text-lt-muted2 text-[10px] font-condensed mt-0.5">
+                {kickoff.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+              </span>
+            )}
+          </div>
+
+          {/* Away */}
+          <div className="flex flex-1 items-center gap-2">
+            {match.awayLogo ? (
+              <Image src={match.awayLogo} alt={match.awayTeam} width={32} height={32} className="object-contain flex-shrink-0" />
+            ) : (
+              <TeamPlaceholder />
+            )}
+            <span className="text-lt-white font-condensed text-base font-700 leading-tight">
+              {match.awayTeam}
+            </span>
+          </div>
+        </div>
+
+        {/* CTA si está en vivo */}
+        {isLive && (
+          <Link
+            href={`/ligas/${leagueId}/trivia?matchId=${match.id}`}
+            className="mt-3 w-full flex items-center justify-center gap-2 bg-lt-red text-white font-condensed font-700 text-sm py-2.5 rounded-btn hover:opacity-90 transition-opacity"
+          >
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse-dot" />
+            ¡JUGAR EN VIVO AHORA!
+          </Link>
+        )}
+      </div>
+
+      {/* Predicciones */}
+      {questions.length > 0 ? (
+        <div className="px-4 py-4 space-y-4">
+          <p className="text-lt-muted2 font-condensed text-xs uppercase tracking-widest">
+            Predicciones — {questions.filter(q => predictions[q.id]).length}/{questions.length} respondidas
+          </p>
+          {questions.map((q) => (
+            <PredictionQuestion
+              key={q.id}
+              question={q}
+              match={match}
+              leagueId={leagueId}
+              prediction={predictions[q.id] ?? null}
+              onSave={(pred) => onPrediction(q.id, pred)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="px-4 py-4 text-center">
+          <p className="text-lt-muted2 font-condensed text-sm">Sin predicciones para este partido</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── PredictionQuestion ────────────────────────────────────
+
+function PredictionQuestion({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  question, match, leagueId, prediction, onSave,
+}: {
+  question: SQuestion
+  match: SMatch
+  leagueId: string
+  prediction: SPrediction | null
+  onSave: (pred: SPrediction) => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const canAnswer = question.status === 'OPEN' && !prediction
+
+  async function submit(answer: string) {
+    if (!canAnswer || loading) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/predictions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionId: question.id, answer }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error al guardar')
+      onSave({
+        id: data.id,
+        questionId: question.id,
+        answer,
+        isCorrect: null,
+        pointsEarned: 0,
+      })
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Resultado si resuelta
+  const resolved = question.status === 'RESOLVED'
+  const correct = resolved && prediction?.isCorrect === true
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={cn(
+          'rounded-btn border p-3 transition-colors',
+          resolved && correct  ? 'border-lt-green/40 bg-lt-green/5' :
+          resolved && prediction ? 'border-lt-red/30 bg-lt-red/5' :
+          'border-[rgba(255,255,255,0.07)] bg-lt-card2'
+        )}
+      >
+        {/* Status pill */}
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-lt-white font-condensed text-sm font-600 leading-snug flex-1 mr-2">
+            {question.text}
+          </p>
+          <QuestionStatusPill status={question.status} />
+        </div>
+
+        {/* Points */}
+        <p className="text-lt-muted2 text-xs font-condensed mb-3">
+          +{question.pointsValue} pts
+        </p>
+
+        {/* Options */}
+        {canAnswer ? (
+          <div className="grid gap-2">
+            {question.options.map((opt) => (
+              <button
+                key={opt}
+                onClick={() => submit(opt)}
+                disabled={loading}
+                className="w-full text-left px-3 py-2.5 rounded-btn border border-lt-muted text-lt-white font-condensed text-sm hover:border-lt-green/50 hover:bg-lt-green/5 transition-all active:scale-[0.98] disabled:opacity-50"
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        ) : prediction ? (
+          /* Ya respondido */
+          <div className={cn(
+            'flex items-center justify-between px-3 py-2.5 rounded-btn border',
+            correct ? 'border-lt-green/40 bg-lt-green/10' :
+            resolved ? 'border-lt-red/30 bg-lt-red/5' :
+            'border-lt-muted bg-lt-card'
+          )}>
+            <div>
+              <span className="text-lt-muted2 font-condensed text-xs uppercase tracking-wider mr-2">Tu predicción:</span>
+              <span className={cn(
+                'font-condensed text-sm font-700',
+                correct ? 'text-lt-green' : resolved ? 'text-lt-red' : 'text-lt-white'
+              )}>
+                {prediction.answer}
+              </span>
+            </div>
+            {resolved && (
+              <div className="text-right">
+                {correct ? (
+                  <span className="text-lt-green font-condensed text-sm font-700">+{prediction.pointsEarned} pts ✓</span>
+                ) : (
+                  <div>
+                    <span className="text-lt-red font-condensed text-xs">✗ Incorrecto</span>
+                    <p className="text-lt-muted2 font-condensed text-xs">Resp: {question.correctAnswer}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Cerrada sin responder */
+          <p className="text-lt-muted2 font-condensed text-xs italic">
+            {question.status === 'CLOSED' ? 'Tiempo agotado — no respondiste' : 'Pendiente de apertura'}
+          </p>
+        )}
+
+        {error && <p className="text-lt-red text-xs font-condensed mt-2">{error}</p>}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
+// ── Sub-components ────────────────────────────────────────
+
+function MatchStatusBadge({ match }: { match: SMatch }) {
+  if (match.status === 'LIVE') {
+    return (
+      <span className="flex items-center gap-1.5 text-lt-red font-condensed text-xs font-700">
+        <span className="w-1.5 h-1.5 rounded-full bg-lt-red animate-pulse-dot" />
+        EN VIVO
+      </span>
+    )
+  }
+  if (match.status === 'HALFTIME') {
+    return <span className="text-lt-amber font-condensed text-xs font-700 px-2 py-0.5 rounded-full bg-lt-amber/10 border border-lt-amber/30">DESCANSO</span>
+  }
+  if (match.status === 'FINISHED') {
+    return <span className="text-lt-muted2 font-condensed text-xs uppercase">Final</span>
+  }
+  if (match.status === 'CANCELLED') {
+    return <span className="text-lt-red font-condensed text-xs uppercase">Cancelado</span>
+  }
+  return <span className="text-lt-muted2 font-condensed text-xs uppercase">Programado</span>
+}
+
+function QuestionStatusPill({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    OPEN:     { label: 'Abierta',   cls: 'text-lt-green bg-lt-green/10 border-lt-green/30' },
+    CLOSED:   { label: 'Cerrada',   cls: 'text-lt-muted2 bg-lt-muted/20 border-lt-muted'   },
+    RESOLVED: { label: 'Resuelta',  cls: 'text-lt-blue bg-lt-blue/10 border-lt-blue/30'    },
+    PENDING:  { label: 'Pendiente', cls: 'text-lt-muted2 bg-lt-muted/20 border-lt-muted'   },
+  }
+  const { label, cls } = map[status] ?? map.PENDING
+  return (
+    <span className={cn('flex-shrink-0 text-[10px] font-condensed font-600 px-2 py-0.5 rounded-full border uppercase tracking-wider', cls)}>
+      {label}
+    </span>
+  )
+}
+
+function TeamPlaceholder() {
+  return <div className="w-8 h-8 rounded-full bg-lt-card2 border border-lt-muted flex-shrink-0" />
+}
+
+function EmptyPartidos() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+      <div className="text-5xl">📅</div>
+      <p className="text-lt-white font-condensed text-lg font-700">Sin partidos aún</p>
+      <p className="text-lt-muted2 font-barlow text-sm leading-snug max-w-[240px]">
+        El administrador de la liga añadirá los partidos próximamente
+      </p>
+    </div>
+  )
+}

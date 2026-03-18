@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --black:   #0A0C0F;
+  --dark:    #111318;
+  --card:    #161A22;
+  --card2:   #1C2130;
+  --green:   #00E676;
+  --gd:      #00C853;
+  --amber:   #FFB300;
+  --orange:  #FF6D00;
+  --red:     #FF4444;
+  --blue:    #4488FF;
+  --purple:  #9B59B6;
+  --white:   #F0F2F5;
+  --muted:   #3A4455;
+  --muted2:  #6B7280;
+  --border:  rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background-color: #0A0C0F;
+  color: #F0F2F5;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-barlow), sans-serif;
+  font-weight: 400;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #111318;
+}
+::-webkit-scrollbar-thumb {
+  background: #3A4455;
+  border-radius: 2px;
+}
+
+/* Pitch grid overlay */
+.pitch-bg {
+  background-color: #0A0C0F;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 29px,
+    rgba(255,255,255,0.015) 29px,
+    rgba(255,255,255,0.015) 30px
+  );
+}
+
+/* Card hover glow */
+.card-hover-green:hover {
+  box-shadow: 0 0 20px rgba(0, 230, 118, 0.12);
+  transition: box-shadow 0.2s ease;
+}
+.card-hover-amber:hover {
+  box-shadow: 0 0 20px rgba(255, 179, 0, 0.12);
+  transition: box-shadow 0.2s ease;
+}
+
+/* Safe area for PWA */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/cron/sync-matches?secret=${CRON_SECRET}",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/close-questions?secret=${CRON_SECRET}",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/resolve-predictions?secret=${CRON_SECRET}",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/send-scheduled-promos?secret=${CRON_SECRET}",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/expire-promotions?secret=${CRON_SECRET}",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/expire-redemptions?secret=${CRON_SECRET}",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/expire-premium?secret=${CRON_SECRET}",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/update-streaks?secret=${CRON_SECRET}",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/calculate-battle-scores?secret=${CRON_SECRET}",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "la-tribuna-socket",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bullmq": "^5.39.0",
+    "ioredis": "^5.4.2",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5"
+  }
+}
