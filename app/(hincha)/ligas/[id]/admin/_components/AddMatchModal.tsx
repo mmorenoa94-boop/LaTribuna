@@ -9,6 +9,7 @@ interface Props {
   open: boolean
   onClose: () => void
   onCreated: (match: MatchRow) => void
+  editMatch?: MatchRow | null
 }
 
 export interface MatchRow {
@@ -67,7 +68,7 @@ const COMPETITIONS_MANUAL = [
   'Liga España', 'Premier League', 'Selección Colombia', 'Otro',
 ]
 
-export function AddMatchModal({ leagueId, open, onClose, onCreated }: Props) {
+export function AddMatchModal({ leagueId, open, onClose, onCreated, editMatch }: Props) {
   const [tab, setTab] = useState<'search' | 'manual'>('search')
 
   // ── Search state ──────────────────────────────────────────────────────────
@@ -88,9 +89,29 @@ export function AddMatchModal({ leagueId, open, onClose, onCreated }: Props) {
   const [manualLoading, setManualLoading] = useState(false)
   const [manualError, setManualError]     = useState('')
 
+  // When opening in edit mode, switch to manual tab and pre-fill
+  useEffect(() => {
+    if (open && editMatch) {
+      setTab('manual')
+      const kickoffLocal = new Date(editMatch.kickoffAt)
+      const offset = kickoffLocal.getTimezoneOffset()
+      const local = new Date(kickoffLocal.getTime() - offset * 60000)
+      setForm({
+        homeTeam: editMatch.homeTeam,
+        awayTeam: editMatch.awayTeam,
+        competition: editMatch.competition,
+        venue: editMatch.venue ?? '',
+        kickoffAt: local.toISOString().slice(0, 16),
+      })
+    } else if (open && !editMatch) {
+      setTab('search')
+      setForm({ homeTeam: '', awayTeam: '', competition: 'Liga BetPlay Dimayor', venue: '', kickoffAt: '' })
+    }
+  }, [open, editMatch])
+
   // Auto-search when tab opens or date/league changes
   useEffect(() => {
-    if (open && tab === 'search') doSearch()
+    if (open && tab === 'search' && !editMatch) doSearch()
   }, [open, searchDate, selectedLeague, tab])
 
   async function doSearch() {
@@ -141,19 +162,24 @@ export function AddMatchModal({ leagueId, open, onClose, onCreated }: Props) {
     setManualLoading(true)
     setManualError('')
     try {
-      const res = await fetch(`/api/leagues/${leagueId}/admin/matches`, {
-        method: 'POST',
+      const url = editMatch
+        ? `/api/leagues/${leagueId}/admin/matches/${editMatch.id}`
+        : `/api/leagues/${leagueId}/admin/matches`
+      const res = await fetch(url, {
+        method: editMatch ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       })
       if (!res.ok) {
         const d = await res.json()
-        setManualError(d.error ?? 'Error al crear el partido')
+        setManualError(d.error ?? (editMatch ? 'Error al editar' : 'Error al crear el partido'))
         return
       }
       const match = await res.json()
-      onCreated(match)
-      setForm({ homeTeam: '', awayTeam: '', competition: 'Liga BetPlay Dimayor', venue: '', kickoffAt: '' })
+      onCreated({ ...match, questionCount: editMatch?.questionCount ?? 0 })
+      if (!editMatch) {
+        setForm({ homeTeam: '', awayTeam: '', competition: 'Liga BetPlay Dimayor', venue: '', kickoffAt: '' })
+      }
     } finally {
       setManualLoading(false)
     }
@@ -186,7 +212,7 @@ export function AddMatchModal({ leagueId, open, onClose, onCreated }: Props) {
 
             {/* Header */}
             <div className="flex-shrink-0 flex items-center justify-between px-5 pb-3">
-              <h2 className="font-bebas text-2xl text-lt-white tracking-wide">Agregar partido</h2>
+              <h2 className="font-bebas text-2xl text-lt-white tracking-wide">{editMatch ? 'Editar partido' : 'Agregar partido'}</h2>
               <button onClick={onClose} className="text-lt-muted2 hover:text-lt-white p-1">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
@@ -194,8 +220,8 @@ export function AddMatchModal({ leagueId, open, onClose, onCreated }: Props) {
               </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex-shrink-0 flex gap-1 px-5 mb-3">
+            {/* Tabs (hide when editing) */}
+            {!editMatch && <div className="flex-shrink-0 flex gap-1 px-5 mb-3">
               {(['search', 'manual'] as const).map((t) => (
                 <button
                   key={t}
@@ -210,7 +236,7 @@ export function AddMatchModal({ leagueId, open, onClose, onCreated }: Props) {
                   {t === 'search' ? '🔍 Buscar partido' : '✏️ Manual'}
                 </button>
               ))}
-            </div>
+            </div>}
 
             {/* ── SEARCH TAB ────────────────────────────────────────────────── */}
             {tab === 'search' && (
@@ -420,7 +446,7 @@ export function AddMatchModal({ leagueId, open, onClose, onCreated }: Props) {
                   className="w-full py-3.5 rounded-btn bg-lt-green text-lt-black font-condensed text-base font-700 disabled:opacity-50 active:scale-[0.98] transition-all"
                   style={{ marginBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))' }}
                 >
-                  {manualLoading ? 'Creando…' : 'Agregar partido'}
+                  {manualLoading ? (editMatch ? 'Guardando…' : 'Creando…') : (editMatch ? 'Guardar cambios' : 'Agregar partido')}
                 </button>
               </form>
             )}

@@ -38,6 +38,9 @@ export function AdminPanel({
   const [showAddMatch, setShowAddMatch]       = useState(false)
   const [showAddQuestion, setShowAddQuestion] = useState(false)
   const [editQuestion, setEditQuestion]       = useState<QuestionRow | null>(null)
+  const [editMatch, setEditMatch]             = useState<MatchRow | null>(null)
+  const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null)
+  const [confirmDeleteMatch, setConfirmDeleteMatch] = useState<string | null>(null)
 
   const selectedMatch = matches.find((m) => m.id === selectedMatchId) ?? null
 
@@ -93,6 +96,36 @@ export function AdminPanel({
   function handleEdit(q: QuestionRow) {
     setEditQuestion(q)
     setShowAddQuestion(true)
+  }
+
+  function handleEditMatch(m: MatchRow) {
+    setEditMatch(m)
+    setShowAddMatch(true)
+  }
+
+  function handleMatchEdited(m: MatchRow) {
+    setMatches((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...m } : x)))
+    setShowAddMatch(false)
+    setEditMatch(null)
+  }
+
+  async function handleDeleteMatch(matchId: string) {
+    setDeletingMatchId(matchId)
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/admin/matches/${matchId}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        setMatches((prev) => prev.filter((m) => m.id !== matchId))
+        if (selectedMatchId === matchId) {
+          setSelectedMatchId(null)
+          setQuestions([])
+        }
+      }
+    } finally {
+      setDeletingMatchId(null)
+      setConfirmDeleteMatch(null)
+    }
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -206,43 +239,96 @@ export function AdminPanel({
                   ) : (
                     <div className="flex flex-col gap-3">
                       {matches.map((match) => (
-                        <motion.button
+                        <motion.div
                           key={match.id}
-                          onClick={() => selectMatch(match.id)}
-                          whileTap={{ scale: 0.98 }}
-                          className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4 text-left hover:border-lt-green/30 transition-colors w-full"
+                          className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4 hover:border-lt-green/30 transition-colors w-full"
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2 flex-1">
-                              <p className="font-condensed text-base font-700 text-lt-white">{match.homeTeam}</p>
-                              <span className="font-bebas text-lg text-lt-muted2">VS</span>
-                              <p className="font-condensed text-base font-700 text-lt-white">{match.awayTeam}</p>
+                          {/* Confirm delete overlay */}
+                          {confirmDeleteMatch === match.id ? (
+                            <div className="flex flex-col items-center gap-3 py-2">
+                              <p className="font-condensed text-sm text-lt-white text-center">
+                                ¿Eliminar <strong>{match.homeTeam} vs {match.awayTeam}</strong> y todas sus preguntas?
+                              </p>
+                              <div className="flex gap-3">
+                                <button
+                                  onClick={() => setConfirmDeleteMatch(null)}
+                                  className="px-4 py-2 rounded-btn bg-lt-card2 text-lt-muted2 font-condensed text-sm font-700"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteMatch(match.id)}
+                                  disabled={deletingMatchId === match.id}
+                                  className="px-4 py-2 rounded-btn bg-lt-red text-white font-condensed text-sm font-700 disabled:opacity-50"
+                                >
+                                  {deletingMatchId === match.id ? 'Eliminando…' : 'Sí, eliminar'}
+                                </button>
+                              </div>
                             </div>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-lt-muted2 flex-shrink-0">
-                              <polyline points="9 18 15 12 9 6" />
-                            </svg>
-                          </div>
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <span className="font-condensed text-xs text-lt-muted2">{match.competition}</span>
-                            <span className="font-condensed text-xs text-lt-muted2">·</span>
-                            <span className="font-condensed text-xs text-lt-muted2">{formatKickoff(match.kickoffAt)}</span>
-                            <span className="font-condensed text-xs text-lt-muted2">·</span>
-                            <span className={cn('font-condensed text-xs font-700', STATUS_COLORS[match.status] ?? 'text-lt-muted2')}>
-                              {match.status === 'SCHEDULED' ? 'Programado'
-                                : match.status === 'LIVE' ? '🔴 En vivo'
-                                : match.status === 'FINISHED' ? 'Finalizado'
-                                : match.status}
-                            </span>
-                          </div>
-                          <div className="mt-2.5 flex items-center gap-1.5">
-                            <span className="font-condensed text-xs text-lt-green font-700">
-                              {match.questionCount} pregunta{match.questionCount !== 1 ? 's' : ''}
-                            </span>
-                            {match.questionCount === 0 && (
-                              <span className="font-condensed text-xs text-lt-muted2">— toca para agregar</span>
-                            )}
-                          </div>
-                        </motion.button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => selectMatch(match.id)}
+                                className="w-full text-left"
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <p className="font-condensed text-base font-700 text-lt-white">{match.homeTeam}</p>
+                                    <span className="font-bebas text-lg text-lt-muted2">VS</span>
+                                    <p className="font-condensed text-base font-700 text-lt-white">{match.awayTeam}</p>
+                                  </div>
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-lt-muted2 flex-shrink-0">
+                                    <polyline points="9 18 15 12 9 6" />
+                                  </svg>
+                                </div>
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <span className="font-condensed text-xs text-lt-muted2">{match.competition}</span>
+                                  <span className="font-condensed text-xs text-lt-muted2">·</span>
+                                  <span className="font-condensed text-xs text-lt-muted2">{formatKickoff(match.kickoffAt)}</span>
+                                  <span className="font-condensed text-xs text-lt-muted2">·</span>
+                                  <span className={cn('font-condensed text-xs font-700', STATUS_COLORS[match.status] ?? 'text-lt-muted2')}>
+                                    {match.status === 'SCHEDULED' ? 'Programado'
+                                      : match.status === 'LIVE' ? 'En vivo'
+                                      : match.status === 'FINISHED' ? 'Finalizado'
+                                      : match.status}
+                                  </span>
+                                </div>
+                                <div className="mt-2.5 flex items-center gap-1.5">
+                                  <span className="font-condensed text-xs text-lt-green font-700">
+                                    {match.questionCount} pregunta{match.questionCount !== 1 ? 's' : ''}
+                                  </span>
+                                  {match.questionCount === 0 && (
+                                    <span className="font-condensed text-xs text-lt-muted2">— toca para agregar</span>
+                                  )}
+                                </div>
+                              </button>
+
+                              {/* Edit / Delete buttons */}
+                              <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.07)] flex gap-2">
+                                <button
+                                  onClick={() => handleEditMatch(match)}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-btn bg-lt-card2 text-lt-muted2 hover:text-lt-white font-condensed text-xs font-700 transition-colors"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                  </svg>
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteMatch(match.id)}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-btn bg-lt-red/10 text-lt-red hover:bg-lt-red/20 font-condensed text-xs font-700 transition-colors"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  </svg>
+                                  Eliminar
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </motion.div>
                       ))}
                     </div>
                   )}
@@ -361,8 +447,9 @@ export function AdminPanel({
       <AddMatchModal
         leagueId={leagueId}
         open={showAddMatch}
-        onClose={() => setShowAddMatch(false)}
-        onCreated={handleMatchCreated}
+        onClose={() => { setShowAddMatch(false); setEditMatch(null) }}
+        onCreated={editMatch ? handleMatchEdited : handleMatchCreated}
+        editMatch={editMatch}
       />
 
       {selectedMatch && (
