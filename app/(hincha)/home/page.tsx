@@ -1,6 +1,5 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { MatchWidget } from '@/components/shared/MatchWidget'
 import { XPBar } from '@/components/hincha/XPBar'
 import { LeagueCard } from '@/components/hincha/LeagueCard'
 import type { LeagueWithDetails } from '@/types'
@@ -10,15 +9,10 @@ export default async function HomePage() {
   const session = await auth()
   if (!session) return null
 
-  const [user, liveMatches, myLeagues] = await Promise.all([
+  const [user, myLeagues] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { name: true, level: true, xp: true, streak: true },
-    }),
-    prisma.match.findMany({
-      where: { status: { in: ['LIVE', 'HALFTIME'] } },
-      orderBy: { kickoffAt: 'asc' },
-      take: 5,
     }),
     prisma.leagueMember.findMany({
       where: { userId: session.user.id },
@@ -56,26 +50,6 @@ export default async function HomePage() {
 
       {/* XP Bar */}
       {user && <XPBar xp={user.xp} level={user.level} />}
-
-      {/* Partidos en vivo */}
-      {liveMatches.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lt-white font-condensed text-lg font-700 uppercase tracking-wide">
-              En vivo ahora
-            </h2>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-lt-red animate-pulse-dot" />
-              <span className="text-lt-red text-xs font-condensed">{liveMatches.length}</span>
-            </span>
-          </div>
-          <div className="space-y-2">
-            {liveMatches.map((match) => (
-              <MatchWidget key={match.id} match={match} />
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Mis ligas */}
       <section>
