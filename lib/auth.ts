@@ -32,7 +32,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: '/login',
-    newUser: '/onboarding',
+    newUser: '/home',
     error: '/login',
   },
   providers: [
@@ -79,12 +79,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id
         token.role = user.role
-        token.level = user.level
-        token.xp = user.xp
+        token.level = user.level ?? 1
+        token.xp = user.xp ?? 0
+      }
+      // On first OAuth sign-in, user object may not have role/level/xp — load from DB
+      if (trigger === 'signIn' && token.id && !token.role) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true, level: true, xp: true },
+        })
+        if (dbUser) {
+          token.role = dbUser.role
+          token.level = dbUser.level
+          token.xp = dbUser.xp
+        }
       }
       return token
     },
