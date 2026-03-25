@@ -146,6 +146,8 @@ model League {
   minConsumption       Boolean      @default(false)
   minConsumptionAmount Int?
   verificationType     VerifType?
+  bannerUrl            String?
+  themeColor           String?      @default("#00E676")
   status               LeagueStatus @default(ACTIVE)
   createdAt            DateTime     @default(now())
 

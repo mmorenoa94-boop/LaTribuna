@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { LigaTabs } from './_components/LigaTabs'
@@ -135,8 +136,21 @@ export default async function LigaDetailPage({
 
   return (
     <div className="flex flex-col min-h-full animate-fade-in">
+      {/* ── Banner ─────────────────────────────────────── */}
+      {league.bannerUrl && (
+        <div className="relative w-full h-36 overflow-hidden">
+          <Image
+            src={league.bannerUrl}
+            alt={`Banner ${league.name}`}
+            fill
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-lt-black" />
+        </div>
+      )}
+
       {/* ── Header ─────────────────────────────────────── */}
-      <div className="relative px-4 pt-4 pb-5 bg-glow-green">
+      <div className={`relative px-4 ${league.bannerUrl ? 'pt-2' : 'pt-4'} pb-5 bg-glow-green`}>
         <Link
           href="/ligas"
           className="inline-flex items-center gap-1 text-lt-muted2 text-sm font-condensed mb-4 hover:text-lt-white transition-colors"
@@ -157,6 +171,9 @@ export default async function LigaDetailPage({
             <h1 className="text-lt-white font-bebas text-4xl leading-tight tracking-wide line-clamp-2">
               {league.name}
             </h1>
+            {league.themeColor && league.themeColor !== '#00E676' && (
+              <div className="w-12 h-1 rounded-full mt-1" style={{ backgroundColor: league.themeColor }} />
+            )}
             {league.description && (
               <p className="text-lt-muted2 font-barlow text-sm mt-1 leading-snug">
                 {league.description}
