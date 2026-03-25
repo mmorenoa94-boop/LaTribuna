@@ -7,6 +7,7 @@ import { AddMatchModal, type MatchRow } from './AddMatchModal'
 import { AddQuestionModal, type QuestionRow } from './AddQuestionModal'
 import { QuestionItem } from './QuestionItem'
 import { MembersTab } from './MembersTab'
+import { ImportMatchesModal } from './ImportMatchesModal'
 
 type Tab = 'matches' | 'members'
 
@@ -41,6 +42,7 @@ export function AdminPanel({
   const [editMatch, setEditMatch]             = useState<MatchRow | null>(null)
   const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null)
   const [confirmDeleteMatch, setConfirmDeleteMatch] = useState<string | null>(null)
+  const [showImportMatches, setShowImportMatches] = useState(false)
 
   const selectedMatch = matches.find((m) => m.id === selectedMatchId) ?? null
 
@@ -126,6 +128,11 @@ export function AdminPanel({
       setDeletingMatchId(null)
       setConfirmDeleteMatch(null)
     }
+  }
+
+  function handleMatchesImported(newMatches: MatchRow[]) {
+    setMatches((prev) => [...prev, ...newMatches])
+    setShowImportMatches(false)
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -217,15 +224,28 @@ export function AdminPanel({
                     <h2 className="font-condensed text-base font-700 text-lt-white uppercase tracking-wide">
                       Partidos ({matches.length})
                     </h2>
-                    <button
-                      onClick={() => setShowAddMatch(true)}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 active:scale-95 transition-all"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                      Agregar partido
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowImportMatches(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-card2 border border-[rgba(255,255,255,0.07)] text-lt-muted2 hover:text-lt-white font-condensed text-sm font-700 active:scale-95 transition-all"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        CSV
+                      </button>
+                      <button
+                        onClick={() => setShowAddMatch(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 active:scale-95 transition-all"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        Agregar
+                      </button>
+                    </div>
                   </div>
 
                   {matches.length === 0 ? (
@@ -450,6 +470,13 @@ export function AdminPanel({
         onClose={() => { setShowAddMatch(false); setEditMatch(null) }}
         onCreated={editMatch ? handleMatchEdited : handleMatchCreated}
         editMatch={editMatch}
+      />
+
+      <ImportMatchesModal
+        leagueId={leagueId}
+        open={showImportMatches}
+        onClose={() => setShowImportMatches(false)}
+        onImported={handleMatchesImported}
       />
 
       {selectedMatch && (
