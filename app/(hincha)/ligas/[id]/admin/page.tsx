@@ -15,7 +15,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
   // Solo el creador puede acceder
   const league = await prisma.league.findUnique({
     where: { id: params.id },
-    select: { id: true, name: true, creatorId: true, bannerUrl: true, themeColor: true },
+    select: { id: true, name: true, description: true, maxMembers: true, allowRemote: true, creatorId: true, bannerUrl: true, themeColor: true },
   })
 
   if (!league || league.creatorId !== session.user.id) {
@@ -72,6 +72,9 @@ export default async function AdminPage({ params, searchParams }: Props) {
     <AdminPanel
       leagueId={params.id}
       leagueName={league.name}
+      leagueDescription={league.description}
+      leagueMaxMembers={league.maxMembers}
+      leagueAllowRemote={league.allowRemote}
       creatorId={league.creatorId}
       sessionUserId={session.user.id}
       initialMatches={initialMatches}
