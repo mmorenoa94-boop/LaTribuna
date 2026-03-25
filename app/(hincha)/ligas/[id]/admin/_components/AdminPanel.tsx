@@ -8,8 +8,9 @@ import { AddQuestionModal, type QuestionRow } from './AddQuestionModal'
 import { QuestionItem } from './QuestionItem'
 import { MembersTab } from './MembersTab'
 import { ImportMatchesModal } from './ImportMatchesModal'
+import { CustomizeTab } from './CustomizeTab'
 
-type Tab = 'matches' | 'members'
+type Tab = 'matches' | 'members' | 'customize'
 
 interface Props {
   leagueId: string
@@ -19,6 +20,8 @@ interface Props {
   initialMatches: MatchRow[]
   initialQuestions: QuestionRow[]
   initialMatchId: string | null
+  initialBannerUrl: string | null
+  initialThemeColor: string
 }
 
 export function AdminPanel({
@@ -29,6 +32,8 @@ export function AdminPanel({
   initialMatches,
   initialQuestions,
   initialMatchId,
+  initialBannerUrl,
+  initialThemeColor,
 }: Props) {
   const [activeTab, setActiveTab]         = useState<Tab>('matches')
   const [matches, setMatches]             = useState<MatchRow[]>(initialMatches)
@@ -186,6 +191,7 @@ export function AdminPanel({
             {([
               { key: 'matches' as Tab, label: 'Partidos', icon: '⚽' },
               { key: 'members' as Tab, label: 'Miembros', icon: '👥' },
+              { key: 'customize' as Tab, label: 'Personalizar', icon: '🎨' },
             ] as const).map((t) => (
               <button
                 key={t.key}
@@ -456,6 +462,23 @@ export function AdminPanel({
                 leagueId={leagueId}
                 creatorId={creatorId}
                 sessionUserId={sessionUserId}
+              />
+            </motion.div>
+          )}
+
+          {/* ── TAB: Customize ─────────────────────────────────────────── */}
+          {activeTab === 'customize' && (
+            <motion.div
+              key="customize-tab"
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 12 }}
+              transition={{ duration: 0.18 }}
+            >
+              <CustomizeTab
+                leagueId={leagueId}
+                initialBannerUrl={initialBannerUrl}
+                initialThemeColor={initialThemeColor}
               />
             </motion.div>
           )}

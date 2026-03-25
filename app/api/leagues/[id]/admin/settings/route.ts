@@ -46,6 +46,12 @@ export async function PATCH(
   if (body.description !== undefined) {
     data.description = body.description?.trim() || null
   }
+  if (typeof body.bannerUrl === 'string' || body.bannerUrl === null) {
+    data.bannerUrl = body.bannerUrl
+  }
+  if (typeof body.themeColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(body.themeColor)) {
+    data.themeColor = body.themeColor
+  }
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: 'Sin campos para actualizar' }, { status: 400 })
