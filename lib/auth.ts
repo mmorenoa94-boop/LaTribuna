@@ -79,6 +79,52 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      // Link OAuth account to existing user if email already exists
+      if (account && account.provider !== 'credentials' && user.email) {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email },
+        })
+        if (existingUser) {
+          // Check if this OAuth account is already linked
+          const existingAccount = await prisma.account.findUnique({
+            where: {
+              provider_providerAccountId: {
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+              },
+            },
+          })
+          if (!existingAccount) {
+            // Link the OAuth account to the existing user
+            await prisma.account.create({
+              data: {
+                userId: existingUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                access_token: account.access_token,
+                refresh_token: account.refresh_token,
+                expires_at: account.expires_at,
+                token_type: account.token_type,
+                scope: account.scope,
+                id_token: account.id_token,
+              },
+            })
+          }
+          // Update user image from Google if not set
+          if (!existingUser.image && user.image) {
+            await prisma.user.update({
+              where: { id: existingUser.id },
+              data: { image: user.image },
+            })
+          }
+          // Override the user id so JWT gets the correct one
+          user.id = existingUser.id
+        }
+      }
+      return true
+    },
     async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id
