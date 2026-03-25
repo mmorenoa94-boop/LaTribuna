@@ -165,10 +165,12 @@ export function AddMatchModal({ leagueId, open, onClose, onCreated, editMatch }:
       const url = editMatch
         ? `/api/leagues/${leagueId}/admin/matches/${editMatch.id}`
         : `/api/leagues/${leagueId}/admin/matches`
+      // Append Colombia timezone offset (UTC-5) to datetime-local value
+      const kickoffWithTZ = form.kickoffAt ? `${form.kickoffAt}:00-05:00` : form.kickoffAt
       const res = await fetch(url, {
         method: editMatch ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, kickoffAt: kickoffWithTZ }),
       })
       if (!res.ok) {
         const d = await res.json()

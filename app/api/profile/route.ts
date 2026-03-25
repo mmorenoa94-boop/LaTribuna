@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { awardXp } from '@/lib/scoring'
 import type { Gender } from '@prisma/client'
+
+// XP reward for completing profile to 100% (configurable)
+const PROFILE_COMPLETE_XP = 50
 
 // ── profilePct calculator ─────────────────────────────────────────────────────
 // Fields & weights (must sum to 100):
@@ -91,13 +95,15 @@ export async function PATCH(req: Request) {
     select: {
       name: true, email: true, image: true, city: true, phone: true,
       bio: true, favoriteTeam: true, birthDate: true, gender: true,
+      profilePct: true,
     },
   })
   if (!current) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
 
   // Merge current + incoming to calculate new pct
   const merged = { ...current, ...data } as typeof current
-  data.profilePct = calcProfilePct(merged)
+  const newPct = calcProfilePct(merged)
+  data.profilePct = newPct
 
   const updated = await prisma.user.update({
     where: { id: session.user.id },
@@ -109,7 +115,16 @@ export async function PATCH(req: Request) {
     },
   })
 
-  return NextResponse.json(updated)
+  // Award XP when profile reaches 100% for the first time
+  let xpAwarded = 0
+  if (newPct === 100 && current.profilePct < 100) {
+    const result = await awardXp(session.user.id, PROFILE_COMPLETE_XP)
+    updated.xp = result.newXp
+    updated.level = result.newLevel
+    xpAwarded = PROFILE_COMPLETE_XP
+  }
+
+  return NextResponse.json({ ...updated, xpAwarded })
 }
 
 // ── GET /api/profile ──────────────────────────────────────────────────────────

@@ -59,7 +59,7 @@ export function TabClasificacion({ league, userId, userPosition }: Props) {
             const pos = i + 1
             const medal = MEDAL[pos]
             const isUser = m.userId === userId
-            const heights = ['h-28', 'h-36', 'h-24']
+            const heightByPos: Record<number, string> = { 1: 'h-36', 2: 'h-28', 3: 'h-24' }
 
             return (
               <div key={m.id} className="flex flex-col items-center gap-2 flex-1">
@@ -89,7 +89,7 @@ export function TabClasificacion({ league, userId, userPosition }: Props) {
                 {/* Pedestal */}
                 <div className={cn(
                   'w-full rounded-t-lg flex flex-col items-center justify-start pt-2',
-                  heights[i], medal.bg,
+                  heightByPos[pos], medal.bg,
                   'border border-b-0', medal.border
                 )}>
                   <span className="text-2xl">{medal.emoji}</span>
