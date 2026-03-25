@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { cn } from '@/lib/utils'
@@ -41,7 +42,7 @@ export function Sidebar({ businessName, businessLogo }: Props) {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-lt-amber/15 border border-lt-amber/30 flex items-center justify-center flex-shrink-0">
               {businessLogo ? (
-                <img src={businessLogo} alt="" className="w-full h-full rounded-full object-cover" />
+                <Image src={businessLogo} alt={businessName} width={40} height={40} className="w-full h-full rounded-full object-cover" />
               ) : (
                 <span className="font-bebas text-lg text-lt-amber">
                   {businessName.charAt(0).toUpperCase()}

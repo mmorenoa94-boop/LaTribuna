@@ -58,6 +58,13 @@ export async function PATCH(req: Request) {
         data[field] = parseInt(body[field], 10) || null
       } else if (field === 'lat' || field === 'lng') {
         data[field] = parseFloat(body[field]) || null
+      } else if (field === 'logoUrl') {
+        // Only accept Cloudinary URLs — reject base64
+        const val = typeof body[field] === 'string' ? body[field].trim() : body[field]
+        if (val && typeof val === 'string' && val.length > 0 && !val.startsWith('https://')) {
+          return NextResponse.json({ error: 'El logo debe ser una URL válida (usa Cloudinary)' }, { status: 400 })
+        }
+        data[field] = val === '' ? null : val
       } else {
         data[field] = body[field]
       }

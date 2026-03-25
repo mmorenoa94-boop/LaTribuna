@@ -50,6 +50,10 @@ export async function PATCH(req: Request) {
   for (const key of allowed) {
     if (key in body) {
       const val = typeof body[key] === 'string' ? body[key].trim() : body[key]
+      // Reject base64 images — only Cloudinary URLs allowed
+      if (key === 'image' && typeof val === 'string' && val.length > 0 && !val.startsWith('https://')) {
+        return NextResponse.json({ error: 'La imagen debe ser una URL válida' }, { status: 400 })
+      }
       data[key] = val === '' ? null : val
     }
   }

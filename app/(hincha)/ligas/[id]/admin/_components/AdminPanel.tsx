@@ -9,12 +9,16 @@ import { QuestionItem } from './QuestionItem'
 import { MembersTab } from './MembersTab'
 import { ImportMatchesModal } from './ImportMatchesModal'
 import { CustomizeTab } from './CustomizeTab'
+import { SettingsTab } from './SettingsTab'
 
-type Tab = 'matches' | 'members' | 'customize'
+type Tab = 'matches' | 'members' | 'customize' | 'settings'
 
 interface Props {
   leagueId: string
   leagueName: string
+  leagueDescription: string | null
+  leagueMaxMembers: number
+  leagueAllowRemote: boolean
   creatorId: string
   sessionUserId: string
   initialMatches: MatchRow[]
@@ -27,6 +31,9 @@ interface Props {
 export function AdminPanel({
   leagueId,
   leagueName,
+  leagueDescription,
+  leagueMaxMembers,
+  leagueAllowRemote,
   creatorId,
   sessionUserId,
   initialMatches,
@@ -192,6 +199,7 @@ export function AdminPanel({
               { key: 'matches' as Tab, label: 'Partidos', icon: '⚽' },
               { key: 'members' as Tab, label: 'Miembros', icon: '👥' },
               { key: 'customize' as Tab, label: 'Personalizar', icon: '🎨' },
+              { key: 'settings' as Tab, label: 'Ajustes', icon: '⚙️' },
             ] as const).map((t) => (
               <button
                 key={t.key}
@@ -479,6 +487,25 @@ export function AdminPanel({
                 leagueId={leagueId}
                 initialBannerUrl={initialBannerUrl}
                 initialThemeColor={initialThemeColor}
+              />
+            </motion.div>
+          )}
+
+          {/* ── TAB: Settings ──────────────────────────────────────────── */}
+          {activeTab === 'settings' && (
+            <motion.div
+              key="settings-tab"
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 12 }}
+              transition={{ duration: 0.18 }}
+            >
+              <SettingsTab
+                leagueId={leagueId}
+                initialName={leagueName}
+                initialDescription={leagueDescription}
+                initialMaxMembers={leagueMaxMembers}
+                initialAllowRemote={leagueAllowRemote}
               />
             </motion.div>
           )}

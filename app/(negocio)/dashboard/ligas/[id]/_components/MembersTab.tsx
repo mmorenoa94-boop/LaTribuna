@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Image from 'next/image'
 import type { MemberData } from './LeagueAdminPanel'
 
 export function MembersTab({
@@ -133,7 +134,7 @@ export function MembersTab({
             </span>
             <div className="w-9 h-9 rounded-full bg-lt-card2 flex items-center justify-center flex-shrink-0">
               {m.image ? (
-                <img src={m.image} alt="" className="w-9 h-9 rounded-full object-cover" />
+                <Image src={m.image} alt={m.name} width={36} height={36} className="w-9 h-9 rounded-full object-cover" />
               ) : (
                 <span className="font-bebas text-sm text-lt-muted2">{m.name.charAt(0).toUpperCase()}</span>
               )}

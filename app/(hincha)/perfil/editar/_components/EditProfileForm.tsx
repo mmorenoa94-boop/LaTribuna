@@ -71,6 +71,8 @@ export function EditProfileForm({ initialData }: Props) {
     gender:       initialData.gender,
   })
   const [imagePreview, setImagePreview] = useState<string | null>(initialData.image)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
   const [error, setError]   = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
@@ -87,19 +89,19 @@ export function EditProfileForm({ initialData }: Props) {
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      setError('La imagen no puede superar 5 MB')
+    if (file.size > 2 * 1024 * 1024) {
+      setError('La imagen no puede superar 2 MB')
       return
     }
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      const base64 = ev.target?.result as string
-      setImagePreview(base64)
-      setForm((f) => ({ ...f, image: base64 }))
-      setError(null)
+    // Revoke previous preview URL if any
+    if (imagePreview && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview)
     }
-    reader.readAsDataURL(file)
-  }, [])
+    const previewUrl = URL.createObjectURL(file)
+    setImagePreview(previewUrl)
+    setSelectedFile(file)
+    setError(null)
+  }, [imagePreview])
 
   // ── Submit ───────────────────────────────────────────────────────────────────
   function handleSubmit(e: React.FormEvent) {
@@ -123,9 +125,33 @@ export function EditProfileForm({ initialData }: Props) {
           gender:       form.gender || null,
         }
 
-        // Only include image if it changed
-        if (form.image !== initialData.image) {
-          payload.image = form.image
+        // Upload image to Cloudinary if a new file was selected
+        if (selectedFile) {
+          setIsUploading(true)
+          const formData = new FormData()
+          formData.append('file', selectedFile)
+          formData.append('folder', 'avatars')
+
+          const uploadRes = await fetch('/api/upload/image', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!uploadRes.ok) {
+            const uploadData = await uploadRes.json()
+            setError(uploadData.error ?? 'Error al subir imagen')
+            setIsUploading(false)
+            return
+          }
+
+          const uploadData = await uploadRes.json()
+          payload.image = uploadData.url
+          setIsUploading(false)
+
+          // Revoke blob URL
+          if (imagePreview && imagePreview.startsWith('blob:')) {
+            URL.revokeObjectURL(imagePreview)
+          }
         }
 
         const res = await fetch('/api/profile', {
@@ -215,7 +241,7 @@ export function EditProfileForm({ initialData }: Props) {
               {imagePreview ? 'Cambiar foto' : 'Subir foto'}
             </p>
             <p className="text-lt-muted2 font-condensed text-xs mt-0.5">
-              JPG, PNG o WebP · máx. 5 MB
+              JPG, PNG o WebP · máx. 2 MB
             </p>
             <button
               type="button"
@@ -368,7 +394,7 @@ export function EditProfileForm({ initialData }: Props) {
       {/* Submit */}
       <button
         type="submit"
-        disabled={isPending || success}
+        disabled={isPending || success || isUploading}
         className={cn(
           'w-full py-4 rounded-btn font-condensed font-700 text-sm tracking-wide transition-all',
           success
@@ -376,7 +402,7 @@ export function EditProfileForm({ initialData }: Props) {
             : 'bg-lt-green text-lt-black hover:bg-lt-green/90 disabled:opacity-60'
         )}
       >
-        {success ? '✓ ¡Guardado!' : isPending ? 'Guardando...' : 'Guardar cambios'}
+        {success ? '✓ ¡Guardado!' : isUploading ? 'Subiendo imagen...' : isPending ? 'Guardando...' : 'Guardar cambios'}
       </button>
     </form>
   )

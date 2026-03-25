@@ -21,6 +21,15 @@ const pwaConfig = withPWA({
       options: { cacheName: 'static-font-assets', expiration: { maxEntries: 4, maxAgeSeconds: 7 * 24 * 60 * 60 } },
     },
     {
+      urlPattern: /^https:\/\/res\.cloudinary\.com\/.*/i,
+      handler: 'CacheFirst',
+      options: {
+        cacheName: 'cloudinary-images',
+        expiration: { maxEntries: 128, maxAgeSeconds: 30 * 24 * 60 * 60 },
+        cacheableResponse: { statuses: [0, 200] },
+      },
+    },
+    {
       urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
       handler: 'StaleWhileRevalidate',
       options: { cacheName: 'static-image-assets', expiration: { maxEntries: 64, maxAgeSeconds: 24 * 60 * 60 } },
