@@ -8,6 +8,8 @@ interface TQuestion {
   options: string[]
   correctAnswer: string | null
   pointsValue: number
+  totalPot?: number | null
+  winnersCount?: number | null
 }
 
 interface TAnswer {
@@ -58,6 +60,11 @@ export function ResultCard({ question, myAnswer }: Props) {
             <p className="font-condensed text-xl text-lt-green font-700 mt-1">
               +{myAnswer?.pointsEarned ?? question.pointsValue} puntos
             </p>
+            {question.totalPot != null && question.winnersCount != null && (
+              <p className="font-condensed text-xs text-lt-muted2 mt-1">
+                Pozo: {question.totalPot} pts · {question.winnersCount} {question.winnersCount === 1 ? 'ganador' : 'ganadores'}
+              </p>
+            )}
           </>
         ) : noAnswer ? (
           <>

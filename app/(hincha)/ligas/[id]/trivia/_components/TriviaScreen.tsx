@@ -35,6 +35,8 @@ interface TQuestion {
   closedAt: string | null
   resolvedAt: string | null
   correctAnswer: string | null
+  totalPot: number | null
+  winnersCount: number | null
 }
 
 interface TAnswer {

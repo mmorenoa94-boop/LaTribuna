@@ -63,6 +63,8 @@ export async function emitQuestionResolve(leagueId: string, matchId: string, dat
   correctAnswer: string
   scored: number
   correct: number
+  totalPot?: number
+  winnersCount?: number
 }) {
   await emitSocketEvent(
     `league:${leagueId}:match:${matchId}`,

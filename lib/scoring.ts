@@ -126,16 +126,16 @@ function calculateStreakBonus(streak: number): number {
   return 0
 }
 
-// ── Points Scoring for Questions ──
+// ── Points Scoring for Questions (Pari-mutuel / Pot System) ──
 /**
- * Score answers for a resolved question.
- * Awards points to wallet AND updates LeagueMember.totalPoints.
- * Applies presentialMultiplier if user has active check-in at league's business.
+ * Score answers for a resolved question using pot-based distribution.
+ * All answerers stake pointsValue into a pot; winners split it equally.
+ * Applies presentialMultiplier as a bonus on top of the pot share.
  */
 export async function scoreQuestionAnswers(
   questionId: string,
   correctAnswer: string
-): Promise<{ scored: number; correct: number }> {
+): Promise<{ scored: number; correct: number; totalPot: number; winnersCount: number }> {
   // Get question with league info
   const question = await prisma.leagueQuestion.findUniqueOrThrow({
     where: { id: questionId },
@@ -149,18 +149,37 @@ export async function scoreQuestionAnswers(
     },
   })
 
-  let correctCount = 0
+  const totalAnswers = question.answers.length
+  const totalPot = totalAnswers * question.pointsValue
+
+  // Identify correct answers
+  const correctAnswers = question.answers.filter(
+    (a) => a.answer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()
+  )
+  const winnersCount = correctAnswers.length
+  const basePerWinner = winnersCount > 0 ? Math.floor(totalPot / winnersCount) : 0
+
   const now = new Date()
   const eightHoursAgo = new Date(now.getTime() - 8 * 60 * 60 * 1000)
 
-  for (const ans of question.answers) {
-    const isCorrect = ans.answer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()
+  // Mark all incorrect answers
+  const incorrectIds = question.answers
+    .filter((a) => a.answer.trim().toLowerCase() !== correctAnswer.trim().toLowerCase())
+    .map((a) => a.id)
 
-    // Calculate base points
-    let points = isCorrect ? question.pointsValue : 0
+  if (incorrectIds.length > 0) {
+    await prisma.answer.updateMany({
+      where: { id: { in: incorrectIds } },
+      data: { isCorrect: false, pointsEarned: 0 },
+    })
+  }
+
+  // Process winners
+  for (const ans of correctAnswers) {
+    let points = basePerWinner
 
     // Apply presential multiplier if business league and user has active checkin
-    if (isCorrect && question.league.businessId && question.league.presentialMultiplier > 1) {
+    if (question.league.businessId && question.league.presentialMultiplier > 1) {
       const activeCheckin = await prisma.checkin.findFirst({
         where: {
           userId: ans.userId,
@@ -177,43 +196,45 @@ export async function scoreQuestionAnswers(
     // Update answer record
     await prisma.answer.update({
       where: { id: ans.id },
-      data: { isCorrect, pointsEarned: points },
+      data: { isCorrect: true, pointsEarned: points },
     })
 
-    if (isCorrect) {
-      correctCount++
+    // Credit wallet
+    await creditWallet(
+      ans.userId,
+      points,
+      'MATCH_WIN',
+      `Respuesta correcta: ${question.text.substring(0, 50)}`,
+      questionId
+    )
 
-      // Credit wallet
-      await creditWallet(
-        ans.userId,
-        points,
-        'MATCH_WIN',
-        `Respuesta correcta: ${question.text.substring(0, 50)}`,
-        questionId
-      )
+    // Update LeagueMember.totalPoints
+    await prisma.leagueMember.updateMany({
+      where: { leagueId: question.league.id, userId: ans.userId, status: 'APPROVED' },
+      data: { totalPoints: { increment: points } },
+    })
 
-      // Update LeagueMember.totalPoints
-      await prisma.leagueMember.updateMany({
-        where: { leagueId: question.league.id, userId: ans.userId, status: 'APPROVED' },
-        data: { totalPoints: { increment: points } },
-      })
+    // Award XP (5 XP per correct answer regardless of points)
+    await awardXp(ans.userId, 5)
 
-      // Award XP (5 XP per correct answer regardless of points)
-      await awardXp(ans.userId, 5)
-
-      // Update streak
-      await updateStreak(ans.userId)
-    }
+    // Update streak
+    await updateStreak(ans.userId)
   }
 
-  return { scored: question.answers.length, correct: correctCount }
+  // Store pot metadata on the question for UI display
+  await prisma.leagueQuestion.update({
+    where: { id: questionId },
+    data: { totalPot, winnersCount },
+  })
+
+  return { scored: totalAnswers, correct: winnersCount, totalPot, winnersCount }
 }
 
-// ── Score Predictions ──
+// ── Score Predictions (Pari-mutuel / Pot System) ──
 /**
  * Resolve all predictions for a match when it finishes.
- * For WINNER type: compare with match result.
- * For SCORE type: exact match = bonus points.
+ * Uses pot-based distribution: all predictors per question stake pointsValue,
+ * winners split the pot equally. SCORE type gets 2× pot multiplier.
  */
 export async function scorePredictions(matchId: string): Promise<{ scored: number; correct: number }> {
   const match = await prisma.match.findUniqueOrThrow({
@@ -229,7 +250,7 @@ export async function scorePredictions(matchId: string): Promise<{ scored: numbe
   let winner: string
   if (match.homeScore > match.awayScore) winner = match.homeTeam
   else if (match.awayScore > match.homeScore) winner = match.awayTeam
-  else winner = 'DRAW'
+  else winner = 'EMPATE'
 
   const scoreString = `${match.homeScore}-${match.awayScore}`
 
@@ -237,7 +258,7 @@ export async function scorePredictions(matchId: string): Promise<{ scored: numbe
   const predictions = await prisma.prediction.findMany({
     where: {
       question: { matchId: match.id },
-      isCorrect: null, // only unresolved
+      isCorrect: null,
     },
     include: {
       question: {
@@ -246,48 +267,82 @@ export async function scorePredictions(matchId: string): Promise<{ scored: numbe
     },
   })
 
-  let correctCount = 0
-
+  // Group predictions by questionId for pot calculation
+  const byQuestion = new Map<string, typeof predictions>()
   for (const pred of predictions) {
-    let isCorrect = false
-    let points = 0
+    const group = byQuestion.get(pred.questionId) ?? []
+    group.push(pred)
+    byQuestion.set(pred.questionId, group)
+  }
 
-    if (pred.question.type === 'WINNER') {
-      isCorrect = pred.answer.trim().toLowerCase() === winner.toLowerCase()
-      points = isCorrect ? pred.question.pointsValue : 0
-    } else if (pred.question.type === 'SCORE') {
-      isCorrect = pred.answer.trim() === scoreString
-      // Exact score prediction gets 2x bonus
-      points = isCorrect ? pred.question.pointsValue * 2 : 0
-    }
-    // Other prediction types can be added here
+  let totalScored = 0
+  let totalCorrect = 0
 
-    await prisma.prediction.update({
-      where: { id: pred.id },
-      data: { isCorrect, pointsEarned: points },
+  for (const [questionId, questionPreds] of Array.from(byQuestion.entries())) {
+    const question = questionPreds[0].question
+    const isScoreType = question.type === 'SCORE'
+
+    // Determine correctness for each prediction
+    const evaluated = questionPreds.map((pred) => {
+      let isCorrect = false
+      if (question.type === 'WINNER') {
+        isCorrect = pred.answer.trim().toUpperCase() === winner.toUpperCase()
+      } else if (question.type === 'SCORE') {
+        isCorrect = pred.answer.trim() === scoreString
+      }
+      return { ...pred, isCorrect }
     })
 
-    if (isCorrect) {
-      correctCount++
+    const winners = evaluated.filter((p) => p.isCorrect)
+    const losers = evaluated.filter((p) => !p.isCorrect)
+
+    // Pot calculation: SCORE type gets 2× pot multiplier
+    const potMultiplier = isScoreType ? 2 : 1
+    const totalPot = questionPreds.length * question.pointsValue * potMultiplier
+    const winnersCount = winners.length
+    const pointsPerWinner = winnersCount > 0 ? Math.floor(totalPot / winnersCount) : 0
+
+    // Mark all losers
+    if (losers.length > 0) {
+      await prisma.prediction.updateMany({
+        where: { id: { in: losers.map((p) => p.id) } },
+        data: { isCorrect: false, pointsEarned: 0 },
+      })
+    }
+
+    // Process winners
+    for (const pred of winners) {
+      await prisma.prediction.update({
+        where: { id: pred.id },
+        data: { isCorrect: true, pointsEarned: pointsPerWinner },
+      })
 
       await creditWallet(
         pred.userId,
-        points,
+        pointsPerWinner,
         'PREDICTION_WIN',
-        `Prediccion correcta: ${match.homeTeam} vs ${match.awayTeam}`,
+        `Predicción correcta: ${match.homeTeam} vs ${match.awayTeam}`,
         pred.id
       )
 
-      // Update LeagueMember.totalPoints
       await prisma.leagueMember.updateMany({
-        where: { leagueId: pred.question.leagueId, userId: pred.userId, status: 'APPROVED' },
-        data: { totalPoints: { increment: points } },
+        where: { leagueId: question.leagueId, userId: pred.userId, status: 'APPROVED' },
+        data: { totalPoints: { increment: pointsPerWinner } },
       })
 
-      // Award XP (10 XP for correct prediction — worth more than trivia)
+      // Award XP (10 XP for correct prediction)
       await awardXp(pred.userId, 10)
     }
+
+    // Store pot metadata on the question
+    await prisma.leagueQuestion.update({
+      where: { id: questionId },
+      data: { totalPot, winnersCount },
+    })
+
+    totalScored += questionPreds.length
+    totalCorrect += winnersCount
   }
 
-  return { scored: predictions.length, correct: correctCount }
+  return { scored: totalScored, correct: totalCorrect }
 }

@@ -105,15 +105,17 @@ export async function PATCH(
       },
     })
 
-    // Score answers using the real scoring system
+    // Score answers using the pari-mutuel pot system
     const result = await scoreQuestionAnswers(params.qid, correctAnswer)
 
-    // Emit resolve event
+    // Emit resolve event with pot details
     await emitQuestionResolve(params.id, question.matchId, {
       questionId: params.qid,
       correctAnswer,
       scored: result.scored,
       correct: result.correct,
+      totalPot: result.totalPot,
+      winnersCount: result.winnersCount,
     })
 
     // Emit updated leaderboard
