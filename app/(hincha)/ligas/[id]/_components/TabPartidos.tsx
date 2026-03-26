@@ -181,10 +181,13 @@ function PredictionQuestion({
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const canAnswer = question.status === 'OPEN' && !prediction
+  const isOpen = question.status === 'OPEN'
+  const canAnswer = isOpen // Can answer or change while open
 
   async function submit(answer: string) {
     if (!canAnswer || loading) return
+    // Don't re-submit the same answer
+    if (prediction?.answer === answer) return
     setLoading(true)
     setError('')
     try {
@@ -238,22 +241,44 @@ function PredictionQuestion({
           🏆 Sistema pozo · Apuesta: {question.pointsValue} pts
         </p>
 
-        {/* Options */}
+        {/* Options — show selectable options while question is open (even if already answered) */}
         {canAnswer ? (
-          <div className="grid gap-2">
-            {question.options.map((opt) => (
-              <button
-                key={opt}
-                onClick={() => submit(opt)}
-                disabled={loading}
-                className="w-full text-left px-3 py-2.5 rounded-btn border border-lt-muted text-lt-white font-condensed text-sm hover:border-lt-green/50 hover:bg-lt-green/5 transition-all active:scale-[0.98] disabled:opacity-50"
-              >
-                {opt}
-              </button>
-            ))}
+          <div className="space-y-2">
+            <div className="grid gap-2">
+              {question.options.map((opt) => {
+                const isSelected = prediction?.answer === opt
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => submit(opt)}
+                    disabled={loading}
+                    className={cn(
+                      'w-full text-left px-3 py-2.5 rounded-btn border font-condensed text-sm transition-all active:scale-[0.98] disabled:opacity-50',
+                      isSelected
+                        ? 'border-lt-green bg-lt-green/10 text-lt-white'
+                        : 'border-lt-muted text-lt-white hover:border-lt-green/50 hover:bg-lt-green/5'
+                    )}
+                  >
+                    <span className="flex items-center justify-between">
+                      {opt}
+                      {isSelected && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-lt-green flex-shrink-0">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            {prediction && (
+              <p className="text-center text-lt-muted2 font-condensed text-xs">
+                Puedes cambiar tu predicción mientras esté abierta
+              </p>
+            )}
           </div>
         ) : prediction ? (
-          /* Ya respondido */
+          /* Answered and closed/resolved */
           <div className={cn(
             'flex items-center justify-between px-3 py-2.5 rounded-btn border',
             correct ? 'border-lt-green/40 bg-lt-green/10' :

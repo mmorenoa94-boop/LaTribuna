@@ -27,13 +27,18 @@ interface Props {
 }
 
 export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions, onAnswer }: Props) {
-  const already = myAnswer !== null
+  const hasAnswered = myAnswer !== null
   const [submitting, setSubmitting] = useState(false)
   const [optimistic, setOptimistic] = useState<string | null>(myAnswer?.answer ?? null)
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     if (!question.closedAt) return 30
     return Math.max(0, Math.floor((new Date(question.closedAt).getTime() - Date.now()) / 1000))
   })
+
+  // Sync optimistic with server answer when it changes
+  useEffect(() => {
+    if (myAnswer?.answer) setOptimistic(myAnswer.answer)
+  }, [myAnswer?.answer])
 
   // Calculate total duration for bar width
   const totalDuration = useRef<number>(30)
@@ -48,22 +53,24 @@ export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions
     }
   }, [question.openAt, question.closedAt])
 
-  // Countdown
+  // Countdown — always runs while question is open
   useEffect(() => {
-    if (already) return
     const interval = setInterval(() => {
       if (!question.closedAt) return
       const left = Math.max(0, Math.floor((new Date(question.closedAt).getTime() - Date.now()) / 1000))
       setTimeLeft(left)
     }, 250)
     return () => clearInterval(interval)
-  }, [question.closedAt, already])
+  }, [question.closedAt])
 
+  const expired = timeLeft <= 0
   const timerPct = Math.min(100, (timeLeft / totalDuration.current) * 100)
-  const urgent = timeLeft <= 5 && !already
+  const urgent = timeLeft <= 5 && !expired
 
   async function handleSelect(option: string) {
-    if (already || submitting || timeLeft <= 0) return
+    if (submitting || expired) return
+    // Allow re-selecting a different option
+    if (option === optimistic) return
     setSubmitting(true)
     setOptimistic(option)
     await onAnswer(option)
@@ -85,25 +92,27 @@ export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions
         <span className="font-condensed text-xs text-lt-muted2 uppercase tracking-wider">
           Pregunta {questionIndex} de {totalQuestions}
         </span>
-        {!already ? (
+        {!expired ? (
           <span className={cn(
             'font-bebas text-3xl leading-none tabular-nums transition-colors',
             urgent ? 'text-lt-red' : 'text-lt-green'
           )}>
             {String(Math.floor(timeLeft / 60)).padStart(1, '0')}:{String(timeLeft % 60).padStart(2, '0')}
           </span>
-        ) : (
+        ) : hasAnswered ? (
           <span className="flex items-center gap-1.5 text-lt-green font-condensed text-sm">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             Respondida
           </span>
+        ) : (
+          <span className="font-condensed text-sm text-lt-red">Tiempo agotado</span>
         )}
       </div>
 
       {/* Timer bar */}
-      {!already && (
+      {!expired && (
         <div className="h-1 w-full bg-lt-card2 rounded-full overflow-hidden -mt-3">
           <motion.div
             className={cn('h-full rounded-full', urgent ? 'bg-lt-red' : 'bg-lt-green')}
@@ -128,7 +137,7 @@ export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions
         <AnimatePresence>
           {(question.options as string[]).map((option, i) => {
             const isSelected = selected === option
-            const isDisabled = already || timeLeft <= 0
+            const isDisabled = expired
 
             return (
               <motion.button
@@ -170,9 +179,14 @@ export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions
         </AnimatePresence>
       </div>
 
-      {already && (
+      {hasAnswered && !expired && (
         <p className="text-center text-lt-muted2 font-condensed text-sm">
-          Esperando que cierre la pregunta…
+          Puedes cambiar tu respuesta antes de que se cierre
+        </p>
+      )}
+      {hasAnswered && expired && (
+        <p className="text-center text-lt-muted2 font-condensed text-sm">
+          Esperando que se resuelva la pregunta…
         </p>
       )}
     </motion.div>
