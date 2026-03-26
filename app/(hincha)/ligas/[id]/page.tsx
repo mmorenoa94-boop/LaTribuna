@@ -72,6 +72,7 @@ export default async function LigaDetailPage({
     type: league.type,
     status: league.status,
     maxMembers: league.maxMembers,
+    scoringMode: league.scoringMode as 'FIXED' | 'POOL',
     allowRemote: league.allowRemote,
     minConsumption: league.minConsumption,
     minConsumptionAmount: league.minConsumptionAmount,

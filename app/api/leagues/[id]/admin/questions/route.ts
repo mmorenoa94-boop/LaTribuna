@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { emitQuestionClose } from '@/lib/socket-emit'
 
 async function verifyCreator(leagueId: string, userId: string) {
   const league = await prisma.league.findUnique({ where: { id: leagueId } })
@@ -80,4 +81,52 @@ export async function POST(
   })
 
   return NextResponse.json(question, { status: 201 })
+}
+
+// PATCH: bulk close all open questions for a match
+export async function PATCH(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  const session = await auth()
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const league = await verifyCreator(params.id, session.user.id)
+  if (!league) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+
+  const body = await req.json()
+  const { action, matchId } = body
+
+  if (action === 'close-all' && matchId) {
+    const openQuestions = await prisma.leagueQuestion.findMany({
+      where: { leagueId: params.id, matchId, status: 'OPEN' },
+      select: { id: true },
+    })
+
+    if (openQuestions.length === 0) {
+      return NextResponse.json({ error: 'No hay preguntas abiertas' }, { status: 400 })
+    }
+
+    const now = new Date()
+    await prisma.leagueQuestion.updateMany({
+      where: { id: { in: openQuestions.map((q) => q.id) } },
+      data: { status: 'CLOSED', closedAt: now },
+    })
+
+    // Emit close event for each question
+    for (const q of openQuestions) {
+      await emitQuestionClose(params.id, matchId, { questionId: q.id })
+    }
+
+    // Return updated questions
+    const updated = await prisma.leagueQuestion.findMany({
+      where: { leagueId: params.id, matchId },
+      orderBy: { orderIndex: 'asc' },
+      include: { _count: { select: { answers: true } } },
+    })
+
+    return NextResponse.json(updated)
+  }
+
+  return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
 }

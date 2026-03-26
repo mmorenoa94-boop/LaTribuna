@@ -23,10 +23,11 @@ interface Props {
   myAnswer: TAnswer | null
   questionIndex: number
   totalQuestions: number
+  scoringLabel?: string
   onAnswer: (answer: string) => void
 }
 
-export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions, onAnswer }: Props) {
+export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions, scoringLabel = 'Puntaje fijo', onAnswer }: Props) {
   const hasAnswered = myAnswer !== null
   const [submitting, setSubmitting] = useState(false)
   const [optimistic, setOptimistic] = useState<string | null>(myAnswer?.answer ?? null)
@@ -128,7 +129,7 @@ export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions
           {question.text}
         </p>
         <p className="font-condensed text-xs text-lt-muted2 mt-1">
-          🏆 Sistema pozo · Apuesta: {question.pointsValue} pts
+          🏆 {scoringLabel} · {question.pointsValue} pts
         </p>
       </div>
 

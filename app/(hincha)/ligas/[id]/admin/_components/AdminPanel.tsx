@@ -59,6 +59,7 @@ export function AdminPanel({
   const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null)
   const [confirmDeleteMatch, setConfirmDeleteMatch] = useState<string | null>(null)
   const [showImportMatches, setShowImportMatches] = useState(false)
+  const [closingAll, setClosingAll] = useState(false)
 
   const selectedMatch = matches.find((m) => m.id === selectedMatchId) ?? null
 
@@ -149,6 +150,25 @@ export function AdminPanel({
   function handleMatchesImported(newMatches: MatchRow[]) {
     setMatches((prev) => [...prev, ...newMatches])
     setShowImportMatches(false)
+  }
+
+  async function handleCloseAllOpen() {
+    if (!selectedMatchId || closingAll) return
+    if (!confirm('¿Cerrar todas las preguntas abiertas de este partido?')) return
+    setClosingAll(true)
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/admin/questions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'close-all', matchId: selectedMatchId }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setQuestions(updated)
+      }
+    } finally {
+      setClosingAll(false)
+    }
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -419,6 +439,21 @@ export function AdminPanel({
                         <p className="font-condensed text-xs text-lt-muted2">Abiertas</p>
                       </div>
                     </div>
+                  )}
+
+                  {/* Bulk close button */}
+                  {openCount > 0 && (
+                    <button
+                      onClick={handleCloseAllOpen}
+                      disabled={closingAll}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm font-700 hover:bg-lt-amber/25 transition-colors disabled:opacity-50"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <line x1="9" y1="9" x2="15" y2="15" /><line x1="15" y1="9" x2="9" y2="15" />
+                      </svg>
+                      {closingAll ? 'Cerrando…' : `Cerrar todas las abiertas (${openCount})`}
+                    </button>
                   )}
 
                   {/* Questions */}
