@@ -40,7 +40,7 @@ export async function GET(
     }),
     prisma.league.findUnique({
       where: { id: params.id },
-      select: { id: true, name: true },
+      select: { id: true, name: true, scoringMode: true },
     }),
   ])
 

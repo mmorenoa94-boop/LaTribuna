@@ -14,6 +14,7 @@ interface Props {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function TabPartidos({ league, userId, predictions: initialPredictions }: Props) {
+  const scoringLabel = league.scoringMode === 'POOL' ? 'Sistema pozo' : 'Puntaje fijo'
   const [preds, setPreds] = useState<Record<string, SPrediction>>(
     Object.fromEntries(initialPredictions.map((p) => [p.questionId, p]))
   )
@@ -34,6 +35,7 @@ export function TabPartidos({ league, userId, predictions: initialPredictions }:
             match={match}
             questions={matchQuestions}
             leagueId={league.id}
+            scoringLabel={scoringLabel}
             predictions={preds}
             onPrediction={(questionId, pred) =>
               setPreds((prev) => ({ ...prev, [questionId]: pred }))
@@ -48,11 +50,12 @@ export function TabPartidos({ league, userId, predictions: initialPredictions }:
 // ── MatchCard ─────────────────────────────────────────────
 
 function MatchCard({
-  match, questions, leagueId, predictions, onPrediction,
+  match, questions, leagueId, scoringLabel, predictions, onPrediction,
 }: {
   match: SMatch
   questions: SQuestion[]
   leagueId: string
+  scoringLabel: string
   predictions: Record<string, SPrediction>
   onPrediction: (questionId: string, pred: SPrediction) => void
 }) {
@@ -153,6 +156,7 @@ function MatchCard({
               question={q}
               match={match}
               leagueId={leagueId}
+              scoringLabel={scoringLabel}
               prediction={predictions[q.id] ?? null}
               onSave={(pred) => onPrediction(q.id, pred)}
             />
@@ -171,11 +175,12 @@ function MatchCard({
 
 function PredictionQuestion({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  question, match, leagueId, prediction, onSave,
+  question, match, leagueId, scoringLabel, prediction, onSave,
 }: {
   question: SQuestion
   match: SMatch
   leagueId: string
+  scoringLabel: string
   prediction: SPrediction | null
   onSave: (pred: SPrediction) => void
 }) {
@@ -245,7 +250,7 @@ function PredictionQuestion({
 
         {/* Points */}
         <p className="text-lt-muted2 text-xs font-condensed mb-3">
-          🏆 Sistema pozo · Apuesta: {question.pointsValue} pts
+          🏆 {scoringLabel} · {question.pointsValue} pts
         </p>
 
         {/* Options — selectable while question is open */}
@@ -321,9 +326,9 @@ function PredictionQuestion({
                 {correct ? (
                   <div>
                     <span className="text-lt-green font-condensed text-sm font-700">+{prediction.pointsEarned} pts ✓</span>
-                    {question.totalPot != null && question.winnersCount != null && (
+                    {question.winnersCount != null && (
                       <p className="text-lt-muted2 font-condensed text-[10px]">
-                        Pozo: {question.totalPot} · {question.winnersCount} {question.winnersCount === 1 ? 'ganador' : 'ganadores'}
+                        {question.totalPot ? `Pozo: ${question.totalPot} · ` : ''}{question.winnersCount} {question.winnersCount === 1 ? 'ganador' : 'ganadores'}
                       </p>
                     )}
                   </div>

@@ -53,7 +53,7 @@ interface LeaderboardEntry {
 }
 
 interface TriviaData {
-  league: { id: string; name: string }
+  league: { id: string; name: string; scoringMode: 'FIXED' | 'POOL' }
   match: MatchInfo
   questions: TQuestion[]
   answers: TAnswer[]
@@ -195,6 +195,7 @@ export function TriviaScreen({ leagueId, leagueName, matchId, initialMatch }: Pr
               myAnswer={answers.find((a) => a.questionId === openQuestion.id) ?? null}
               questionIndex={questions.indexOf(openQuestion) + 1}
               totalQuestions={totalQs}
+              scoringLabel={data?.league.scoringMode === 'POOL' ? 'Sistema pozo' : 'Puntaje fijo'}
               onAnswer={(ans) => handleAnswer(openQuestion.id, ans)}
             />
           ) : (
