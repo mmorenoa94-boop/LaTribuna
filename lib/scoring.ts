@@ -142,7 +142,7 @@
       where: { id: questionId },
       include: {
         league: {
-          select: { id: true, businessId: true, presentialMultiplier: true },
+          select: { id: true, businessId: true, presentialMultiplier: true, scoringMode: true },
         },
         answers: {
           select: { id: true, userId: true, answer: true },
@@ -153,6 +153,8 @@
       },
     })
 
+    const isPool = question.league.scoringMode === 'POOL'
+
     // Combine all participants into a unified list
     const allParticipants = [
       ...question.answers.map((a) => ({ ...a, model: 'answer' as const })),
@@ -160,7 +162,7 @@
     ]
 
     const totalParticipants = allParticipants.length
-    const totalPot = totalParticipants * question.pointsValue
+    const totalPot = isPool ? totalParticipants * question.pointsValue : 0
 
     // Identify correct participants
     const correctOnes = allParticipants.filter(
@@ -170,7 +172,10 @@
       (p) => p.answer.trim().toLowerCase() !== correctAnswer.trim().toLowerCase()
     )
     const winnersCount = correctOnes.length
-    const basePerWinner = winnersCount > 0 ? Math.floor(totalPot / winnersCount) : 0
+    // POOL: split pot among winners. FIXED: each winner gets full pointsValue
+    const basePerWinner = isPool
+      ? (winnersCount > 0 ? Math.floor(totalPot / winnersCount) : 0)
+      : question.pointsValue
 
     const now = new Date()
     const eightHoursAgo = new Date(now.getTime() - 8 * 60 * 60 * 1000)
@@ -288,7 +293,7 @@
       },
       include: {
         question: {
-          select: { id: true, type: true, pointsValue: true, leagueId: true },
+          select: { id: true, type: true, pointsValue: true, leagueId: true, league: { select: { scoringMode: true } } },
         },
       },
     })
@@ -322,11 +327,15 @@
       const winners = evaluated.filter((p) => p.isCorrect)
       const losers = evaluated.filter((p) => !p.isCorrect)
 
-      // Pot calculation: SCORE type gets 2× pot multiplier
+      const isPool = question.league.scoringMode === 'POOL'
+
+      // POOL: pot split among winners. FIXED: each winner gets pointsValue (2× for SCORE type)
       const potMultiplier = isScoreType ? 2 : 1
-      const totalPot = questionPreds.length * question.pointsValue * potMultiplier
+      const totalPot = isPool ? questionPreds.length * question.pointsValue * potMultiplier : 0
       const winnersCount = winners.length
-      const pointsPerWinner = winnersCount > 0 ? Math.floor(totalPot / winnersCount) : 0
+      const pointsPerWinner = isPool
+        ? (winnersCount > 0 ? Math.floor(totalPot / winnersCount) : 0)
+        : question.pointsValue * potMultiplier
 
       // Mark all losers
       if (losers.length > 0) {
