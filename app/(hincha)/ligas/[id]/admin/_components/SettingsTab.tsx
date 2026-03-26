@@ -8,6 +8,7 @@ interface Props {
   initialDescription: string | null
   initialMaxMembers: number
   initialAllowRemote: boolean
+  initialScoringMode: 'FIXED' | 'POOL'
   hasLinkedBusiness: boolean
 }
 
@@ -17,12 +18,14 @@ export function SettingsTab({
   initialDescription,
   initialMaxMembers,
   initialAllowRemote,
+  initialScoringMode,
   hasLinkedBusiness,
 }: Props) {
   const [name, setName] = useState(initialName)
   const [description, setDescription] = useState(initialDescription ?? '')
   const [maxMembers, setMaxMembers] = useState(initialMaxMembers)
   const [allowRemote, setAllowRemote] = useState(initialAllowRemote)
+  const [scoringMode, setScoringMode] = useState(initialScoringMode)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -42,6 +45,7 @@ export function SettingsTab({
           description: description.trim() || null,
           maxMembers,
           allowRemote,
+          scoringMode,
         }),
       })
       if (res.ok) {
@@ -71,7 +75,8 @@ export function SettingsTab({
     name.trim() !== initialName ||
     (description.trim() || null) !== (initialDescription || null) ||
     maxMembers !== initialMaxMembers ||
-    allowRemote !== initialAllowRemote
+    allowRemote !== initialAllowRemote ||
+    scoringMode !== initialScoringMode
 
   return (
     <div className="flex flex-col gap-6">
@@ -124,6 +129,47 @@ export function SettingsTab({
             className="w-full bg-lt-card2 border border-[rgba(255,255,255,0.07)] rounded-btn px-4 py-3 text-lt-white font-barlow text-sm outline-none focus:border-lt-green/40 transition-colors"
           />
           <p className="font-condensed text-[10px] text-lt-muted2 mt-1">Mínimo 2, máximo 500</p>
+        </div>
+
+        {/* Scoring mode */}
+        <div>
+          <label className="block font-condensed text-xs text-lt-muted2 mb-2 uppercase tracking-wide">
+            Modo de puntaje
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setScoringMode('FIXED')}
+              className={`p-3 rounded-btn border text-left transition-all ${
+                scoringMode === 'FIXED'
+                  ? 'border-lt-green bg-lt-green/10'
+                  : 'border-[rgba(255,255,255,0.07)] bg-lt-card2 hover:border-[rgba(255,255,255,0.15)]'
+              }`}
+            >
+              <p className={`font-condensed text-sm font-700 ${scoringMode === 'FIXED' ? 'text-lt-green' : 'text-lt-white'}`}>
+                Puntaje fijo
+              </p>
+              <p className="font-condensed text-[10px] text-lt-muted2 mt-0.5 leading-snug">
+                Cada acierto da los puntos definidos en la pregunta
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setScoringMode('POOL')}
+              className={`p-3 rounded-btn border text-left transition-all ${
+                scoringMode === 'POOL'
+                  ? 'border-lt-green bg-lt-green/10'
+                  : 'border-[rgba(255,255,255,0.07)] bg-lt-card2 hover:border-[rgba(255,255,255,0.15)]'
+              }`}
+            >
+              <p className={`font-condensed text-sm font-700 ${scoringMode === 'POOL' ? 'text-lt-green' : 'text-lt-white'}`}>
+                Pozo
+              </p>
+              <p className="font-condensed text-[10px] text-lt-muted2 mt-0.5 leading-snug">
+                Los puntos se reparten entre los que aciertan
+              </p>
+            </button>
+          </div>
         </div>
 
         {/* Allow remote — only for business-linked leagues */}

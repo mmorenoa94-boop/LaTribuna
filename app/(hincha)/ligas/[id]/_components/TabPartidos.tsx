@@ -181,30 +181,37 @@ function PredictionQuestion({
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [selected, setSelected] = useState<string | null>(prediction?.answer ?? null)
+  const [saved, setSaved] = useState(false)
   const isOpen = question.status === 'OPEN'
-  const canAnswer = isOpen // Can answer or change while open
 
-  async function submit(answer: string) {
-    if (!canAnswer || loading) return
-    // Don't re-submit the same answer
-    if (prediction?.answer === answer) return
+  // The selection differs from what's saved on the server
+  const hasUnsavedChange = isOpen && selected !== null && selected !== (prediction?.answer ?? null)
+  // Already saved and no new change
+  const isSaved = prediction !== null && selected === prediction.answer
+
+  async function save() {
+    if (!selected || loading || !hasUnsavedChange) return
     setLoading(true)
     setError('')
+    setSaved(false)
     try {
       const res = await fetch(`/api/leagues/${leagueId}/predictions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questionId: question.id, answer }),
+        body: JSON.stringify({ questionId: question.id, answer: selected }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Error al guardar')
       onSave({
         id: data.id,
         questionId: question.id,
-        answer,
+        answer: selected,
         isCorrect: null,
         pointsEarned: 0,
       })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error')
     } finally {
@@ -241,16 +248,16 @@ function PredictionQuestion({
           🏆 Sistema pozo · Apuesta: {question.pointsValue} pts
         </p>
 
-        {/* Options — show selectable options while question is open (even if already answered) */}
-        {canAnswer ? (
+        {/* Options — selectable while question is open */}
+        {isOpen ? (
           <div className="space-y-2">
             <div className="grid gap-2">
               {question.options.map((opt) => {
-                const isSelected = prediction?.answer === opt
+                const isSelected = selected === opt
                 return (
                   <button
                     key={opt}
-                    onClick={() => submit(opt)}
+                    onClick={() => setSelected(opt)}
                     disabled={loading}
                     className={cn(
                       'w-full text-left px-3 py-2.5 rounded-btn border font-condensed text-sm transition-all active:scale-[0.98] disabled:opacity-50',
@@ -271,9 +278,24 @@ function PredictionQuestion({
                 )
               })}
             </div>
-            {prediction && (
-              <p className="text-center text-lt-muted2 font-condensed text-xs">
-                Puedes cambiar tu predicción mientras esté abierta
+
+            {/* Save button */}
+            {hasUnsavedChange && (
+              <motion.button
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={save}
+                disabled={loading}
+                className="w-full py-2.5 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 disabled:opacity-50 active:scale-[0.98] transition-all"
+              >
+                {loading ? 'Guardando…' : 'Guardar predicción'}
+              </motion.button>
+            )}
+
+            {/* Saved confirmation */}
+            {isSaved && !hasUnsavedChange && (
+              <p className="text-center font-condensed text-xs text-lt-green">
+                {saved ? '✓ Predicción guardada' : '✓ Guardada — puedes cambiarla mientras esté abierta'}
               </p>
             )}
           </div>

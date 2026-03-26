@@ -148,6 +148,7 @@ model League {
   verificationType     VerifType?
   bannerUrl            String?
   themeColor           String?      @default("#00E676")
+  scoringMode          ScoringMode  @default(FIXED)
   status               LeagueStatus @default(ACTIVE)
   createdAt            DateTime     @default(now())
 
@@ -169,6 +170,11 @@ enum MatchMode {
   PER_MATCH
   SEASON
   HYBRID
+}
+
+enum ScoringMode {
+  FIXED // Cada respuesta correcta da los puntos fijos de la pregunta
+  POOL  // Los puntos se reparten entre los que aciertan
 }
 
 enum VerifType {
