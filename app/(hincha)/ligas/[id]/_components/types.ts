@@ -44,6 +44,8 @@ export interface SQuestion {
   closedAt: string | null
   resolvedAt: string | null
   correctAnswer: string | null
+  totalPot: number | null
+  winnersCount: number | null
 }
 
 export interface SPrize {
