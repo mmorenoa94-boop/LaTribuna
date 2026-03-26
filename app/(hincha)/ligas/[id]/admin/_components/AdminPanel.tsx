@@ -60,6 +60,7 @@ export function AdminPanel({
   const [confirmDeleteMatch, setConfirmDeleteMatch] = useState<string | null>(null)
   const [showImportMatches, setShowImportMatches] = useState(false)
   const [closingAll, setClosingAll] = useState(false)
+  const [openingAll, setOpeningAll] = useState(false)
 
   const selectedMatch = matches.find((m) => m.id === selectedMatchId) ?? null
 
@@ -168,6 +169,25 @@ export function AdminPanel({
       }
     } finally {
       setClosingAll(false)
+    }
+  }
+
+  async function handleOpenAllPending() {
+    if (!selectedMatchId || openingAll) return
+    if (!confirm('¿Abrir todas las preguntas pendientes de este partido?')) return
+    setOpeningAll(true)
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/admin/questions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'open-all', matchId: selectedMatchId }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setQuestions(updated)
+      }
+    } finally {
+      setOpeningAll(false)
     }
   }
 
@@ -441,19 +461,35 @@ export function AdminPanel({
                     </div>
                   )}
 
-                  {/* Bulk close button */}
-                  {openCount > 0 && (
-                    <button
-                      onClick={handleCloseAllOpen}
-                      disabled={closingAll}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm font-700 hover:bg-lt-amber/25 transition-colors disabled:opacity-50"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <line x1="9" y1="9" x2="15" y2="15" /><line x1="15" y1="9" x2="9" y2="15" />
-                      </svg>
-                      {closingAll ? 'Cerrando…' : `Cerrar todas las abiertas (${openCount})`}
-                    </button>
+                  {/* Bulk action buttons */}
+                  {(pendingCount > 0 || openCount > 0) && (
+                    <div className="flex gap-2">
+                      {pendingCount > 0 && (
+                        <button
+                          onClick={handleOpenAllPending}
+                          disabled={openingAll}
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-green/15 border border-lt-green/40 text-lt-green font-condensed text-sm font-700 hover:bg-lt-green/25 transition-colors disabled:opacity-50"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polygon points="5 3 19 12 5 21 5 3" />
+                          </svg>
+                          {openingAll ? 'Abriendo…' : `Abrir todas (${pendingCount})`}
+                        </button>
+                      )}
+                      {openCount > 0 && (
+                        <button
+                          onClick={handleCloseAllOpen}
+                          disabled={closingAll}
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm font-700 hover:bg-lt-amber/25 transition-colors disabled:opacity-50"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <line x1="9" y1="9" x2="15" y2="15" /><line x1="15" y1="9" x2="9" y2="15" />
+                          </svg>
+                          {closingAll ? 'Cerrando…' : `Cerrar todas (${openCount})`}
+                        </button>
+                      )}
+                    </div>
                   )}
 
                   {/* Questions */}

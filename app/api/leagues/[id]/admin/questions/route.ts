@@ -97,6 +97,31 @@ export async function PATCH(
   const body = await req.json()
   const { action, matchId } = body
 
+  if (action === 'open-all' && matchId) {
+    const pendingQuestions = await prisma.leagueQuestion.findMany({
+      where: { leagueId: params.id, matchId, status: 'PENDING' },
+      select: { id: true },
+    })
+
+    if (pendingQuestions.length === 0) {
+      return NextResponse.json({ error: 'No hay preguntas pendientes' }, { status: 400 })
+    }
+
+    const now = new Date()
+    await prisma.leagueQuestion.updateMany({
+      where: { id: { in: pendingQuestions.map((q) => q.id) } },
+      data: { status: 'OPEN', openAt: now },
+    })
+
+    const updated = await prisma.leagueQuestion.findMany({
+      where: { leagueId: params.id, matchId },
+      orderBy: { orderIndex: 'asc' },
+      include: { _count: { select: { answers: true } } },
+    })
+
+    return NextResponse.json(updated)
+  }
+
   if (action === 'close-all' && matchId) {
     const openQuestions = await prisma.leagueQuestion.findMany({
       where: { leagueId: params.id, matchId, status: 'OPEN' },
