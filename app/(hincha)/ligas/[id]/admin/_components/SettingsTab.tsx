@@ -8,6 +8,7 @@ interface Props {
   initialDescription: string | null
   initialMaxMembers: number
   initialAllowRemote: boolean
+  hasLinkedBusiness: boolean
 }
 
 export function SettingsTab({
@@ -16,6 +17,7 @@ export function SettingsTab({
   initialDescription,
   initialMaxMembers,
   initialAllowRemote,
+  hasLinkedBusiness,
 }: Props) {
   const [name, setName] = useState(initialName)
   const [description, setDescription] = useState(initialDescription ?? '')
@@ -124,27 +126,29 @@ export function SettingsTab({
           <p className="font-condensed text-[10px] text-lt-muted2 mt-1">Mínimo 2, máximo 500</p>
         </div>
 
-        {/* Allow remote */}
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="font-condensed text-sm text-lt-white font-700">Permitir remotos</p>
-            <p className="font-condensed text-[10px] text-lt-muted2">
-              Miembros pueden participar sin estar en el local
-            </p>
-          </div>
-          <button
-            onClick={() => setAllowRemote(!allowRemote)}
-            className={`relative w-12 h-7 rounded-full transition-colors ${
-              allowRemote ? 'bg-lt-green' : 'bg-lt-card2 border border-[rgba(255,255,255,0.15)]'
-            }`}
-          >
-            <span
-              className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all shadow-sm ${
-                allowRemote ? 'left-6' : 'left-1'
+        {/* Allow remote — only for business-linked leagues */}
+        {hasLinkedBusiness && (
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-condensed text-sm text-lt-white font-700">Permitir remotos</p>
+              <p className="font-condensed text-[10px] text-lt-muted2">
+                Miembros pueden participar sin estar en el local
+              </p>
+            </div>
+            <button
+              onClick={() => setAllowRemote(!allowRemote)}
+              className={`relative w-12 h-7 rounded-full transition-colors ${
+                allowRemote ? 'bg-lt-green' : 'bg-lt-card2 border border-[rgba(255,255,255,0.15)]'
               }`}
-            />
-          </button>
-        </div>
+            >
+              <span
+                className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all shadow-sm ${
+                  allowRemote ? 'left-6' : 'left-1'
+                }`}
+              />
+            </button>
+          </div>
+        )}
 
         {/* Save button */}
         <button

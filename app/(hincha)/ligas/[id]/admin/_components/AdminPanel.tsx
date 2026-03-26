@@ -26,6 +26,7 @@ interface Props {
   initialMatchId: string | null
   initialBannerUrl: string | null
   initialThemeColor: string
+  hasLinkedBusiness: boolean
 }
 
 export function AdminPanel({
@@ -41,6 +42,7 @@ export function AdminPanel({
   initialMatchId,
   initialBannerUrl,
   initialThemeColor,
+  hasLinkedBusiness,
 }: Props) {
   const [activeTab, setActiveTab]         = useState<Tab>('matches')
   const [matches, setMatches]             = useState<MatchRow[]>(initialMatches)
@@ -506,6 +508,7 @@ export function AdminPanel({
                 initialDescription={leagueDescription}
                 initialMaxMembers={leagueMaxMembers}
                 initialAllowRemote={leagueAllowRemote}
+                hasLinkedBusiness={hasLinkedBusiness}
               />
             </motion.div>
           )}
