@@ -117,6 +117,8 @@ export default async function LigaDetailPage({
       closedAt: q.closedAt?.toISOString() ?? null,
       resolvedAt: q.resolvedAt?.toISOString() ?? null,
       correctAnswer: q.correctAnswer,
+      totalPot: q.totalPot,
+      winnersCount: q.winnersCount,
     })),
     prizes: league.prizes,
     _count: league._count,

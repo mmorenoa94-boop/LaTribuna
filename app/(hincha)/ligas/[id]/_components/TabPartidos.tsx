@@ -235,7 +235,7 @@ function PredictionQuestion({
 
         {/* Points */}
         <p className="text-lt-muted2 text-xs font-condensed mb-3">
-          +{question.pointsValue} pts
+          🏆 Sistema pozo · Apuesta: {question.pointsValue} pts
         </p>
 
         {/* Options */}
@@ -272,7 +272,14 @@ function PredictionQuestion({
             {resolved && (
               <div className="text-right">
                 {correct ? (
-                  <span className="text-lt-green font-condensed text-sm font-700">+{prediction.pointsEarned} pts ✓</span>
+                  <div>
+                    <span className="text-lt-green font-condensed text-sm font-700">+{prediction.pointsEarned} pts ✓</span>
+                    {question.totalPot != null && question.winnersCount != null && (
+                      <p className="text-lt-muted2 font-condensed text-[10px]">
+                        Pozo: {question.totalPot} · {question.winnersCount} {question.winnersCount === 1 ? 'ganador' : 'ganadores'}
+                      </p>
+                    )}
+                  </div>
                 ) : (
                   <div>
                     <span className="text-lt-red font-condensed text-xs">✗ Incorrecto</span>

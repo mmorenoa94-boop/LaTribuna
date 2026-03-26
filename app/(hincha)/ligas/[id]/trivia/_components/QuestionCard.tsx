@@ -119,7 +119,7 @@ export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions
           {question.text}
         </p>
         <p className="font-condensed text-xs text-lt-muted2 mt-1">
-          ⚡ +{question.pointsValue} pts si aciertas
+          🏆 Sistema pozo · Apuesta: {question.pointsValue} pts
         </p>
       </div>
 
