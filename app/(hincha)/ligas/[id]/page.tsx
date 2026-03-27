@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { LigaTabs } from './_components/LigaTabs'
+import { RulesButton } from './_components/RulesModal'
 import type { SLeague, SPrediction } from './_components/types'
 
 const TYPE_LABELS: Record<string, string> = {
@@ -214,19 +215,24 @@ export default async function LigaDetailPage({
           )}
         </div>
 
-        {/* Botón Admin — solo para el creador */}
-        {isCreator && (
-          <Link
-            href={`/ligas/${league.id}/admin`}
-            className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-btn bg-lt-card2 border border-lt-green/30 text-lt-green font-condensed text-sm font-700 hover:bg-lt-green/10 active:scale-[0.98] transition-all"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-            </svg>
-            Panel Admin
-          </Link>
-        )}
+        {/* Botones de acción */}
+        <div className={`flex gap-2 mt-4 ${isCreator ? '' : 'flex-col'}`}>
+          {isCreator && (
+            <Link
+              href={`/ligas/${league.id}/admin`}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-card2 border border-lt-green/30 text-lt-green font-condensed text-sm font-700 hover:bg-lt-green/10 active:scale-[0.98] transition-all"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+              </svg>
+              Panel Admin
+            </Link>
+          )}
+          <div className={isCreator ? 'flex-1' : ''}>
+            <RulesButton scoringMode={sLeague.scoringMode} />
+          </div>
+        </div>
       </div>
 
       {/* ── Tabs ───────────────────────────────────────── */}
