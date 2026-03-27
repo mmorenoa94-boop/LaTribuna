@@ -24,19 +24,22 @@ export async function PATCH(
   })
   if (!leagueMatch) return NextResponse.json({ error: 'Partido no encontrado en esta liga' }, { status: 404 })
 
-  // Check no resolved questions exist
-  const resolvedCount = await prisma.leagueQuestion.count({
-    where: { leagueId: params.id, matchId: params.matchId, status: 'RESOLVED' },
-  })
-  if (resolvedCount > 0) {
-    return NextResponse.json(
-      { error: 'No se puede editar un partido que ya tiene preguntas resueltas' },
-      { status: 400 }
-    )
-  }
-
   const body = await req.json()
   const { homeTeam, awayTeam, competition, venue, kickoffAt, homeScore, awayScore, status } = body
+
+  // Check if only updating score/status (always allowed) vs match details (blocked if resolved)
+  const isScoreOrStatusOnly = !homeTeam && !awayTeam && !competition && venue === undefined && !kickoffAt
+  if (!isScoreOrStatusOnly) {
+    const resolvedCount = await prisma.leagueQuestion.count({
+      where: { leagueId: params.id, matchId: params.matchId, status: 'RESOLVED' },
+    })
+    if (resolvedCount > 0) {
+      return NextResponse.json(
+        { error: 'No se puede editar un partido que ya tiene preguntas resueltas' },
+        { status: 400 }
+      )
+    }
+  }
 
   // Build update data
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
