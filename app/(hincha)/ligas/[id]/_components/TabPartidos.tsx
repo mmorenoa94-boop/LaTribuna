@@ -76,12 +76,17 @@ function MatchCard({
   onPrediction: (questionId: string, pred: SPrediction) => void
   defaultOpen: boolean
 }) {
-  const [isExpanded, setIsExpanded] = useState(defaultOpen)
   const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
   const isFinished = match.status === 'FINISHED'
+  // Finished matches collapse by default to show compact summary
+  const [isExpanded, setIsExpanded] = useState(isFinished ? false : defaultOpen)
   const kickoff = new Date(match.kickoffAt)
   const answeredCount = questions.filter(q => predictions[q.id]).length
   const openQuestions = questions.filter(q => q.status === 'OPEN').length
+
+  // Stats for finished match summary
+  const correctCount = questions.filter(q => predictions[q.id]?.isCorrect === true).length
+  const totalPointsEarned = questions.reduce((sum, q) => sum + (predictions[q.id]?.pointsEarned ?? 0), 0)
 
   return (
     <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] overflow-hidden">
@@ -186,6 +191,27 @@ function MatchCard({
             <span className="w-2 h-2 rounded-full bg-white animate-pulse-dot" />
             ¡JUGAR EN VIVO AHORA!
           </Link>
+        )}
+
+        {/* Compact summary for finished matches when collapsed */}
+        {isFinished && !isExpanded && questions.length > 0 && (
+          <div className="mt-3 flex items-center justify-between bg-lt-card2 rounded-btn px-3 py-2">
+            <div className="flex items-center gap-3">
+              <span className="text-lt-muted2 font-condensed text-xs">
+                ✅ {correctCount}/{questions.length} aciertos
+              </span>
+              <span className="text-lt-muted2 font-condensed text-xs">·</span>
+              <span className={cn(
+                'font-condensed text-xs font-700',
+                totalPointsEarned > 0 ? 'text-lt-green' : 'text-lt-muted2'
+              )}>
+                {totalPointsEarned > 0 ? `+${totalPointsEarned} pts` : '0 pts'}
+              </span>
+            </div>
+            <span className="text-lt-muted2 font-condensed text-[10px]">
+              Toca para ver detalle
+            </span>
+          </div>
         )}
       </button>
 
