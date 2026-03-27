@@ -47,6 +47,8 @@ export default async function AdminPage({ params, searchParams }: Props) {
     venue: lm.match.venue,
     kickoffAt: lm.match.kickoffAt.toISOString(),
     status: lm.match.status,
+    homeScore: lm.match.homeScore,
+    awayScore: lm.match.awayScore,
     questionCount: countMap[lm.matchId] ?? 0,
   }))
 

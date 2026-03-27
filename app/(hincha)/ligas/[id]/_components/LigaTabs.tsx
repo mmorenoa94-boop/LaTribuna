@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { TabPartidos } from './TabPartidos'
 import { TabClasificacion } from './TabClasificacion'
@@ -25,6 +26,20 @@ const TABS: { id: Tab; label: string }[] = [
 
 export function LigaTabs(props: Props) {
   const [active, setActive] = useState<Tab>('partidos')
+  const router = useRouter()
+
+  // Auto-refresh server data every 15 seconds to pick up admin changes
+  const refresh = useCallback(() => router.refresh(), [router])
+  useEffect(() => {
+    const interval = setInterval(refresh, 15000)
+    return () => clearInterval(interval)
+  }, [refresh])
+
+  // Also refresh when switching tabs
+  function handleTabChange(tab: Tab) {
+    setActive(tab)
+    refresh()
+  }
 
   return (
     <div className="flex flex-col flex-1">
@@ -33,7 +48,7 @@ export function LigaTabs(props: Props) {
         {TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => setActive(t.id)}
+            onClick={() => handleTabChange(t.id)}
             className={cn(
               'flex-1 py-3 font-condensed text-sm font-700 uppercase tracking-wider transition-colors relative',
               active === t.id ? 'text-lt-green' : 'text-lt-muted2 hover:text-lt-white'

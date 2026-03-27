@@ -36,17 +36,25 @@ export async function PATCH(
   }
 
   const body = await req.json()
-  const { homeTeam, awayTeam, competition, venue, kickoffAt } = body
+  const { homeTeam, awayTeam, competition, venue, kickoffAt, homeScore, awayScore, status } = body
+
+  // Build update data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data: Record<string, any> = {}
+  if (homeTeam?.trim()) data.homeTeam = homeTeam.trim()
+  if (awayTeam?.trim()) data.awayTeam = awayTeam.trim()
+  if (competition?.trim()) data.competition = competition.trim()
+  if (venue !== undefined) data.venue = venue?.trim() || null
+  if (kickoffAt) data.kickoffAt = new Date(kickoffAt)
+  if (homeScore !== undefined) data.homeScore = homeScore === null ? null : Number(homeScore)
+  if (awayScore !== undefined) data.awayScore = awayScore === null ? null : Number(awayScore)
+  if (status && ['SCHEDULED', 'LIVE', 'HALFTIME', 'FINISHED', 'CANCELLED'].includes(status)) {
+    data.status = status
+  }
 
   const match = await prisma.match.update({
     where: { id: params.matchId },
-    data: {
-      ...(homeTeam?.trim() ? { homeTeam: homeTeam.trim() } : {}),
-      ...(awayTeam?.trim() ? { awayTeam: awayTeam.trim() } : {}),
-      ...(competition?.trim() ? { competition: competition.trim() } : {}),
-      ...(venue !== undefined ? { venue: venue?.trim() || null } : {}),
-      ...(kickoffAt ? { kickoffAt: new Date(kickoffAt) } : {}),
-    },
+    data,
   })
 
   return NextResponse.json(match)
