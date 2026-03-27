@@ -20,6 +20,8 @@ export interface MatchRow {
   venue: string | null
   kickoffAt: string
   status: string
+  homeScore: number | null
+  awayScore: number | null
   questionCount: number
 }
 

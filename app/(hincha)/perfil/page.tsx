@@ -58,7 +58,7 @@ export default async function PerfilPage() {
   const session = await auth()
   if (!session) redirect('/login')
 
-  const [user, balance, leagueCount, answerCount] = await Promise.all([
+  const [user, balance, leagueCount, answerCount, predictionCount] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -82,6 +82,7 @@ export default async function PerfilPage() {
     getBalance(session.user.id),
     prisma.leagueMember.count({ where: { userId: session.user.id } }),
     prisma.answer.count({ where: { userId: session.user.id } }),
+    prisma.prediction.count({ where: { userId: session.user.id } }),
   ])
 
   if (!user) redirect('/login')
@@ -190,7 +191,7 @@ export default async function PerfilPage() {
           </p>
           <div className="grid grid-cols-3 gap-2.5">
             <StatCard label="Ligas" value={leagueCount} icon="🏟️" />
-            <StatCard label="Respuestas" value={formatPoints(answerCount)} icon="🎯" />
+            <StatCard label="Respuestas" value={formatPoints(answerCount + predictionCount)} icon="🎯" />
             <StatCard label="Racha" value={`${user.streak}🔥`} icon="📅" />
           </div>
         </div>

@@ -8,13 +8,13 @@ interface XPBarProps {
 
 export function XPBar({ xp, level }: XPBarProps) {
   const pct = xpProgress(xp, level)
-  const needed = xpForNextLevel(level)
+  const nextLevel = xpForNextLevel(level)
 
   return (
     <div className="w-full">
       <div className="flex justify-between items-center mb-1.5">
         <span className="text-lt-muted2 text-xs font-condensed">Nivel {level}</span>
-        <span className="text-lt-muted2 text-xs font-condensed">{xp} / {needed} XP</span>
+        <span className="text-lt-muted2 text-xs font-condensed">{xp} / {nextLevel} XP</span>
       </div>
       <div className="h-2 w-full bg-lt-card2 rounded-full overflow-hidden">
         <div

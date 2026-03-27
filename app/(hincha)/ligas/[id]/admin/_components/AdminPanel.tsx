@@ -61,6 +61,7 @@ export function AdminPanel({
   const [showImportMatches, setShowImportMatches] = useState(false)
   const [closingAll, setClosingAll] = useState(false)
   const [openingAll, setOpeningAll] = useState(false)
+  const [savingScore, setSavingScore] = useState(false)
 
   const selectedMatch = matches.find((m) => m.id === selectedMatchId) ?? null
 
@@ -188,6 +189,32 @@ export function AdminPanel({
       }
     } finally {
       setOpeningAll(false)
+    }
+  }
+
+  async function handleSaveScore(matchId: string, homeScore: number, awayScore: number, markFinished: boolean) {
+    setSavingScore(true)
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/admin/matches/${matchId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          homeScore,
+          awayScore,
+          ...(markFinished ? { status: 'FINISHED' } : {}),
+        }),
+      })
+      if (res.ok) {
+        setMatches((prev) =>
+          prev.map((m) =>
+            m.id === matchId
+              ? { ...m, homeScore, awayScore, ...(markFinished ? { status: 'FINISHED' } : {}) }
+              : m
+          )
+        )
+      }
+    } finally {
+      setSavingScore(false)
     }
   }
 
@@ -443,6 +470,15 @@ export function AdminPanel({
                     </button>
                   </div>
 
+                  {/* Score input */}
+                  {selectedMatch && (
+                    <ScoreInput
+                      match={selectedMatch}
+                      saving={savingScore}
+                      onSave={(home, away, finished) => handleSaveScore(selectedMatch.id, home, away, finished)}
+                    />
+                  )}
+
                   {/* Stats row */}
                   {questions.length > 0 && (
                     <div className="flex gap-3">
@@ -618,6 +654,73 @@ export function AdminPanel({
           editQuestion={editQuestion}
         />
       )}
+    </div>
+  )
+}
+
+// ── ScoreInput ──────────────────────────────────────────────────────────────
+
+function ScoreInput({ match, saving, onSave }: {
+  match: MatchRow
+  saving: boolean
+  onSave: (home: number, away: number, markFinished: boolean) => void
+}) {
+  const [homeScore, setHomeScore] = useState(match.homeScore ?? 0)
+  const [awayScore, setAwayScore] = useState(match.awayScore ?? 0)
+  const isFinished = match.status === 'FINISHED'
+
+  return (
+    <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4">
+      <p className="font-condensed text-xs text-lt-muted2 uppercase tracking-wide mb-3">
+        Marcador {isFinished && <span className="text-lt-green ml-1">· Finalizado</span>}
+      </p>
+      <div className="flex items-center gap-3 justify-center">
+        <span className="font-condensed text-sm font-700 text-lt-white text-right flex-1 truncate">
+          {match.homeTeam}
+        </span>
+        <input
+          type="number"
+          min={0}
+          max={99}
+          value={homeScore}
+          onChange={(e) => setHomeScore(Math.max(0, Number(e.target.value)))}
+          className="w-14 text-center font-bebas text-2xl text-lt-white bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn py-1 focus:border-lt-green outline-none"
+        />
+        <span className="font-bebas text-xl text-lt-muted2">-</span>
+        <input
+          type="number"
+          min={0}
+          max={99}
+          value={awayScore}
+          onChange={(e) => setAwayScore(Math.max(0, Number(e.target.value)))}
+          className="w-14 text-center font-bebas text-2xl text-lt-white bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn py-1 focus:border-lt-green outline-none"
+        />
+        <span className="font-condensed text-sm font-700 text-lt-white flex-1 truncate">
+          {match.awayTeam}
+        </span>
+      </div>
+      <div className="flex gap-2 mt-3">
+        <button
+          onClick={() => onSave(homeScore, awayScore, false)}
+          disabled={saving}
+          className="flex-1 py-2 rounded-btn bg-lt-card2 border border-[rgba(255,255,255,0.07)] text-lt-white font-condensed text-sm font-700 hover:border-lt-green/30 transition-colors disabled:opacity-50"
+        >
+          {saving ? 'Guardando…' : 'Guardar marcador'}
+        </button>
+        {!isFinished && (
+          <button
+            onClick={() => {
+              if (confirm(`¿Finalizar ${match.homeTeam} ${homeScore} - ${awayScore} ${match.awayTeam}?`)) {
+                onSave(homeScore, awayScore, true)
+              }
+            }}
+            disabled={saving}
+            className="flex-1 py-2 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 active:scale-95 transition-all disabled:opacity-50"
+          >
+            Finalizar partido
+          </button>
+        )}
+      </div>
     </div>
   )
 }
