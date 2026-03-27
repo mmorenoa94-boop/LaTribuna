@@ -679,21 +679,27 @@ function ScoreInput({ match, saving, onSave }: {
           {match.homeTeam}
         </span>
         <input
-          type="number"
-          min={0}
-          max={99}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
           value={homeScore}
-          onChange={(e) => setHomeScore(Math.max(0, Number(e.target.value)))}
-          className="w-14 text-center font-bebas text-2xl text-lt-white bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn py-1 focus:border-lt-green outline-none"
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, '')
+            setHomeScore(v === '' ? 0 : Math.min(99, Number(v)))
+          }}
+          className="w-14 text-center font-bebas text-2xl text-lt-white bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn py-1 focus:border-lt-green outline-none [appearance:textfield]"
         />
         <span className="font-bebas text-xl text-lt-muted2">-</span>
         <input
-          type="number"
-          min={0}
-          max={99}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
           value={awayScore}
-          onChange={(e) => setAwayScore(Math.max(0, Number(e.target.value)))}
-          className="w-14 text-center font-bebas text-2xl text-lt-white bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn py-1 focus:border-lt-green outline-none"
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, '')
+            setAwayScore(v === '' ? 0 : Math.min(99, Number(v)))
+          }}
+          className="w-14 text-center font-bebas text-2xl text-lt-white bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn py-1 focus:border-lt-green outline-none [appearance:textfield]"
         />
         <span className="font-condensed text-sm font-700 text-lt-white flex-1 truncate">
           {match.awayTeam}
