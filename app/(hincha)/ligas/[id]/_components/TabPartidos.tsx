@@ -25,10 +25,25 @@ export function TabPartidos({ league, userId, predictions: initialPredictions }:
     )
   }
 
+  // Determine which matches should be expanded by default:
+  // - Live/halftime matches always open
+  // - Matches with OPEN questions always open
+  // - If none of the above, open the most recent (first) match
+  const hasActivMatch = league.matches.some(({ match }) => {
+    const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
+    const hasOpen = league.questions.some((q) => q.matchId === match.id && q.status === 'OPEN')
+    return isLive || hasOpen
+  })
+
   return (
     <div className="space-y-5">
-      {league.matches.map(({ match }) => {
+      {league.matches.map(({ match }, index) => {
         const matchQuestions = league.questions.filter((q) => q.matchId === match.id)
+        const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
+        const hasOpen = matchQuestions.some((q) => q.status === 'OPEN')
+        // Open if live, has open questions, or (no active match and it's the first one)
+        const defaultOpen = isLive || hasOpen || (!hasActivMatch && index === 0)
+
         return (
           <MatchCard
             key={match.id}
@@ -37,6 +52,7 @@ export function TabPartidos({ league, userId, predictions: initialPredictions }:
             leagueId={league.id}
             scoringLabel={scoringLabel}
             predictions={preds}
+            defaultOpen={defaultOpen}
             onPrediction={(questionId, pred) =>
               setPreds((prev) => ({ ...prev, [questionId]: pred }))
             }
@@ -50,7 +66,7 @@ export function TabPartidos({ league, userId, predictions: initialPredictions }:
 // ── MatchCard ─────────────────────────────────────────────
 
 function MatchCard({
-  match, questions, leagueId, scoringLabel, predictions, onPrediction,
+  match, questions, leagueId, scoringLabel, predictions, onPrediction, defaultOpen,
 }: {
   match: SMatch
   questions: SQuestion[]
@@ -58,25 +74,58 @@ function MatchCard({
   scoringLabel: string
   predictions: Record<string, SPrediction>
   onPrediction: (questionId: string, pred: SPrediction) => void
+  defaultOpen: boolean
 }) {
   const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
   const isFinished = match.status === 'FINISHED'
+  // Finished matches collapse by default to show compact summary
+  const [isExpanded, setIsExpanded] = useState(isFinished ? false : defaultOpen)
   const kickoff = new Date(match.kickoffAt)
+  const answeredCount = questions.filter(q => predictions[q.id]).length
+  const openQuestions = questions.filter(q => q.status === 'OPEN').length
+
+  // Stats for finished match summary
+  const correctCount = questions.filter(q => predictions[q.id]?.isCorrect === true).length
+  const totalPointsEarned = questions.reduce((sum, q) => sum + (predictions[q.id]?.pointsEarned ?? 0), 0)
 
   return (
     <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] overflow-hidden">
-      {/* Match header */}
-      <div className={cn(
-        'px-4 pt-4 pb-3',
-        isLive && 'bg-lt-red/5 border-b border-lt-red/20',
-        !isLive && 'border-b border-[rgba(255,255,255,0.05)]'
-      )}>
-        {/* Competition + status */}
+      {/* Match header — clickable to toggle */}
+      <button
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className={cn(
+          'w-full text-left px-4 pt-4 pb-3 transition-colors',
+          isLive && 'bg-lt-red/5 border-b border-lt-red/20',
+          !isLive && !isExpanded && 'border-b border-transparent',
+          !isLive && isExpanded && 'border-b border-[rgba(255,255,255,0.05)]'
+        )}
+      >
+        {/* Competition + status + chevron */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-lt-muted2 font-condensed text-xs uppercase tracking-wide">
             {match.competition}
           </span>
-          <MatchStatusBadge match={match} />
+          <div className="flex items-center gap-2">
+            {/* Badges resumen cuando está colapsado */}
+            {!isExpanded && questions.length > 0 && (
+              <span className="text-lt-muted2 font-condensed text-[10px]">
+                {answeredCount}/{questions.length}
+                {openQuestions > 0 && (
+                  <span className="text-lt-green ml-1">· {openQuestions} abiertas</span>
+                )}
+              </span>
+            )}
+            <MatchStatusBadge match={match} />
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              className={cn(
+                'text-lt-muted2 transition-transform duration-200 flex-shrink-0',
+                isExpanded && 'rotate-180'
+              )}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
         </div>
 
         {/* Equipos + marcador */}
@@ -136,37 +185,71 @@ function MatchCard({
         {isLive && (
           <Link
             href={`/ligas/${leagueId}/trivia?matchId=${match.id}`}
+            onClick={(e) => e.stopPropagation()}
             className="mt-3 w-full flex items-center justify-center gap-2 bg-lt-red text-white font-condensed font-700 text-sm py-2.5 rounded-btn hover:opacity-90 transition-opacity"
           >
             <span className="w-2 h-2 rounded-full bg-white animate-pulse-dot" />
             ¡JUGAR EN VIVO AHORA!
           </Link>
         )}
-      </div>
 
-      {/* Predicciones */}
-      {questions.length > 0 ? (
-        <div className="px-4 py-4 space-y-4">
-          <p className="text-lt-muted2 font-condensed text-xs uppercase tracking-widest">
-            Predicciones — {questions.filter(q => predictions[q.id]).length}/{questions.length} respondidas
-          </p>
-          {questions.map((q) => (
-            <PredictionQuestion
-              key={q.id}
-              question={q}
-              match={match}
-              leagueId={leagueId}
-              scoringLabel={scoringLabel}
-              prediction={predictions[q.id] ?? null}
-              onSave={(pred) => onPrediction(q.id, pred)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="px-4 py-4 text-center">
-          <p className="text-lt-muted2 font-condensed text-sm">Sin predicciones para este partido</p>
-        </div>
-      )}
+        {/* Compact summary for finished matches when collapsed */}
+        {isFinished && !isExpanded && questions.length > 0 && (
+          <div className="mt-3 flex items-center justify-between bg-lt-card2 rounded-btn px-3 py-2">
+            <div className="flex items-center gap-3">
+              <span className="text-lt-muted2 font-condensed text-xs">
+                ✅ {correctCount}/{questions.length} aciertos
+              </span>
+              <span className="text-lt-muted2 font-condensed text-xs">·</span>
+              <span className={cn(
+                'font-condensed text-xs font-700',
+                totalPointsEarned > 0 ? 'text-lt-green' : 'text-lt-muted2'
+              )}>
+                {totalPointsEarned > 0 ? `+${totalPointsEarned} pts` : '0 pts'}
+              </span>
+            </div>
+            <span className="text-lt-muted2 font-condensed text-[10px]">
+              Toca para ver detalle
+            </span>
+          </div>
+        )}
+      </button>
+
+      {/* Collapsible content */}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            {questions.length > 0 ? (
+              <div className="px-4 py-4 space-y-4">
+                <p className="text-lt-muted2 font-condensed text-xs uppercase tracking-widest">
+                  Predicciones — {answeredCount}/{questions.length} respondidas
+                </p>
+                {questions.map((q) => (
+                  <PredictionQuestion
+                    key={q.id}
+                    question={q}
+                    match={match}
+                    leagueId={leagueId}
+                    scoringLabel={scoringLabel}
+                    prediction={predictions[q.id] ?? null}
+                    onSave={(pred) => onPrediction(q.id, pred)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="px-4 py-4 text-center">
+                <p className="text-lt-muted2 font-condensed text-sm">Sin predicciones para este partido</p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
