@@ -120,7 +120,7 @@ export async function GET(
 
   // Build response entries
   const entries = members.map((m) => {
-    const matchBreakdown = matchOrder.map((matchId, mi) => {
+    const matchBreakdown = matchOrder.map((matchId) => {
       const pts = userMatchPoints.get(m.userId)?.get(matchId)
       return {
         matchId,
