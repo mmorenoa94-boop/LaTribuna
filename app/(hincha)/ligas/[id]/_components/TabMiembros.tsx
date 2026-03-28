@@ -12,6 +12,8 @@ interface Props {
 
 export function TabMiembros({ league, userId, isCreator }: Props) {
   const [copied, setCopied] = useState<'code' | 'link' | null>(null)
+  const [confirmLeave, setConfirmLeave] = useState(false)
+  const [leaving, setLeaving] = useState(false)
 
   const inviteLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/invite/${league.inviteCode}`
 
@@ -210,6 +212,55 @@ export function TabMiembros({ league, userId, isCreator }: Props) {
           />
         </div>
       </div>
+
+      {/* Salir de liga — solo para miembros que no son el creador */}
+      {!isCreator && (
+        <div className="pt-2 border-t border-[rgba(255,255,255,0.05)]">
+          {!confirmLeave ? (
+            <button
+              onClick={() => setConfirmLeave(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-btn border border-lt-red/30 text-lt-red font-condensed text-sm font-600 hover:bg-lt-red/10 transition-all"
+            >
+              <ExitIcon className="w-4 h-4" />
+              Salir de la liga
+            </button>
+          ) : (
+            <div className="bg-lt-red/10 border border-lt-red/30 rounded-card p-4 space-y-3 animate-fade-in">
+              <p className="font-condensed text-sm text-lt-white font-700 text-center">
+                ¿Seguro que quieres salir?
+              </p>
+              <p className="font-barlow text-xs text-lt-muted2 text-center leading-snug">
+                Perderás tus puntos y respuestas en esta liga. Esta acción no se puede deshacer.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    setLeaving(true)
+                    try {
+                      const res = await fetch(`/api/leagues/${league.id}/leave`, { method: 'POST' })
+                      if (res.ok) {
+                        window.location.href = '/ligas'
+                      }
+                    } finally {
+                      setLeaving(false)
+                    }
+                  }}
+                  disabled={leaving}
+                  className="flex-1 py-2.5 rounded-btn bg-lt-red text-white font-condensed text-sm font-700 disabled:opacity-50 transition-opacity"
+                >
+                  {leaving ? 'Saliendo...' : 'Sí, salir'}
+                </button>
+                <button
+                  onClick={() => setConfirmLeave(false)}
+                  className="flex-1 py-2.5 rounded-btn border border-lt-muted text-lt-muted2 font-condensed text-sm"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -257,6 +308,13 @@ function LinkIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  )
+}
+function ExitIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
     </svg>
   )
 }
