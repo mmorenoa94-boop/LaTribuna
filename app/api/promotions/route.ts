@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   if (!business) return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
 
   const body = await req.json()
-  const { message, segment, channels, timing, scheduledAt } = body
+  const { message, imageUrl, segment, channels, timing, scheduledAt } = body
 
   if (!message?.trim() || message.trim().length > 120) {
     return NextResponse.json({ error: 'Mensaje requerido (máx 120 caracteres)' }, { status: 400 })
@@ -57,6 +57,7 @@ export async function POST(req: Request) {
     data: {
       businessId: business.id,
       message: message.trim(),
+      imageUrl: imageUrl || null,
       segment,
       channels,
       timing,

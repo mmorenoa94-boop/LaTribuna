@@ -18,7 +18,18 @@ export async function PATCH(
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const { status } = await req.json()
+  const body = await req.json()
+  const { status, consumptionVerified } = body
+
+  // Handle consumptionVerified toggle
+  if (typeof consumptionVerified === 'boolean') {
+    const updated = await prisma.leagueMember.update({
+      where: { leagueId_userId: { leagueId: params.id, userId: params.uid } },
+      data: { consumptionVerified },
+    })
+    return NextResponse.json(updated)
+  }
+
   if (!['APPROVED', 'REJECTED'].includes(status)) {
     return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
   }

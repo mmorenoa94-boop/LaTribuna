@@ -33,6 +33,7 @@ export interface MemberData {
   points: number
   joinedAt: string
   isCreator: boolean
+  consumptionVerified: boolean
 }
 
 type Tab = 'invite' | 'matches' | 'members' | 'settings'

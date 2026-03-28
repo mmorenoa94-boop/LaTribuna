@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { XPBar } from '@/components/hincha/XPBar'
 import { LeagueCard } from '@/components/hincha/LeagueCard'
+import { PromoBanner } from '@/components/hincha/PromoBanner'
 import type { LeagueWithDetails } from '@/types'
 import Link from 'next/link'
 
@@ -50,6 +51,9 @@ export default async function HomePage() {
 
       {/* XP Bar */}
       {user && <XPBar xp={user.xp} level={user.level} />}
+
+      {/* Promotion banners */}
+      <PromoBanner />
 
       {/* Mis ligas */}
       <section>

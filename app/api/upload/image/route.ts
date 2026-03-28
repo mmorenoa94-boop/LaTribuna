@@ -4,7 +4,7 @@ import { uploadImage } from '@/lib/cloudinary'
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
-const ALLOWED_FOLDERS = ['avatars', 'logos', 'rewards', 'banners']
+const ALLOWED_FOLDERS = ['avatars', 'logos', 'rewards', 'banners', 'promotions']
 
 // POST — Upload image to Cloudinary
 export async function POST(req: NextRequest) {

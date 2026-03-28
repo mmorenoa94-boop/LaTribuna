@@ -1,5 +1,6 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import { PromoCard, type PromoData } from '@/components/negocio/PromoCard'
 
@@ -28,8 +29,10 @@ export default function PromocionesPage() {
   const [promos, setPromos] = useState<PromoData[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [editingPromo, setEditingPromo] = useState<PromoData | null>(null)
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [sending, setSending] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const fetchPromos = useCallback(async () => {
     const res = await fetch('/api/promotions')
@@ -52,6 +55,36 @@ export default function PromocionesPage() {
     }
   }
 
+  async function handleDelete(id: string) {
+    if (confirmDelete !== id) {
+      setConfirmDelete(id)
+      setTimeout(() => setConfirmDelete(null), 3000)
+      return
+    }
+    try {
+      const res = await fetch(`/api/promotions/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setPromos((prev) => prev.filter((p) => p.id !== id))
+        setConfirmDelete(null)
+      }
+    } catch { /* ignore */ }
+  }
+
+  function handleEdit(promo: PromoData) {
+    setEditingPromo(promo)
+    setShowForm(true)
+  }
+
+  function handleFormDone(p: PromoData, isEdit: boolean) {
+    if (isEdit) {
+      setPromos((prev) => prev.map((pr) => (pr.id === p.id ? p : pr)))
+    } else {
+      setPromos((prev) => [p, ...prev])
+    }
+    setShowForm(false)
+    setEditingPromo(null)
+  }
+
   const filtered = filter === 'all' ? promos : promos.filter((p) => p.status === filter)
 
   const counts = {
@@ -71,7 +104,7 @@ export default function PromocionesPage() {
           <h1 className="text-lt-white font-bebas text-3xl leading-tight">Promociones</h1>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { setShowForm(!showForm); setEditingPromo(null) }}
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 active:scale-95 transition-all"
         >
           <span className="text-lg leading-none">+</span>
@@ -79,11 +112,12 @@ export default function PromocionesPage() {
         </button>
       </div>
 
-      {/* Create form */}
+      {/* Create/Edit form */}
       {showForm && (
-        <CreatePromoForm
-          onCreated={(p) => { setPromos((prev) => [p, ...prev]); setShowForm(false) }}
-          onCancel={() => setShowForm(false)}
+        <PromoForm
+          editing={editingPromo}
+          onDone={handleFormDone}
+          onCancel={() => { setShowForm(false); setEditingPromo(null) }}
         />
       )}
 
@@ -130,31 +164,43 @@ export default function PromocionesPage() {
               key={p.id}
               promo={p}
               onSend={sending === p.id ? undefined : handleSend}
+              onEdit={handleEdit}
+              onDelete={confirmDelete === p.id ? handleDelete : handleDelete}
             />
           ))}
+          {confirmDelete && (
+            <p className="text-lt-red text-xs font-condensed text-center animate-fade-in">
+              Presiona eliminar de nuevo para confirmar
+            </p>
+          )}
         </div>
       )}
     </div>
   )
 }
 
-// ── Create Promo Form ─────────────────────────────────────────
-function CreatePromoForm({
-  onCreated,
+// ── Promo Form (Create + Edit) ─────────────────────────────────────────
+function PromoForm({
+  editing,
+  onDone,
   onCancel,
 }: {
-  onCreated: (p: PromoData) => void
+  editing: PromoData | null
+  onDone: (p: PromoData, isEdit: boolean) => void
   onCancel: () => void
 }) {
   const [form, setForm] = useState({
-    message: '',
-    segment: 'ALL_IN_VENUE',
-    channels: ['push'] as string[],
-    timing: 'IMMEDIATE',
-    scheduledAt: '',
+    message: editing?.message ?? '',
+    imageUrl: editing?.imageUrl ?? '',
+    segment: editing?.segment ?? 'ALL_IN_VENUE',
+    channels: editing?.channels ?? ['push'] as string[],
+    timing: editing?.timing ?? 'IMMEDIATE',
+    scheduledAt: editing?.scheduledAt ? editing.scheduledAt.slice(0, 16) : '',
   })
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   function toggleChannel(ch: string) {
     setForm((f) => ({
@@ -165,20 +211,45 @@ function CreatePromoForm({
     }))
   }
 
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('folder', 'promotions')
+      const res = await fetch('/api/upload/image', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error al subir imagen')
+      setForm((f) => ({ ...f, imageUrl: data.url }))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al subir imagen')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.message.trim() || form.channels.length === 0) return
     setSaving(true)
     setError('')
     try {
-      const res = await fetch('/api/promotions', {
-        method: 'POST',
+      const url = editing ? `/api/promotions/${editing.id}` : '/api/promotions'
+      const method = editing ? 'PATCH' : 'POST'
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          imageUrl: form.imageUrl || null,
+        }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Error al crear')
-      onCreated(data)
+      if (!res.ok) throw new Error(data.error ?? 'Error al guardar')
+      onDone(data, !!editing)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error')
       setSaving(false)
@@ -187,7 +258,9 @@ function CreatePromoForm({
 
   return (
     <form onSubmit={handleSubmit} className="bg-lt-card rounded-card border border-lt-amber/20 p-5 space-y-5">
-      <p className="font-condensed text-base text-lt-amber font-700">Nueva promoción</p>
+      <p className="font-condensed text-base text-lt-amber font-700">
+        {editing ? 'Editar promoción' : 'Nueva promoción'}
+      </p>
 
       {/* Message */}
       <div>
@@ -200,6 +273,41 @@ function CreatePromoForm({
           placeholder="Ej: 2x1 en cervezas durante el partido 🍻"
           rows={2}
           className="w-full bg-lt-card2 border border-lt-muted rounded-btn px-4 py-3 text-lt-white font-barlow text-sm focus:outline-none focus:border-lt-amber transition-colors placeholder:text-lt-muted2 resize-none"
+        />
+      </div>
+
+      {/* Image upload */}
+      <div>
+        <label className="block text-lt-white font-condensed text-sm mb-1.5">
+          Imagen <span className="text-lt-muted2">(opcional)</span>
+        </label>
+        {form.imageUrl ? (
+          <div className="relative w-full h-32 rounded-btn overflow-hidden mb-2">
+            <Image src={form.imageUrl} alt="Preview" fill className="object-cover" />
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, imageUrl: '' }))}
+              className="absolute top-2 right-2 w-7 h-7 rounded-full bg-lt-black/70 text-lt-white flex items-center justify-center hover:bg-lt-red/80 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="w-full py-4 rounded-btn border-2 border-dashed border-lt-muted text-lt-muted2 font-condensed text-sm hover:border-lt-amber/40 hover:text-lt-amber transition-colors"
+          >
+            {uploading ? 'Subiendo...' : '📷 Subir imagen'}
+          </button>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handleImageUpload}
+          className="hidden"
         />
       </div>
 
@@ -275,7 +383,7 @@ function CreatePromoForm({
       {/* Scheduled date */}
       {form.timing === 'SCHEDULED' && (
         <div>
-          <label className="block text-lt-white font-condensed text-sm mb-1.5">Fecha y hora de envío</label>
+          <label className="block text-lt-white font-condensed text-sm mb-1.5">Fecha y hora de envío (hora Colombia)</label>
           <input
             type="datetime-local"
             value={form.scheduledAt}
@@ -290,10 +398,10 @@ function CreatePromoForm({
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={saving || !form.message.trim() || form.channels.length === 0}
+          disabled={saving || uploading || !form.message.trim() || form.channels.length === 0}
           className="flex-1 py-3 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 disabled:opacity-40 transition-opacity"
         >
-          {saving ? 'Creando...' : form.timing === 'IMMEDIATE' ? 'Crear borrador' : form.timing === 'SCHEDULED' ? 'Programar' : 'Crear borrador'}
+          {saving ? 'Guardando...' : editing ? 'Guardar cambios' : 'Crear borrador'}
         </button>
         <button type="button" onClick={onCancel} className="px-4 py-3 rounded-btn border border-lt-muted text-lt-muted2 font-condensed text-sm">
           Cancelar

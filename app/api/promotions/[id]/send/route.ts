@@ -32,9 +32,14 @@ export async function POST(
 
   switch (promotion.segment) {
     case 'ALL_IN_VENUE': {
-      // Users who have checked in today
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
+      // Users who have checked in today (Colombia timezone UTC-5)
+      const now = new Date()
+      const colombiaOffset = -5 * 60
+      const utcMs = now.getTime() + now.getTimezoneOffset() * 60_000
+      const colombiaNow = new Date(utcMs + colombiaOffset * 60_000)
+      const today = new Date(colombiaNow.getFullYear(), colombiaNow.getMonth(), colombiaNow.getDate())
+      // Convert back to UTC for DB query
+      today.setMinutes(today.getMinutes() - colombiaOffset - now.getTimezoneOffset())
       const checkins = await prisma.checkin.findMany({
         where: { businessId: business.id, checkedAt: { gte: today } },
         select: { userId: true },
@@ -144,7 +149,7 @@ export async function POST(
         type: 'PROMOTION',
         title: business.name,
         body: promotion.message,
-        data: { promotionId: promotion.id },
+        data: { promotionId: promotion.id, imageUrl: promotion.imageUrl },
       })),
     })
   }
