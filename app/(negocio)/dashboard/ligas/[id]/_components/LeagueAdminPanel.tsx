@@ -17,6 +17,7 @@ export interface LeagueData {
   minConsumption: boolean
   minConsumptionAmount: number | null
   matchMode: string
+  scoringMode: string
   maxMembers: number
   status: string
   memberCount: number

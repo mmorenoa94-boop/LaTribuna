@@ -12,10 +12,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 })
   }
 
-  const question = await prisma.leagueQuestion.findUnique({ where: { id: questionId } })
+  const question = await prisma.leagueQuestion.findUnique({
+    where: { id: questionId },
+    include: { league: { select: { creatorId: true } } },
+  })
 
   if (!question || question.status !== 'OPEN') {
     return NextResponse.json({ error: 'Pregunta cerrada' }, { status: 400 })
+  }
+
+  if (question.league.creatorId === session.user.id) {
+    return NextResponse.json({ error: 'El administrador no puede responder preguntas' }, { status: 403 })
   }
 
   if (question.closedAt && serverTimestamp > question.closedAt.getTime()) {

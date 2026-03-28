@@ -29,11 +29,17 @@ export async function POST(
   }
 
   // Verificar que el usuario es miembro de la liga
-  const member = await prisma.leagueMember.findUnique({
-    where: { leagueId_userId: { leagueId: params.id, userId: session.user.id } },
-  })
+  const [member, league] = await Promise.all([
+    prisma.leagueMember.findUnique({
+      where: { leagueId_userId: { leagueId: params.id, userId: session.user.id } },
+    }),
+    prisma.league.findUnique({ where: { id: params.id }, select: { creatorId: true } }),
+  ])
   if (!member) {
     return NextResponse.json({ error: 'No eres miembro de esta liga' }, { status: 403 })
+  }
+  if (league?.creatorId === session.user.id) {
+    return NextResponse.json({ error: 'El administrador no puede hacer predicciones' }, { status: 403 })
   }
 
   // Upsert: si ya respondió esta pregunta, actualiza

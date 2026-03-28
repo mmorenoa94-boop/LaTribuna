@@ -36,6 +36,7 @@ export default async function LeagueAdminPage({ params }: { params: { id: string
           minConsumption: league.minConsumption,
           minConsumptionAmount: league.minConsumptionAmount,
           matchMode: league.matchMode,
+          scoringMode: league.scoringMode,
           maxMembers: league.maxMembers,
           status: league.status,
           memberCount: league._count.members,

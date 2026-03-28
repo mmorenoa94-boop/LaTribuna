@@ -73,6 +73,34 @@ export function SettingsTab({ league, onUpdate }: { league: LeagueData; onUpdate
         </div>
       </div>
 
+      {/* Scoring Mode */}
+      <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] px-4 py-4">
+        <label className="block text-lt-white font-condensed text-sm mb-2">Tipo de puntaje</label>
+        <div className="grid grid-cols-2 gap-2">
+          {([
+            { value: 'FIXED', label: 'Puntaje fijo', desc: 'Cada acierto da los puntos completos' },
+            { value: 'POOL', label: 'Pozo', desc: 'Los puntos se reparten entre ganadores' },
+          ] as const).map(({ value, label, desc }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                onUpdate({ ...league, scoringMode: value })
+                saveSettings({ scoringMode: value })
+              }}
+              className={`py-3 px-3 rounded-btn border font-condensed text-sm text-left transition-all ${
+                league.scoringMode === value
+                  ? 'bg-lt-amber/20 border-lt-amber text-lt-amber'
+                  : 'bg-lt-card2 border-lt-muted text-lt-white hover:border-lt-amber/30'
+              }`}
+            >
+              <p className="font-600">{label}</p>
+              <p className="text-xs mt-0.5 opacity-70">{desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Allow Remote */}
       <ToggleRow
         title="Permitir remotos"
