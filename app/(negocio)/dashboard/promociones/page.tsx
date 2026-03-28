@@ -190,6 +190,7 @@ function PromoForm({
   onCancel: () => void
 }) {
   const [form, setForm] = useState({
+    title: editing?.title ?? '',
     message: editing?.message ?? '',
     imageUrl: editing?.imageUrl ?? '',
     segment: editing?.segment ?? 'ALL_IN_VENUE',
@@ -244,6 +245,7 @@ function PromoForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          title: form.title.trim() || null,
           imageUrl: form.imageUrl || null,
         }),
       })
@@ -261,6 +263,20 @@ function PromoForm({
       <p className="font-condensed text-base text-lt-amber font-700">
         {editing ? 'Editar promoción' : 'Nueva promoción'}
       </p>
+
+      {/* Title */}
+      <div>
+        <label className="block text-lt-white font-condensed text-sm mb-1.5">
+          Título <span className="text-lt-muted2">(opcional, máx 60)</span>
+        </label>
+        <input
+          type="text"
+          value={form.title}
+          onChange={(e) => setForm((f) => ({ ...f, title: e.target.value.slice(0, 60) }))}
+          placeholder="Ej: Promo partido de hoy"
+          className="w-full bg-lt-card2 border border-lt-muted rounded-btn px-4 py-3 text-lt-white font-barlow text-sm focus:outline-none focus:border-lt-amber transition-colors placeholder:text-lt-muted2"
+        />
+      </div>
 
       {/* Message */}
       <div>

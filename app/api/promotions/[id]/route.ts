@@ -26,6 +26,7 @@ export async function PATCH(
   const body = await req.json()
   const data: Record<string, unknown> = {}
 
+  if (body.title !== undefined) data.title = body.title?.trim() || null
   if (body.message !== undefined) {
     const msg = body.message?.trim()
     if (!msg || msg.length > 120) {
@@ -41,7 +42,8 @@ export async function PATCH(
     data.timing = body.timing
     data.status = body.timing === 'SCHEDULED' ? 'SCHEDULED' : 'DRAFT'
   }
-  if (body.scheduledAt !== undefined) data.scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null
+  // datetime-local input has no timezone — treat as Colombia time (UTC-5)
+  if (body.scheduledAt !== undefined) data.scheduledAt = body.scheduledAt ? new Date(body.scheduledAt + '-05:00') : null
 
   const updated = await prisma.promotion.update({
     where: { id: params.id },

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 
 export interface PromoData {
   id: string
+  title: string | null
   message: string
   imageUrl: string | null
   segment: string
@@ -60,7 +61,12 @@ export function PromoCard({
 
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-3">
-        <p className="font-condensed text-sm text-lt-white font-600 flex-1">{promo.message}</p>
+        <div className="flex-1 min-w-0">
+          {promo.title && (
+            <p className="font-condensed text-xs text-lt-amber font-700 uppercase tracking-wide mb-1">{promo.title}</p>
+          )}
+          <p className="font-condensed text-sm text-lt-white font-600">{promo.message}</p>
+        </div>
         <span className={cn('font-condensed text-[10px] font-700 border px-2 py-0.5 rounded-full flex-shrink-0', st.color, st.bg)}>
           {st.label}
         </span>
