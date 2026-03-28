@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
+export const dynamic = 'force-dynamic'
+
 export default async function LigasNegocioPage() {
   const session = await auth()
   if (!session) redirect('/login')

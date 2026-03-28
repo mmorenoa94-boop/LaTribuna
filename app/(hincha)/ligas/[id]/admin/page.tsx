@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { AdminPanel } from './_components/AdminPanel'
 
+export const dynamic = 'force-dynamic'
+
 interface Props {
   params: { id: string }
   searchParams: { matchId?: string }
@@ -15,7 +17,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
   // Solo el creador puede acceder
   const league = await prisma.league.findUnique({
     where: { id: params.id },
-    select: { id: true, name: true, description: true, maxMembers: true, allowRemote: true, scoringMode: true, creatorId: true, bannerUrl: true, themeColor: true, businessId: true },
+    select: { id: true, name: true, description: true, maxMembers: true, allowRemote: true, allowMemberInvites: true, scoringMode: true, creatorId: true, bannerUrl: true, themeColor: true, businessId: true },
   })
 
   if (!league || league.creatorId !== session.user.id) {
@@ -77,6 +79,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
       leagueDescription={league.description}
       leagueMaxMembers={league.maxMembers}
       leagueAllowRemote={league.allowRemote}
+      leagueAllowMemberInvites={league.allowMemberInvites}
       creatorId={league.creatorId}
       sessionUserId={session.user.id}
       initialMatches={initialMatches}

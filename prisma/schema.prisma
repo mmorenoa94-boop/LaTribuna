@@ -139,6 +139,7 @@ model League {
   matchMode            MatchMode    @default(PER_MATCH)
   allowRemote          Boolean      @default(false)
   requireApproval      Boolean      @default(false)
+  allowMemberInvites   Boolean      @default(true)
   presentialMultiplier Float        @default(1.0)
   maxMembers           Int          @default(50)
   inviteCode           String       @unique

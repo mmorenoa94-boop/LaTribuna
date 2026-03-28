@@ -10,7 +10,6 @@ interface Props {
   isCreator: boolean
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function TabMiembros({ league, userId, isCreator }: Props) {
   const [copied, setCopied] = useState<'code' | 'link' | null>(null)
 
@@ -47,58 +46,60 @@ export function TabMiembros({ league, userId, isCreator }: Props) {
   return (
     <div className="space-y-5">
 
-      {/* Invitación */}
-      <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4">
-        <p className="text-lt-muted2 font-condensed text-xs uppercase tracking-widest mb-3">
-          Invitar jugadores
-        </p>
+      {/* Invitación — solo visible para admin o si allowMemberInvites está activo */}
+      {(isCreator || league.allowMemberInvites) && (
+        <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4">
+          <p className="text-lt-muted2 font-condensed text-xs uppercase tracking-widest mb-3">
+            Invitar jugadores
+          </p>
 
-        {/* Código */}
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-bebas text-3xl tracking-[0.25em] text-lt-green">
-            {league.inviteCode}
-          </span>
-          <button
-            onClick={copyCode}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-btn border font-condensed text-sm font-600 transition-all',
-              copied === 'code'
-                ? 'bg-lt-green/20 border-lt-green text-lt-green'
-                : 'bg-lt-card2 border-lt-muted text-lt-white hover:border-lt-green/40'
-            )}
-          >
-            {copied === 'code' ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
-            {copied === 'code' ? 'Copiado' : 'Código'}
-          </button>
+          {/* Código */}
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-bebas text-3xl tracking-[0.25em] text-lt-green">
+              {league.inviteCode}
+            </span>
+            <button
+              onClick={copyCode}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-btn border font-condensed text-sm font-600 transition-all',
+                copied === 'code'
+                  ? 'bg-lt-green/20 border-lt-green text-lt-green'
+                  : 'bg-lt-card2 border-lt-muted text-lt-white hover:border-lt-green/40'
+              )}
+            >
+              {copied === 'code' ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
+              {copied === 'code' ? 'Copiado' : 'Código'}
+            </button>
+          </div>
+
+          {/* Compartir link */}
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={shareLink}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 active:scale-[0.97] transition-all"
+            >
+              <ShareIcon className="w-4 h-4" />
+              Compartir link
+            </button>
+            <button
+              onClick={copyLink}
+              className={cn(
+                'flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-btn border font-condensed text-sm font-600 transition-all',
+                copied === 'link'
+                  ? 'bg-lt-green/20 border-lt-green text-lt-green'
+                  : 'bg-lt-card2 border-lt-muted text-lt-white hover:border-lt-green/40'
+              )}
+            >
+              {copied === 'link' ? <CheckIcon className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
+              {copied === 'link' ? 'Copiado' : 'Link'}
+            </button>
+          </div>
+
+          <p className="text-lt-muted2 font-barlow text-xs mt-2.5 leading-snug">
+            Comparte el código o envía el link para que otros hinchas se unan
+          </p>
         </div>
-
-        {/* Compartir link */}
-        <div className="flex gap-2 mt-3">
-          <button
-            onClick={shareLink}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 active:scale-[0.97] transition-all"
-          >
-            <ShareIcon className="w-4 h-4" />
-            Compartir link
-          </button>
-          <button
-            onClick={copyLink}
-            className={cn(
-              'flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-btn border font-condensed text-sm font-600 transition-all',
-              copied === 'link'
-                ? 'bg-lt-green/20 border-lt-green text-lt-green'
-                : 'bg-lt-card2 border-lt-muted text-lt-white hover:border-lt-green/40'
-            )}
-          >
-            {copied === 'link' ? <CheckIcon className="w-3.5 h-3.5" /> : <LinkIcon className="w-3.5 h-3.5" />}
-            {copied === 'link' ? 'Copiado' : 'Link'}
-          </button>
-        </div>
-
-        <p className="text-lt-muted2 font-barlow text-xs mt-2.5 leading-snug">
-          Comparte el código o envía el link para que otros hinchas se unan
-        </p>
-      </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">

@@ -25,6 +25,7 @@ export async function PATCH(
 
   if (typeof body.allowRemote === 'boolean') data.allowRemote = body.allowRemote
   if (typeof body.requireApproval === 'boolean') data.requireApproval = body.requireApproval
+  if (typeof body.allowMemberInvites === 'boolean') data.allowMemberInvites = body.allowMemberInvites
   if (typeof body.minConsumption === 'boolean') data.minConsumption = body.minConsumption
   if (body.minConsumptionAmount !== undefined) {
     data.minConsumptionAmount = body.minConsumptionAmount ? parseInt(body.minConsumptionAmount, 10) : null

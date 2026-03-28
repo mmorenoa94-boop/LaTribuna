@@ -8,6 +8,7 @@ interface Props {
   initialDescription: string | null
   initialMaxMembers: number
   initialAllowRemote: boolean
+  initialAllowMemberInvites: boolean
   initialScoringMode: 'FIXED' | 'POOL'
   hasLinkedBusiness: boolean
 }
@@ -18,6 +19,7 @@ export function SettingsTab({
   initialDescription,
   initialMaxMembers,
   initialAllowRemote,
+  initialAllowMemberInvites,
   initialScoringMode,
   hasLinkedBusiness,
 }: Props) {
@@ -25,6 +27,7 @@ export function SettingsTab({
   const [description, setDescription] = useState(initialDescription ?? '')
   const [maxMembers, setMaxMembers] = useState(initialMaxMembers)
   const [allowRemote, setAllowRemote] = useState(initialAllowRemote)
+  const [allowMemberInvites, setAllowMemberInvites] = useState(initialAllowMemberInvites)
   const [scoringMode, setScoringMode] = useState(initialScoringMode)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -45,6 +48,7 @@ export function SettingsTab({
           description: description.trim() || null,
           maxMembers,
           allowRemote,
+          allowMemberInvites,
           scoringMode,
         }),
       })
@@ -76,6 +80,7 @@ export function SettingsTab({
     (description.trim() || null) !== (initialDescription || null) ||
     maxMembers !== initialMaxMembers ||
     allowRemote !== initialAllowRemote ||
+    allowMemberInvites !== initialAllowMemberInvites ||
     scoringMode !== initialScoringMode
 
   return (
@@ -170,6 +175,28 @@ export function SettingsTab({
               </p>
             </button>
           </div>
+        </div>
+
+        {/* Allow member invites */}
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="font-condensed text-sm text-lt-white font-700">Miembros pueden invitar</p>
+            <p className="font-condensed text-[10px] text-lt-muted2">
+              Permitir que los miembros compartan el código de invitación
+            </p>
+          </div>
+          <button
+            onClick={() => setAllowMemberInvites(!allowMemberInvites)}
+            className={`relative w-12 h-7 rounded-full transition-colors ${
+              allowMemberInvites ? 'bg-lt-green' : 'bg-lt-card2 border border-[rgba(255,255,255,0.15)]'
+            }`}
+          >
+            <span
+              className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all shadow-sm ${
+                allowMemberInvites ? 'left-6' : 'left-1'
+              }`}
+            />
+          </button>
         </div>
 
         {/* Allow remote — only for business-linked leagues */}

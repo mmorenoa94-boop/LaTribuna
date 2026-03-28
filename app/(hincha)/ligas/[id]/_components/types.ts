@@ -74,6 +74,7 @@ export interface SLeague {
   maxMembers: number
   scoringMode: 'FIXED' | 'POOL'
   allowRemote: boolean
+  allowMemberInvites: boolean
   minConsumption: boolean
   minConsumptionAmount: number | null
   seasonEndDate: string | null

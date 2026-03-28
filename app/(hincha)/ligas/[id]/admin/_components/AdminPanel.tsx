@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -19,6 +19,7 @@ interface Props {
   leagueDescription: string | null
   leagueMaxMembers: number
   leagueAllowRemote: boolean
+  leagueAllowMemberInvites: boolean
   creatorId: string
   sessionUserId: string
   initialMatches: MatchRow[]
@@ -36,6 +37,7 @@ export function AdminPanel({
   leagueDescription,
   leagueMaxMembers,
   leagueAllowRemote,
+  leagueAllowMemberInvites,
   creatorId,
   sessionUserId,
   initialMatches,
@@ -76,6 +78,21 @@ export function AdminPanel({
       setLoadingQs(false)
     }
   }
+
+  // ── Auto-refresh questions every 10s when a match is selected ────────────
+  const refreshQuestions = useCallback(async () => {
+    if (!selectedMatchId) return
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/admin/questions?matchId=${selectedMatchId}`)
+      if (res.ok) setQuestions(await res.json())
+    } catch { /* ignore */ }
+  }, [leagueId, selectedMatchId])
+
+  useEffect(() => {
+    if (!selectedMatchId) return
+    const interval = setInterval(refreshQuestions, 10_000)
+    return () => clearInterval(interval)
+  }, [selectedMatchId, refreshQuestions])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   function handleMatchCreated(m: MatchRow) {
@@ -617,6 +634,7 @@ export function AdminPanel({
                 initialDescription={leagueDescription}
                 initialMaxMembers={leagueMaxMembers}
                 initialAllowRemote={leagueAllowRemote}
+                initialAllowMemberInvites={leagueAllowMemberInvites}
                 initialScoringMode={leagueScoringMode}
                 hasLinkedBusiness={hasLinkedBusiness}
               />

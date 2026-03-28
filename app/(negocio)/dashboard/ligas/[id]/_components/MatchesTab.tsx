@@ -270,7 +270,11 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
     setLoading(false)
   }, [leagueId, match.id])
 
-  useEffect(() => { fetchQuestions() }, [fetchQuestions])
+  useEffect(() => {
+    fetchQuestions()
+    const interval = setInterval(fetchQuestions, 10_000)
+    return () => clearInterval(interval)
+  }, [fetchQuestions])
 
   function handleQuestionUpdated(updated: QuestionData) {
     setQuestions((prev) => prev.map((q) => (q.id === updated.id ? updated : q)))
