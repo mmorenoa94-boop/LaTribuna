@@ -103,8 +103,11 @@ export async function POST(
             vapidPrivate
           )
 
+          const promoTitle = promotion.title
+            ? `${promotion.title} · ${business.name}`
+            : business.name
           const payload = JSON.stringify({
-            title: business.name,
+            title: promoTitle,
             body: promotion.message,
             icon: business.logoUrl ?? '/icons/icon-192.png',
             data: { type: 'promotion', promotionId: promotion.id },
@@ -143,11 +146,14 @@ export async function POST(
 
   // Create in-app notifications
   if (channels.includes('in-app') && userIds.length > 0) {
+    const notifTitle = promotion.title
+      ? `${promotion.title} · ${business.name}`
+      : business.name
     await prisma.notification.createMany({
       data: userIds.map((userId) => ({
         userId,
         type: 'PROMOTION',
-        title: business.name,
+        title: notifTitle,
         body: promotion.message,
         data: { promotionId: promotion.id, imageUrl: promotion.imageUrl },
       })),

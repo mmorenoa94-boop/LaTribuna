@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   if (!business) return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 })
 
   const body = await req.json()
-  const { message, imageUrl, segment, channels, timing, scheduledAt } = body
+  const { message, title, imageUrl, segment, channels, timing, scheduledAt } = body
 
   if (!message?.trim() || message.trim().length > 120) {
     return NextResponse.json({ error: 'Mensaje requerido (máx 120 caracteres)' }, { status: 400 })
@@ -53,15 +53,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Fecha programada requerida' }, { status: 400 })
   }
 
+  // datetime-local input has no timezone — treat as Colombia time (UTC-5)
+  let parsedScheduledAt: Date | null = null
+  if (scheduledAt) {
+    parsedScheduledAt = new Date(scheduledAt + '-05:00')
+  }
+
   const promotion = await prisma.promotion.create({
     data: {
       businessId: business.id,
+      title: title?.trim() || null,
       message: message.trim(),
       imageUrl: imageUrl || null,
       segment,
       channels,
       timing,
-      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      scheduledAt: parsedScheduledAt,
       status: timing === 'IMMEDIATE' ? 'DRAFT' : timing === 'SCHEDULED' ? 'SCHEDULED' : 'DRAFT',
     },
   })

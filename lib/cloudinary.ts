@@ -21,8 +21,9 @@ const FOLDER_TRANSFORMS: Record<string, { width: number; height: number; crop: s
   avatars:  { width: 200,  height: 200,  crop: 'fill' },   // profile pics — small circle
   logos:    { width: 400,  height: 400,  crop: 'limit' },   // business logos — square, keep aspect
   banners:  { width: 1200, height: 400,  crop: 'fill' },    // league banners — wide strip
-  rewards:  { width: 600,  height: 600,  crop: 'limit' },   // reward images — medium square
-  general:  { width: 800,  height: 800,  crop: 'limit' },   // fallback
+  rewards:    { width: 600,  height: 600,  crop: 'limit' },   // reward images — medium square
+  promotions: { width: 800,  height: 400,  crop: 'fill' },    // promo images — wide card
+  general:    { width: 800,  height: 800,  crop: 'limit' },   // fallback
 }
 
 /**
