@@ -86,6 +86,24 @@ Tailwind with a dark design system. Custom color tokens all prefixed `lt-` (e.g.
 | Wompi | Colombian payments | `WOMPI_*` |
 | Web Push (VAPID) | Push notifications | `VAPID_*` |
 
+## Database: Dual Environment Setup
+
+There are **two separate Neon databases** — changes to `prisma/schema.prisma` must be applied to both:
+
+| Environment | Host | Used by |
+|-------------|------|---------|
+| Development | `ep-rapid-breeze-am0sqedm` | Local dev (`pnpm dev`) |
+| Production  | `ep-rapid-salad-a472hpu0` | Vercel deployment |
+
+The `.env` file points to **development** by default. Vercel has its own env vars pointing to production.
+
+### When you modify `prisma/schema.prisma`:
+1. **Dev**: `pnpm db:push` (uses `.env` as-is)
+2. **Prod**: Temporarily swap the `DATABASE_URL`/`DIRECT_URL` in `.env` to the production values, run `pnpm db:push`, then revert `.env` back to development
+3. **Always do both** before merging to `main` — Vercel runs `prisma generate` on deploy but does NOT run `db:push`, so the production DB must already have the new columns
+
+**Failure to push to prod will crash the entire app** with `PrismaClientKnownRequestError: column does not exist`.
+
 ## Important Notes
 - Cron jobs are defined in `app/api/cron/` but **not registered in `vercel.json`** (Hobby plan limit) — must be triggered manually or externally
 - PWA service worker is disabled in dev (`next.config.js`)
