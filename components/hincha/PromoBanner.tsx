@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 
 interface PromoNotification {
@@ -12,7 +12,6 @@ interface PromoNotification {
 
 export function PromoBanner() {
   const [promos, setPromos] = useState<PromoNotification[]>([])
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [expanded, setExpanded] = useState<string | null>(null)
 
   useEffect(() => {
@@ -32,12 +31,24 @@ export function PromoBanner() {
     load()
   }, [])
 
-  const visible = promos.filter((p) => !dismissed.has(p.id))
-  if (visible.length === 0) return null
+  const dismiss = useCallback(async (id: string) => {
+    // Remove from UI immediately
+    setPromos((prev) => prev.filter((p) => p.id !== id))
+    // Mark as read on server so it doesn't come back
+    try {
+      await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id] }),
+      })
+    } catch { /* ignore */ }
+  }, [])
+
+  if (promos.length === 0) return null
 
   return (
     <div className="space-y-2">
-      {visible.map((promo) => (
+      {promos.map((promo) => (
         <div
           key={promo.id}
           className="bg-lt-card rounded-card border border-lt-amber/30 p-3 animate-fade-in"
@@ -66,7 +77,7 @@ export function PromoBanner() {
               )}
             </div>
             <button
-              onClick={() => setDismissed((prev) => new Set(prev).add(promo.id))}
+              onClick={() => dismiss(promo.id)}
               className="text-lt-muted2 hover:text-lt-white transition-colors flex-shrink-0 p-0.5"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
