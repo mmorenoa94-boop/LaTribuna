@@ -14,6 +14,7 @@ export interface LeagueData {
   inviteCode: string
   allowRemote: boolean
   requireApproval: boolean
+  allowMemberInvites: boolean
   minConsumption: boolean
   minConsumptionAmount: number | null
   matchMode: string

@@ -117,6 +117,14 @@ export function SettingsTab({ league, onUpdate }: { league: LeagueData; onUpdate
         onChange={(v) => toggle('requireApproval', v)}
       />
 
+      {/* Allow Member Invites */}
+      <ToggleRow
+        title="Miembros pueden invitar"
+        description="Permitir que los miembros compartan el código de invitación"
+        checked={league.allowMemberInvites}
+        onChange={(v) => toggle('allowMemberInvites', v)}
+      />
+
       {/* Min Consumption */}
       <ToggleRow
         title="Consumo mínimo"

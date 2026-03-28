@@ -7,6 +7,8 @@ import { LigaTabs } from './_components/LigaTabs'
 import { RulesButton } from './_components/RulesModal'
 import type { SLeague, SPrediction } from './_components/types'
 
+export const dynamic = 'force-dynamic'
+
 const TYPE_LABELS: Record<string, string> = {
   PUBLIC: 'Pública', PRIVATE: 'Privada', INVITE_ONLY: 'Con invitación', BUSINESS: 'Local',
 }
@@ -75,6 +77,7 @@ export default async function LigaDetailPage({
     maxMembers: league.maxMembers,
     scoringMode: league.scoringMode as 'FIXED' | 'POOL',
     allowRemote: league.allowRemote,
+    allowMemberInvites: league.allowMemberInvites,
     minConsumption: league.minConsumption,
     minConsumptionAmount: league.minConsumptionAmount,
     seasonEndDate: league.seasonEndDate?.toISOString() ?? null,

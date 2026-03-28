@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { LeagueAdminPanel } from './_components/LeagueAdminPanel'
 
+export const dynamic = 'force-dynamic'
+
 export default async function LeagueAdminPage({ params }: { params: { id: string } }) {
   const session = await auth()
   if (!session) redirect('/login')
@@ -33,6 +35,7 @@ export default async function LeagueAdminPage({ params }: { params: { id: string
           inviteCode: league.inviteCode,
           allowRemote: league.allowRemote,
           requireApproval: league.requireApproval,
+          allowMemberInvites: league.allowMemberInvites,
           minConsumption: league.minConsumption,
           minConsumptionAmount: league.minConsumptionAmount,
           matchMode: league.matchMode,
