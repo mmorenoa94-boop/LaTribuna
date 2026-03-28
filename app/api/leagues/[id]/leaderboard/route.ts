@@ -95,18 +95,26 @@ export async function GET(
   }))
 
   // Calculate ranking per match for position change arrows
-  // For each match, rank users by cumulative points up to that match
+  // Only include matches that have at least one answered question
   const matchOrder = leagueMatches.map((lm) => lm.matchId)
+  const matchesWithData = matchOrder.filter((matchId) => {
+    const userIds = Array.from(userMatchPoints.keys())
+    for (const uid of userIds) {
+      const data = userMatchPoints.get(uid)?.get(matchId)
+      if (data && data.total > 0) return true
+    }
+    return false
+  })
 
   // cumulativeRank[matchIndex] = Map<userId, position>
   const cumulativeRanks: Map<string, number>[] = []
 
-  for (let mi = 0; mi < matchOrder.length; mi++) {
+  for (let mi = 0; mi < matchesWithData.length; mi++) {
     const cumulativePoints = new Map<string, number>()
     for (const m of members) {
       let cumul = 0
       for (let j = 0; j <= mi; j++) {
-        const matchPts = userMatchPoints.get(m.userId)?.get(matchOrder[j])
+        const matchPts = userMatchPoints.get(m.userId)?.get(matchesWithData[j])
         if (matchPts) cumul += matchPts.points
       }
       cumulativePoints.set(m.userId, cumul)

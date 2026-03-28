@@ -36,10 +36,12 @@ function StatCard({
   label,
   value,
   icon,
+  subtitle,
 }: {
   label: string
   value: string | number
   icon: string
+  subtitle?: string
 }) {
   return (
     <div className="bg-lt-card rounded-btn border border-[rgba(255,255,255,0.07)] px-3 py-3 flex flex-col items-center gap-1">
@@ -48,6 +50,11 @@ function StatCard({
       <p className="text-lt-muted2 font-condensed text-[10px] uppercase tracking-wider text-center">
         {label}
       </p>
+      {subtitle && (
+        <p className="text-lt-green font-condensed text-[10px] font-600 tabular-nums">
+          {subtitle}
+        </p>
+      )}
     </div>
   )
 }
@@ -58,7 +65,7 @@ export default async function PerfilPage() {
   const session = await auth()
   if (!session) redirect('/login')
 
-  const [user, balance, leagueCount, answerCount, predictionCount] = await Promise.all([
+  const [user, balance, leagueCount, correctAnswers, totalAnswers, correctPredictions, totalPredictions] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -81,7 +88,9 @@ export default async function PerfilPage() {
     }),
     getBalance(session.user.id),
     prisma.leagueMember.count({ where: { userId: session.user.id } }),
+    prisma.answer.count({ where: { userId: session.user.id, isCorrect: true } }),
     prisma.answer.count({ where: { userId: session.user.id } }),
+    prisma.prediction.count({ where: { userId: session.user.id, isCorrect: true } }),
     prisma.prediction.count({ where: { userId: session.user.id } }),
   ])
 
@@ -191,7 +200,14 @@ export default async function PerfilPage() {
           </p>
           <div className="grid grid-cols-3 gap-2.5">
             <StatCard label="Ligas" value={leagueCount} icon="🏟️" />
-            <StatCard label="Respuestas" value={formatPoints(answerCount + predictionCount)} icon="🎯" />
+            <StatCard
+              label="Aciertos"
+              value={formatPoints(correctAnswers + correctPredictions)}
+              icon="🎯"
+              subtitle={totalAnswers + totalPredictions > 0
+                ? `${Math.round(((correctAnswers + correctPredictions) / (totalAnswers + totalPredictions)) * 100)}% de ${totalAnswers + totalPredictions}`
+                : undefined}
+            />
             <StatCard label="Racha" value={`${user.streak}🔥`} icon="📅" />
           </div>
         </div>
