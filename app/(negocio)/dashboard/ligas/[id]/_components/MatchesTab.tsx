@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 interface MatchData {
@@ -23,6 +24,8 @@ interface QuestionData {
   pointsValue: number
   timing: string
   status: string
+  correctAnswer: string | null
+  closedAt: string | null
   _count: { answers: number }
 }
 
@@ -34,16 +37,53 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   CANCELLED: { label: 'Cancelado',  color: 'text-lt-red' },
 }
 
-const Q_TYPE_LABEL: Record<string, string> = {
-  WINNER: 'Ganador', SCORE: 'Marcador', SCORER: 'Goleador',
-  YES_NO: 'Sí/No', RANGE: 'Rango', CUSTOM: 'Personalizada',
+const Q_STATUS: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  PENDING:  { label: 'Pendiente', color: 'text-lt-muted2', bg: 'bg-lt-card2',                     border: 'border-[rgba(255,255,255,0.07)]' },
+  OPEN:     { label: 'Abierta',   color: 'text-lt-green',  bg: 'bg-lt-green/10',                  border: 'border-lt-green/30' },
+  CLOSED:   { label: 'Cerrada',   color: 'text-lt-amber',  bg: 'bg-lt-amber/10',                  border: 'border-lt-amber/30' },
+  RESOLVED: { label: 'Resuelta',  color: 'text-lt-muted2', bg: 'bg-[rgba(255,255,255,0.03)]',     border: 'border-[rgba(255,255,255,0.05)]' },
 }
 
-const Q_STATUS: Record<string, { label: string; color: string }> = {
-  PENDING:  { label: 'Pendiente', color: 'text-lt-muted2 border-lt-muted' },
-  OPEN:     { label: 'Abierta',   color: 'text-lt-green border-lt-green/40' },
-  CLOSED:   { label: 'Cerrada',   color: 'text-lt-amber border-lt-amber/40' },
-  RESOLVED: { label: 'Resuelta',  color: 'text-lt-muted2 border-lt-muted' },
+const QUESTION_TYPES = [
+  { value: 'WINNER',  label: '🏆 Ganador' },
+  { value: 'SCORE',   label: '⚽ Marcador' },
+  { value: 'SCORER',  label: '👟 Goleador' },
+  { value: 'YES_NO',  label: '✅ Sí / No' },
+  { value: 'RANGE',   label: '📊 Rango' },
+  { value: 'CUSTOM',  label: '✏️ Personalizada' },
+]
+
+const Q_TYPE_LABEL: Record<string, string> = {
+  WINNER: '🏆 Ganador', SCORE: '⚽ Marcador', SCORER: '👟 Goleador',
+  YES_NO: '✅ Sí/No', RANGE: '📊 Rango', CUSTOM: '✏️ Personalizada',
+}
+
+const PLACEHOLDER: Record<string, string> = {
+  WINNER: '¿Quién ganará el partido?',
+  SCORE:  '¿Cómo terminará el marcador?',
+  YES_NO: '¿Habrá gol en los primeros 10 minutos?',
+  SCORER: '¿Quién marcará el primer gol?',
+}
+
+const TIMING_OPTIONS = [
+  { value: 'PRE_MATCH', label: '⏱️ Pre-partido' },
+  { value: 'LIVE', label: '🔴 En vivo' },
+]
+
+const WINDOW_OPTIONS = [
+  { label: '15s', secs: 15 },
+  { label: '20s', secs: 20 },
+  { label: '30s', secs: 30 },
+  { label: '45s', secs: 45 },
+  { label: '60s', secs: 60 },
+]
+
+function defaultOptions(type: string, home: string, away: string): string[] {
+  switch (type) {
+    case 'WINNER':  return [home, away, 'Empate']
+    case 'YES_NO':  return ['Sí', 'No']
+    default:        return ['', '']
+  }
 }
 
 export function MatchesTab({ leagueId }: { leagueId: string }) {
@@ -72,7 +112,6 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
 
   return (
     <div className="space-y-4">
-      {/* Add match button */}
       <button
         onClick={() => setShowForm(!showForm)}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 active:scale-[0.97] transition-all"
@@ -89,7 +128,6 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
         />
       )}
 
-      {/* Match list */}
       {loading ? (
         <div className="text-center py-8">
           <span className="w-6 h-6 border-2 border-lt-amber/30 border-t-lt-amber rounded-full animate-spin inline-block" />
@@ -148,17 +186,13 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
 
 // ── Add Match Form ─────────────────────────────────────────────
 function AddMatchForm({
-  leagueId,
-  onCreated,
-  onCancel,
+  leagueId, onCreated, onCancel,
 }: {
   leagueId: string
   onCreated: (m: MatchData) => void
   onCancel: () => void
 }) {
-  const [form, setForm] = useState({
-    homeTeam: '', awayTeam: '', competition: '', venue: '', kickoffAt: '',
-  })
+  const [form, setForm] = useState({ homeTeam: '', awayTeam: '', competition: '', venue: '', kickoffAt: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -230,12 +264,43 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
 
-  useEffect(() => {
-    fetch(`/api/leagues/${leagueId}/admin/questions?matchId=${match.id}`)
-      .then((r) => r.json())
-      .then(setQuestions)
-      .finally(() => setLoading(false))
+  const fetchQuestions = useCallback(async () => {
+    const res = await fetch(`/api/leagues/${leagueId}/admin/questions?matchId=${match.id}`)
+    if (res.ok) setQuestions(await res.json())
+    setLoading(false)
   }, [leagueId, match.id])
+
+  useEffect(() => { fetchQuestions() }, [fetchQuestions])
+
+  function handleQuestionUpdated(updated: QuestionData) {
+    setQuestions((prev) => prev.map((q) => (q.id === updated.id ? updated : q)))
+  }
+
+  function handleQuestionDeleted(id: string) {
+    setQuestions((prev) => prev.filter((q) => q.id !== id))
+  }
+
+  const pendingCount = questions.filter((q) => q.status === 'PENDING').length
+  const openCount = questions.filter((q) => q.status === 'OPEN').length
+
+  async function bulkAction(action: 'open' | 'close') {
+    const targets = questions.filter((q) =>
+      action === 'open' ? q.status === 'PENDING' : q.status === 'OPEN'
+    )
+    for (const q of targets) {
+      try {
+        const res = await fetch(`/api/leagues/${leagueId}/admin/questions/${q.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        })
+        if (res.ok) {
+          const updated = await res.json()
+          handleQuestionUpdated(updated)
+        }
+      } catch { /* ignore */ }
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -259,6 +324,39 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
         </div>
       </div>
 
+      {/* Bulk actions + stats */}
+      {questions.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-condensed text-xs text-lt-muted2">
+            {questions.length} preguntas
+          </span>
+          {pendingCount > 0 && (
+            <>
+              <span className="text-lt-muted2">·</span>
+              <span className="font-condensed text-xs text-lt-muted2">{pendingCount} pendientes</span>
+              <button
+                onClick={() => bulkAction('open')}
+                className="px-2.5 py-1 rounded-btn bg-lt-green/15 border border-lt-green/30 text-lt-green font-condensed text-xs hover:bg-lt-green/25 transition-colors"
+              >
+                ▶ Abrir todas
+              </button>
+            </>
+          )}
+          {openCount > 0 && (
+            <>
+              <span className="text-lt-muted2">·</span>
+              <span className="font-condensed text-xs text-lt-green">{openCount} abiertas</span>
+              <button
+                onClick={() => bulkAction('close')}
+                className="px-2.5 py-1 rounded-btn bg-lt-amber/15 border border-lt-amber/30 text-lt-amber font-condensed text-xs hover:bg-lt-amber/25 transition-colors"
+              >
+                ⏹ Cerrar todas
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Add question */}
       <button
         onClick={() => setShowForm(!showForm)}
@@ -272,6 +370,8 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
         <AddQuestionForm
           leagueId={leagueId}
           matchId={match.id}
+          homeTeam={match.homeTeam}
+          awayTeam={match.awayTeam}
           onCreated={(q) => { setQuestions((prev) => [...prev, q]); setShowForm(false) }}
           onCancel={() => setShowForm(false)}
         />
@@ -289,70 +389,256 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
         </div>
       ) : (
         <div className="space-y-2">
-          {questions.map((q, i) => {
-            const qs = Q_STATUS[q.status] ?? { label: q.status, color: 'text-lt-muted2 border-lt-muted' }
-            return (
-              <div key={q.id} className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-condensed text-xs text-lt-muted2 flex-shrink-0">#{i + 1}</span>
-                    <p className="font-condensed text-sm text-lt-white font-600 truncate">{q.text}</p>
-                  </div>
-                  <span className={cn('font-condensed text-[10px] font-700 border px-1.5 py-0.5 rounded-full flex-shrink-0', qs.color)}>
-                    {qs.label}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="font-condensed text-xs text-lt-muted2">
-                    {Q_TYPE_LABEL[q.type] ?? q.type}
-                  </span>
-                  <span className="font-condensed text-xs text-lt-amber">{q.pointsValue} pts</span>
-                  <span className="font-condensed text-xs text-lt-muted2">
-                    {q.timing === 'LIVE' ? '🔴 En vivo' : '⏱️ Pre-partido'}
-                  </span>
-                  <span className="font-condensed text-xs text-lt-muted2">
-                    {q._count.answers} resp.
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {(q.options as string[]).map((opt, j) => (
-                    <span key={j} className="text-[11px] font-barlow bg-lt-card2 text-lt-muted2 px-2 py-0.5 rounded-full border border-[rgba(255,255,255,0.05)]">
-                      {opt}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
+          {questions.map((q, i) => (
+            <QuestionCard
+              key={q.id}
+              question={q}
+              index={i}
+              leagueId={leagueId}
+              onUpdated={handleQuestionUpdated}
+              onDeleted={handleQuestionDeleted}
+            />
+          ))}
         </div>
       )}
     </div>
   )
 }
 
+// ── Question Card with lifecycle actions ──────────────────────
+function QuestionCard({
+  question: q, index, leagueId, onUpdated, onDeleted,
+}: {
+  question: QuestionData
+  index: number
+  leagueId: string
+  onUpdated: (q: QuestionData) => void
+  onDeleted: (id: string) => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [showOpenPicker, setShowOpenPicker] = useState(false)
+  const [showResolvePicker, setShowResolvePicker] = useState(false)
+  const [windowSecs, setWindowSecs] = useState(30)
+
+  const cfg = Q_STATUS[q.status] ?? Q_STATUS.PENDING
+
+  async function patchQuestion(body: object) {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/admin/questions/${q.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (res.ok) onUpdated(await res.json())
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function deleteQuestion() {
+    if (!confirm('¿Eliminar esta pregunta?')) return
+    setLoading(true)
+    try {
+      await fetch(`/api/leagues/${leagueId}/admin/questions/${q.id}`, { method: 'DELETE' })
+      onDeleted(q.id)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function timeLeftLabel() {
+    if (!q.closedAt) return null
+    const left = Math.max(0, Math.floor((new Date(q.closedAt).getTime() - Date.now()) / 1000))
+    if (left <= 0) return null
+    const m = Math.floor(left / 60)
+    const s = left % 60
+    return m > 0 ? `${m}m ${s}s` : `${s}s`
+  }
+
+  return (
+    <div className={cn('rounded-card border p-4 transition-colors', cfg.bg, cfg.border)}>
+      {/* Top row: metadata */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <span className="font-condensed text-xs text-lt-muted2 flex-shrink-0">#{index + 1}</span>
+          <span className={cn('font-condensed text-xs font-700 uppercase tracking-wide', cfg.color)}>
+            {cfg.label}
+          </span>
+          <span className="text-lt-muted2 font-condensed text-xs">
+            {q.timing === 'LIVE' ? '🔴 Vivo' : '⏱️ Pre'}
+          </span>
+          <span className="text-lt-amber font-condensed text-xs font-700">+{q.pointsValue} pts</span>
+          {q._count.answers > 0 && (
+            <span className="text-lt-muted2 font-condensed text-xs">{q._count.answers} resp.</span>
+          )}
+          {q.status === 'OPEN' && timeLeftLabel() && (
+            <span className="text-lt-green font-condensed text-xs animate-pulse">⏱ {timeLeftLabel()}</span>
+          )}
+        </div>
+        <span className="text-lt-muted2 font-condensed text-xs flex-shrink-0">
+          {Q_TYPE_LABEL[q.type] ?? q.type}
+        </span>
+      </div>
+
+      {/* Question text */}
+      <p className="font-condensed text-sm text-lt-white leading-snug mb-2">{q.text}</p>
+
+      {/* Options */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {(q.options as string[]).map((opt, i) => (
+          <span
+            key={i}
+            className={cn(
+              'font-condensed text-xs px-2 py-0.5 rounded-full',
+              q.correctAnswer === opt
+                ? 'bg-lt-green/20 text-lt-green'
+                : 'bg-lt-card2 text-lt-muted2'
+            )}
+          >
+            {String.fromCharCode(65 + i)}. {opt}
+            {q.correctAnswer === opt && ' ✓'}
+          </span>
+        ))}
+      </div>
+
+      {/* Actions by status */}
+      {q.status === 'PENDING' && (
+        <div className="flex gap-2 flex-wrap">
+          {q.timing === 'LIVE' ? (
+            <div className="relative">
+              <button
+                onClick={() => setShowOpenPicker((v) => !v)}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-green/15 border border-lt-green/40 text-lt-green font-condensed text-sm hover:bg-lt-green/25 transition-colors disabled:opacity-50"
+              >
+                ▶ Abrir
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={cn('transition-transform', showOpenPicker && 'rotate-180')}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              <AnimatePresence>
+                {showOpenPicker && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                    className="absolute top-full left-0 mt-1 bg-lt-card border border-[rgba(255,255,255,0.1)] rounded-card p-3 z-10 min-w-[180px]"
+                  >
+                    <p className="font-condensed text-xs text-lt-muted2 mb-2">Tiempo para responder:</p>
+                    <div className="flex gap-1.5 flex-wrap mb-3">
+                      {WINDOW_OPTIONS.map((w) => (
+                        <button
+                          key={w.secs} type="button"
+                          onClick={() => setWindowSecs(w.secs)}
+                          className={cn(
+                            'px-2.5 py-1 rounded-btn font-condensed text-xs border transition-all',
+                            windowSecs === w.secs
+                              ? 'bg-lt-green/20 border-lt-green text-lt-green'
+                              : 'bg-lt-card2 border-[rgba(255,255,255,0.07)] text-lt-muted2'
+                          )}
+                        >
+                          {w.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => { patchQuestion({ action: 'open', windowSecs }); setShowOpenPicker(false) }}
+                      className="w-full py-2 bg-lt-green text-lt-black rounded-btn font-condensed text-sm font-700"
+                    >
+                      ¡Abrir ya!
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <button
+              onClick={() => patchQuestion({ action: 'open' })}
+              disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-green/15 border border-lt-green/40 text-lt-green font-condensed text-sm hover:bg-lt-green/25 transition-colors disabled:opacity-50"
+            >
+              ▶ Abrir
+            </button>
+          )}
+          <button
+            onClick={deleteQuestion}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-red/10 border border-lt-red/30 text-lt-red font-condensed text-sm hover:bg-lt-red/20 transition-colors disabled:opacity-50"
+          >
+            🗑 Borrar
+          </button>
+        </div>
+      )}
+
+      {q.status === 'OPEN' && (
+        <button
+          onClick={() => patchQuestion({ action: 'close' })}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm hover:bg-lt-amber/25 transition-colors disabled:opacity-50"
+        >
+          ⏹ Cerrar ahora
+        </button>
+      )}
+
+      {q.status === 'CLOSED' && (
+        <div className="w-full">
+          {!showResolvePicker ? (
+            <button
+              onClick={() => setShowResolvePicker(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-green/15 border border-lt-green/40 text-lt-green font-condensed text-sm hover:bg-lt-green/25 transition-colors"
+            >
+              ✅ Seleccionar respuesta correcta
+            </button>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+              className="bg-lt-card2 rounded-card p-3 border border-[rgba(255,255,255,0.07)]"
+            >
+              <p className="font-condensed text-xs text-lt-muted2 mb-2 uppercase tracking-wide">
+                ¿Cuál fue la respuesta correcta?
+              </p>
+              <div className="flex flex-col gap-2">
+                {(q.options as string[]).map((opt, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { patchQuestion({ action: 'resolve', correctAnswer: opt }); setShowResolvePicker(false) }}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-btn bg-lt-card border border-[rgba(255,255,255,0.07)] text-lt-white font-condensed text-sm hover:border-lt-green/40 hover:bg-lt-green/10 transition-all text-left"
+                  >
+                    <span className="w-6 h-6 rounded-full bg-lt-card2 flex items-center justify-center font-bebas text-xs text-lt-muted2 flex-shrink-0">
+                      {String.fromCharCode(65 + i)}
+                    </span>
+                    {opt}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowResolvePicker(false)}
+                className="mt-2 text-lt-muted2 font-condensed text-xs hover:text-lt-white"
+              >
+                Cancelar
+              </button>
+            </motion.div>
+          )}
+        </div>
+      )}
+
+      {q.status === 'RESOLVED' && q.correctAnswer && (
+        <p className="font-condensed text-xs text-lt-green">
+          ✅ Respuesta: <strong>{q.correctAnswer}</strong> · {q._count.answers} respuestas
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ── Add Question Form ─────────────────────────────────────────
-const QUESTION_TYPES = [
-  { value: 'WINNER', label: 'Ganador' },
-  { value: 'SCORE', label: 'Marcador' },
-  { value: 'SCORER', label: 'Goleador' },
-  { value: 'YES_NO', label: 'Sí/No' },
-  { value: 'RANGE', label: 'Rango' },
-  { value: 'CUSTOM', label: 'Personalizada' },
-]
-
-const TIMING_OPTIONS = [
-  { value: 'PRE_MATCH', label: '⏱️ Pre-partido' },
-  { value: 'LIVE', label: '🔴 En vivo' },
-]
-
 function AddQuestionForm({
-  leagueId,
-  matchId,
-  onCreated,
-  onCancel,
+  leagueId, matchId, homeTeam, awayTeam, onCreated, onCancel,
 }: {
   leagueId: string
   matchId: string
+  homeTeam: string
+  awayTeam: string
   onCreated: (q: QuestionData) => void
   onCancel: () => void
 }) {
@@ -361,12 +647,20 @@ function AddQuestionForm({
     type: 'WINNER',
     timing: 'PRE_MATCH',
     pointsValue: 20,
-    options: ['', ''],
+    options: defaultOptions('WINNER', homeTeam, awayTeam),
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const inputCls = 'w-full bg-lt-card2 border border-lt-muted rounded-btn px-4 py-3 text-lt-white font-barlow text-sm focus:outline-none focus:border-lt-amber transition-colors placeholder:text-lt-muted2'
+
+  function changeType(type: string) {
+    setForm((f) => ({
+      ...f,
+      type,
+      options: defaultOptions(type, homeTeam, awayTeam),
+    }))
+  }
 
   function addOption() {
     setForm((f) => ({ ...f, options: [...f.options, ''] }))
@@ -409,22 +703,11 @@ function AddQuestionForm({
     }
   }
 
+  const placeholder = PLACEHOLDER[form.type] ?? 'Escribe la pregunta…'
+
   return (
     <form onSubmit={handleSubmit} className="bg-lt-card rounded-card border border-lt-amber/20 p-4 space-y-4">
       <p className="font-condensed text-sm text-lt-amber font-700">Nueva pregunta</p>
-
-      {/* Text */}
-      <div>
-        <label className="block text-lt-white font-condensed text-xs mb-1">Pregunta <span className="text-lt-red">*</span></label>
-        <input
-          type="text"
-          value={form.text}
-          onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))}
-          placeholder="¿Quién ganará el partido?"
-          maxLength={200}
-          className={inputCls}
-        />
-      </div>
 
       {/* Type */}
       <div>
@@ -434,7 +717,7 @@ function AddQuestionForm({
             <button
               key={value}
               type="button"
-              onClick={() => setForm((f) => ({ ...f, type: value }))}
+              onClick={() => changeType(value)}
               className={cn(
                 'py-2 px-2 rounded-btn border font-condensed text-xs font-600 transition-all',
                 form.type === value
@@ -448,6 +731,19 @@ function AddQuestionForm({
         </div>
       </div>
 
+      {/* Text */}
+      <div>
+        <label className="block text-lt-white font-condensed text-xs mb-1">Pregunta <span className="text-lt-red">*</span></label>
+        <input
+          type="text"
+          value={form.text}
+          onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))}
+          placeholder={placeholder}
+          maxLength={200}
+          className={inputCls}
+        />
+      </div>
+
       {/* Options */}
       <div>
         <label className="block text-lt-white font-condensed text-xs mb-1.5">
@@ -456,6 +752,9 @@ function AddQuestionForm({
         <div className="space-y-2">
           {form.options.map((opt, i) => (
             <div key={i} className="flex gap-2">
+              <span className="w-7 h-10 flex items-center justify-center font-bebas text-sm text-lt-muted2 flex-shrink-0">
+                {String.fromCharCode(65 + i)}
+              </span>
               <input
                 type="text"
                 value={opt}
