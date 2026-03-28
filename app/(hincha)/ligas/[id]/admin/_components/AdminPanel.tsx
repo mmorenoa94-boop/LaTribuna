@@ -10,6 +10,7 @@ import { MembersTab } from './MembersTab'
 import { ImportMatchesModal } from './ImportMatchesModal'
 import { CustomizeTab } from './CustomizeTab'
 import { SettingsTab } from './SettingsTab'
+import { GenerateQuestionsModal } from './GenerateQuestionsModal'
 
 type Tab = 'matches' | 'members' | 'customize' | 'settings'
 
@@ -61,6 +62,7 @@ export function AdminPanel({
   const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null)
   const [confirmDeleteMatch, setConfirmDeleteMatch] = useState<string | null>(null)
   const [showImportMatches, setShowImportMatches] = useState(false)
+  const [showGenerateQuestions, setShowGenerateQuestions] = useState(false)
   const [closingAll, setClosingAll] = useState(false)
   const [openingAll, setOpeningAll] = useState(false)
   const [savingScore, setSavingScore] = useState(false)
@@ -99,6 +101,17 @@ export function AdminPanel({
     setMatches((prev) => [...prev, m])
     setShowAddMatch(false)
     selectMatch(m.id)
+  }
+
+  function handleQuestionsGenerated(newQuestions: QuestionRow[]) {
+    setQuestions(newQuestions) // batch endpoint returns ALL questions for the match
+    setMatches((prev) =>
+      prev.map((m) =>
+        m.id === selectedMatchId
+          ? { ...m, questionCount: newQuestions.length }
+          : m
+      )
+    )
   }
 
   function handleQuestionCreated(q: QuestionRow) {
@@ -476,15 +489,28 @@ export function AdminPanel({
                         {selectedMatch && formatKickoff(selectedMatch.kickoffAt)}
                       </p>
                     </div>
-                    <button
-                      onClick={() => { setEditQuestion(null); setShowAddQuestion(true) }}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 active:scale-95 transition-all flex-shrink-0"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                      Pregunta
-                    </button>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => setShowGenerateQuestions(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm font-700 active:scale-95 transition-all"
+                        title="Generar preguntas desde plantilla"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                        </svg>
+                        Generar
+                      </button>
+                      <button
+                        onClick={() => { setEditQuestion(null); setShowAddQuestion(true) }}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 active:scale-95 transition-all"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        <span className="hidden sm:inline">Pregunta</span>
+                        <span className="sm:hidden">+</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Score input */}
@@ -555,14 +581,22 @@ export function AdminPanel({
                       <p className="text-3xl mb-3">❓</p>
                       <p className="font-condensed text-base text-lt-white font-700">Sin preguntas todavía</p>
                       <p className="font-condensed text-sm text-lt-muted2 mt-1">
-                        Crea la primera pregunta para este partido
+                        Genera preguntas desde una plantilla o créalas manualmente
                       </p>
-                      <button
-                        onClick={() => setShowAddQuestion(true)}
-                        className="mt-4 px-5 py-2.5 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700"
-                      >
-                        + Nueva pregunta
-                      </button>
+                      <div className="flex gap-2 justify-center mt-4">
+                        <button
+                          onClick={() => setShowGenerateQuestions(true)}
+                          className="px-5 py-2.5 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm font-700"
+                        >
+                          ⚡ Generar desde plantilla
+                        </button>
+                        <button
+                          onClick={() => setShowAddQuestion(true)}
+                          className="px-5 py-2.5 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700"
+                        >
+                          + Manual
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-3">
@@ -661,16 +695,27 @@ export function AdminPanel({
       />
 
       {selectedMatch && (
-        <AddQuestionModal
-          leagueId={leagueId}
-          matchId={selectedMatch.id}
-          homeTeam={selectedMatch.homeTeam}
-          awayTeam={selectedMatch.awayTeam}
-          open={showAddQuestion}
-          onClose={() => { setShowAddQuestion(false); setEditQuestion(null) }}
-          onCreated={handleQuestionCreated}
-          editQuestion={editQuestion}
-        />
+        <>
+          <AddQuestionModal
+            leagueId={leagueId}
+            matchId={selectedMatch.id}
+            homeTeam={selectedMatch.homeTeam}
+            awayTeam={selectedMatch.awayTeam}
+            open={showAddQuestion}
+            onClose={() => { setShowAddQuestion(false); setEditQuestion(null) }}
+            onCreated={handleQuestionCreated}
+            editQuestion={editQuestion}
+          />
+          <GenerateQuestionsModal
+            leagueId={leagueId}
+            matchId={selectedMatch.id}
+            homeTeam={selectedMatch.homeTeam}
+            awayTeam={selectedMatch.awayTeam}
+            open={showGenerateQuestions}
+            onClose={() => setShowGenerateQuestions(false)}
+            onGenerated={handleQuestionsGenerated}
+          />
+        </>
       )}
     </div>
   )
