@@ -53,6 +53,7 @@ export default async function LeagueAdminPage({ params }: { params: { id: string
           points: m.totalPoints,
           joinedAt: m.joinedAt.toISOString(),
           isCreator: m.userId === league.creatorId,
+          consumptionVerified: m.consumptionVerified,
         }))}
       />
     </div>

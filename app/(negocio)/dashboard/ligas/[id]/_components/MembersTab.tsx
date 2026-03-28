@@ -70,6 +70,22 @@ export function MembersTab({
     }
   }
 
+  async function toggleVerified(userId: string, current: boolean) {
+    setLoading(userId)
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/admin/members/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ consumptionVerified: !current }),
+      })
+      if (res.ok) {
+        onMembersChange(members.map((m) => (m.id === userId ? { ...m, consumptionVerified: !current } : m)))
+      }
+    } finally {
+      setLoading(null)
+    }
+  }
+
   return (
     <div className="space-y-5">
       {/* Pending approvals */}
@@ -140,20 +156,43 @@ export function MembersTab({
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-condensed text-sm text-lt-white truncate">{m.name}</p>
                 {m.isCreator && (
                   <span className="text-[10px] font-condensed font-700 bg-lt-amber/20 text-lt-amber px-1.5 py-0.5 rounded-full">
                     Admin
                   </span>
                 )}
+                {m.consumptionVerified && (
+                  <span className="text-[10px] font-condensed font-700 bg-lt-blue/15 text-lt-blue px-1.5 py-0.5 rounded-full border border-lt-blue/30">
+                    ✓ Verificado
+                  </span>
+                )}
               </div>
               <p className="font-condensed text-xs text-lt-amber">{m.points} pts</p>
             </div>
 
-            {/* Kick button (not for creator) */}
+            {/* Actions (not for creator) */}
             {!m.isCreator && (
-              <div className="flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Verify toggle */}
+                <button
+                  onClick={() => toggleVerified(m.id, m.consumptionVerified)}
+                  disabled={loading === m.id}
+                  className={`p-1.5 rounded-btn transition-colors ${
+                    m.consumptionVerified
+                      ? 'text-lt-blue hover:text-lt-blue/70'
+                      : 'text-lt-muted2 hover:text-lt-blue'
+                  }`}
+                  title={m.consumptionVerified ? 'Quitar verificación de consumo' : 'Verificar consumo'}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </button>
+
+                {/* Kick */}
                 {confirmKick === m.id ? (
                   <div className="flex gap-1.5">
                     <button

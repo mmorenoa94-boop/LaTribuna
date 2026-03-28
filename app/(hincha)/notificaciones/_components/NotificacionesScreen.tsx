@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 
 interface Notification {
@@ -8,17 +9,18 @@ interface Notification {
   title: string
   body: string
   read: boolean
+  data: Record<string, unknown> | null
   createdAt: string
 }
 
 const TYPE_ICONS: Record<string, string> = {
-  PROMOTION: '\uD83D\uDCE2',      // megaphone
-  POWERUP_ANSWER: '\u26A1',       // lightning
-  LEAGUE_INVITE: '\uD83C\uDFC6', // trophy
-  QUESTION_OPEN: '\u2753',       // question
-  QUESTION_RESOLVED: '\u2705',   // checkmark
-  WALLET_CREDIT: '\uD83D\uDCB0', // money bag
-  ACHIEVEMENT: '\uD83C\uDF1F',   // star
+  PROMOTION: '\uD83D\uDCE2',
+  POWERUP_ANSWER: '\u26A1',
+  LEAGUE_INVITE: '\uD83C\uDFC6',
+  QUESTION_OPEN: '\u2753',
+  QUESTION_RESOLVED: '\u2705',
+  WALLET_CREDIT: '\uD83D\uDCB0',
+  ACHIEVEMENT: '\uD83C\uDF1F',
 }
 
 function timeAgo(dateStr: string): string {
@@ -100,42 +102,57 @@ export function NotificacionesScreen() {
               No tienes notificaciones
             </p>
             <p className="text-lt-muted2 font-condensed text-sm">
-              Aqui apareceran tus alertas y actualizaciones
+              Aquí aparecerán tus alertas y actualizaciones
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {notifications.map((n) => (
-              <div
-                key={n.id}
-                className={`flex items-start gap-3 p-3 rounded-card bg-lt-card border border-[rgba(255,255,255,0.06)] transition-colors ${
-                  !n.read ? 'border-l-2 border-l-lt-green' : ''
-                }`}
-              >
-                {/* Icon */}
-                <span className="text-xl flex-shrink-0 mt-0.5">
-                  {TYPE_ICONS[n.type] ?? '\uD83D\uDD14'}
-                </span>
+            {notifications.map((n) => {
+              const imageUrl = n.type === 'PROMOTION' && n.data?.imageUrl
+                ? String(n.data.imageUrl)
+                : null
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-lt-white font-condensed text-sm font-700 leading-snug">
-                    {n.title}
-                  </p>
-                  <p className="text-lt-muted2 text-xs mt-0.5 leading-relaxed">
-                    {n.body}
-                  </p>
-                  <p className="text-lt-muted2/60 text-[10px] font-condensed mt-1">
-                    {timeAgo(n.createdAt)}
-                  </p>
+              return (
+                <div
+                  key={n.id}
+                  className={`p-3 rounded-card bg-lt-card border border-[rgba(255,255,255,0.06)] transition-colors ${
+                    !n.read ? 'border-l-2 border-l-lt-green' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Icon */}
+                    <span className="text-xl flex-shrink-0 mt-0.5">
+                      {TYPE_ICONS[n.type] ?? '\uD83D\uDD14'}
+                    </span>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-lt-white font-condensed text-sm font-700 leading-snug">
+                        {n.title}
+                      </p>
+                      <p className="text-lt-muted2 text-xs mt-0.5 leading-relaxed">
+                        {n.body}
+                      </p>
+                      <p className="text-lt-muted2/60 text-[10px] font-condensed mt-1">
+                        {timeAgo(n.createdAt)}
+                      </p>
+                    </div>
+
+                    {/* Unread dot */}
+                    {!n.read && (
+                      <span className="w-2 h-2 rounded-full bg-lt-green flex-shrink-0 mt-2" />
+                    )}
+                  </div>
+
+                  {/* Promotion image */}
+                  {imageUrl && (
+                    <div className="relative w-full h-32 rounded-btn overflow-hidden mt-2 ml-8">
+                      <Image src={imageUrl} alt="Promoción" fill className="object-cover" />
+                    </div>
+                  )}
                 </div>
-
-                {/* Unread dot */}
-                {!n.read && (
-                  <span className="w-2 h-2 rounded-full bg-lt-green flex-shrink-0 mt-2" />
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

@@ -21,7 +21,7 @@ export default async function NegocioLayout({ children }: { children: React.Reac
       <div className="flex min-h-screen bg-glow-amber">
         <Sidebar businessName={business.name} businessLogo={business.logoUrl} />
         <main className="flex-1 md:ml-60 pb-20 md:pb-0">
-          <div className="max-w-5xl mx-auto">
+          <div className="max-w-3xl mx-auto">
             {children}
           </div>
         </main>
