@@ -94,36 +94,19 @@ export async function GET(
     awayScore: lm.match.awayScore,
   }))
 
-  // Calculate ranking per match for position change arrows
-  // Only include matches that have at least one answered question
   const matchOrder = leagueMatches.map((lm) => lm.matchId)
-  const matchesWithData = matchOrder.filter((matchId) => {
+
+  // Find the most recent match that has scored points (pointsEarned > 0)
+  // This is used to calculate position change arrows
+  let lastScoredMatchId: string | null = null
+  for (let i = matchOrder.length - 1; i >= 0; i--) {
+    const mid = matchOrder[i]
     const userIds = Array.from(userMatchPoints.keys())
-    for (const uid of userIds) {
-      const data = userMatchPoints.get(uid)?.get(matchId)
-      if (data && data.total > 0) return true
-    }
-    return false
-  })
-
-  // cumulativeRank[matchIndex] = Map<userId, position>
-  const cumulativeRanks: Map<string, number>[] = []
-
-  for (let mi = 0; mi < matchesWithData.length; mi++) {
-    const cumulativePoints = new Map<string, number>()
-    for (const m of members) {
-      let cumul = 0
-      for (let j = 0; j <= mi; j++) {
-        const matchPts = userMatchPoints.get(m.userId)?.get(matchesWithData[j])
-        if (matchPts) cumul += matchPts.points
-      }
-      cumulativePoints.set(m.userId, cumul)
-    }
-    // Sort by cumulative points DESC
-    const sorted = Array.from(cumulativePoints.entries()).sort((a, b) => b[1] - a[1])
-    const rankMap = new Map<string, number>()
-    sorted.forEach(([uid], idx) => rankMap.set(uid, idx + 1))
-    cumulativeRanks.push(rankMap)
+    const hasPoints = userIds.some((uid) => {
+      const d = userMatchPoints.get(uid)?.get(mid)
+      return d && d.points > 0
+    })
+    if (hasPoints) { lastScoredMatchId = mid; break }
   }
 
   // Build response entries
@@ -138,14 +121,6 @@ export async function GET(
       }
     })
 
-    // Position change: compare last match rank vs previous
-    let positionChange = 0
-    if (cumulativeRanks.length >= 2) {
-      const lastRank = cumulativeRanks[cumulativeRanks.length - 1]?.get(m.userId) ?? 0
-      const prevRank = cumulativeRanks[cumulativeRanks.length - 2]?.get(m.userId) ?? 0
-      positionChange = prevRank - lastRank // positive = moved up
-    }
-
     // If filtering by matchId, use match-specific points for sorting
     const matchSpecificPoints = filterMatchId
       ? (userMatchPoints.get(m.userId)?.get(filterMatchId)?.points ?? 0)
@@ -156,13 +131,33 @@ export async function GET(
       user: m.user,
       totalPoints: m.totalPoints,
       matchPoints: matchSpecificPoints,
-      positionChange,
+      positionChange: 0, // computed after sorting
       matchBreakdown,
     }
   })
 
   // Sort by relevant points
   entries.sort((a, b) => b.matchPoints - a.matchPoints)
+
+  // Calculate position changes by comparing current rank vs rank without last scored match
+  if (lastScoredMatchId) {
+    // "Previous" total = current totalPoints minus points from the last scored match
+    const prevTotals = entries.map((e) => ({
+      userId: e.userId,
+      prevTotal: e.totalPoints - (userMatchPoints.get(e.userId)?.get(lastScoredMatchId!)?.points ?? 0),
+    }))
+    // Sort previous totals to get previous ranking
+    prevTotals.sort((a, b) => b.prevTotal - a.prevTotal)
+    const prevRankMap = new Map<string, number>()
+    prevTotals.forEach((p, i) => prevRankMap.set(p.userId, i + 1))
+
+    // Apply position changes (current rank = index + 1)
+    entries.forEach((e, i) => {
+      const currentRank = i + 1
+      const prevRank = prevRankMap.get(e.userId) ?? currentRank
+      e.positionChange = prevRank - currentRank // positive = moved up
+    })
+  }
 
   return NextResponse.json({
     matches: matchList,
