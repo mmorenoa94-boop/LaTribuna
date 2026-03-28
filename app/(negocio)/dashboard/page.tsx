@@ -95,13 +95,20 @@ export default async function DashboardPage() {
           </section>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Link
               href="/dashboard/ligas"
               className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4 text-center hover:border-lt-amber/30 transition-colors"
             >
               <span className="text-2xl block mb-2">🏆</span>
               <p className="font-condensed text-sm font-700 text-lt-white">Ver ligas</p>
+            </Link>
+            <Link
+              href="/dashboard/audiencia"
+              className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4 text-center hover:border-lt-amber/30 transition-colors"
+            >
+              <span className="text-2xl block mb-2">👥</span>
+              <p className="font-condensed text-sm font-700 text-lt-white">Audiencia</p>
             </Link>
             <Link
               href="/dashboard/config"
