@@ -282,7 +282,7 @@ export function AdminPanel({
 
         {/* ── Tab bar (only when not in question detail) ─────────────────── */}
         {showTabs && (
-          <div className="flex gap-1">
+          <div className="flex gap-1 overflow-x-auto no-scrollbar">
             {([
               { key: 'matches' as Tab, label: 'Partidos', icon: '⚽' },
               { key: 'members' as Tab, label: 'Miembros', icon: '👥' },
@@ -293,7 +293,7 @@ export function AdminPanel({
                 key={t.key}
                 onClick={() => setActiveTab(t.key)}
                 className={cn(
-                  'flex items-center gap-1.5 px-4 py-2.5 font-condensed text-sm font-700 border-b-2 transition-all',
+                  'flex items-center gap-1.5 px-3 py-2.5 font-condensed text-sm font-700 border-b-2 transition-all flex-shrink-0',
                   activeTab === t.key
                     ? 'text-lt-green border-lt-green'
                     : 'text-lt-muted2 border-transparent hover:text-lt-white'
