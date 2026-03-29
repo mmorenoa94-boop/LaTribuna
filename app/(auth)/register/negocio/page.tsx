@@ -1,6 +1,6 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { signIn } from 'next-auth/react'
 
@@ -25,7 +25,17 @@ interface FormData {
 }
 
 export default function RegisterNegocioPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-lt-black" />}>
+      <RegisterNegocioContent />
+    </Suspense>
+  )
+}
+
+function RegisterNegocioContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -74,7 +84,7 @@ export default function RegisterNegocioPage() {
       await signIn('credentials', {
         email: form.email,
         password: form.password,
-        callbackUrl: '/dashboard',
+        callbackUrl,
       })
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al registrarse')

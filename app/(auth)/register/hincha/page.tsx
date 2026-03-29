@@ -1,6 +1,6 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { signIn } from 'next-auth/react'
 
@@ -19,7 +19,17 @@ interface FormData {
 }
 
 export default function RegisterHinchaPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-lt-black" />}>
+      <RegisterHinchaContent />
+    </Suspense>
+  )
+}
+
+function RegisterHinchaContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') || '/home'
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -45,7 +55,7 @@ export default function RegisterHinchaPage() {
         const d = await res.json()
         throw new Error(d.error ?? 'Error al registrarse')
       }
-      await signIn('credentials', { email: form.email, password: form.password, callbackUrl: '/home' })
+      await signIn('credentials', { email: form.email, password: form.password, callbackUrl })
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Error al registrarse')
       setLoading(false)
