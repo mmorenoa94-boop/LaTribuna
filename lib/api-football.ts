@@ -12,13 +12,19 @@ async function apiFetch<T>(endpoint: string, params: Record<string, string> = {}
   const url = new URL(`${BASE_URL}${endpoint}`)
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
 
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
+
   const res = await fetch(url.toString(), {
     headers: {
       'x-apisports-key': key,
     },
+    signal: controller.signal,
     // Cache de 5 minutos para fixtures del día
     next: { revalidate: 300 },
   })
+
+  clearTimeout(timeout)
 
   if (!res.ok) throw new Error(`API-Football error: ${res.status}`)
   const json = await res.json()

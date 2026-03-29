@@ -137,7 +137,7 @@
     questionId: string,
     correctAnswer: string
   ): Promise<{ scored: number; correct: number; totalPot: number; winnersCount: number }> {
-    // Get question with league info, answers AND predictions
+    // Optimistic lock: verify question is not already RESOLVED before scoring
     const question = await prisma.leagueQuestion.findUniqueOrThrow({
       where: { id: questionId },
       include: {
@@ -153,9 +153,13 @@
       },
     })
 
+    // Guard: prevent double-scoring
+    if (question.status === 'RESOLVED' && question.winnersCount !== null) {
+      return { scored: 0, correct: 0, totalPot: question.totalPot ?? 0, winnersCount: question.winnersCount ?? 0 }
+    }
+
     const isPool = question.league.scoringMode === 'POOL'
 
-    // Combine all participants into a unified list
     const allParticipants = [
       ...question.answers.map((a) => ({ ...a, model: 'answer' as const })),
       ...question.predictions.map((p) => ({ ...p, model: 'prediction' as const })),
@@ -164,7 +168,6 @@
     const totalParticipants = allParticipants.length
     const totalPot = isPool ? totalParticipants * question.pointsValue : 0
 
-    // Identify correct participants
     const correctOnes = allParticipants.filter(
       (p) => p.answer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()
     )
@@ -172,7 +175,6 @@
       (p) => p.answer.trim().toLowerCase() !== correctAnswer.trim().toLowerCase()
     )
     const winnersCount = correctOnes.length
-    // POOL: split pot among winners. FIXED: each winner gets full pointsValue
     const basePerWinner = isPool
       ? (winnersCount > 0 ? Math.floor(totalPot / winnersCount) : 0)
       : question.pointsValue
@@ -180,83 +182,100 @@
     const now = new Date()
     const eightHoursAgo = new Date(now.getTime() - 8 * 60 * 60 * 1000)
 
-    // Mark all incorrect — split by model for the right Prisma call
-    const incorrectAnswerIds = incorrectOnes.filter((p) => p.model === 'answer').map((p) => p.id)
-    const incorrectPredictionIds = incorrectOnes.filter((p) => p.model === 'prediction').map((p) => p.id)
-
-    if (incorrectAnswerIds.length > 0) {
-      await prisma.answer.updateMany({
-        where: { id: { in: incorrectAnswerIds } },
-        data: { isCorrect: false, pointsEarned: 0 },
+    // Pre-fetch all checkins for winners in a single query (avoid N+1)
+    let activeCheckins: { userId: string }[] = []
+    if (question.league.businessId && question.league.presentialMultiplier > 1 && winnersCount > 0) {
+      activeCheckins = await prisma.checkin.findMany({
+        where: {
+          userId: { in: correctOnes.map((p) => p.userId) },
+          businessId: question.league.businessId,
+          checkedAt: { gte: eightHoursAgo },
+          checkedOut: null,
+        },
+        select: { userId: true },
       })
     }
-    if (incorrectPredictionIds.length > 0) {
-      await prisma.prediction.updateMany({
-        where: { id: { in: incorrectPredictionIds } },
-        data: { isCorrect: false, pointsEarned: 0 },
-      })
-    }
+    const checkedInUserIds = new Set(activeCheckins.map((c) => c.userId))
 
-    // Process winners
-    for (const participant of correctOnes) {
-      let points = basePerWinner
+    // Run all scoring operations inside a transaction
+    await prisma.$transaction(async (tx) => {
+      // Mark incorrect answers/predictions in batch
+      const incorrectAnswerIds = incorrectOnes.filter((p) => p.model === 'answer').map((p) => p.id)
+      const incorrectPredictionIds = incorrectOnes.filter((p) => p.model === 'prediction').map((p) => p.id)
 
-      // Apply presential multiplier if business league and user has active checkin
-      if (question.league.businessId && question.league.presentialMultiplier > 1) {
-        const activeCheckin = await prisma.checkin.findFirst({
-          where: {
-            userId: participant.userId,
-            businessId: question.league.businessId,
-            checkedAt: { gte: eightHoursAgo },
-            checkedOut: null,
-          },
+      if (incorrectAnswerIds.length > 0) {
+        await tx.answer.updateMany({
+          where: { id: { in: incorrectAnswerIds } },
+          data: { isCorrect: false, pointsEarned: 0 },
         })
-        if (activeCheckin) {
+      }
+      if (incorrectPredictionIds.length > 0) {
+        await tx.prediction.updateMany({
+          where: { id: { in: incorrectPredictionIds } },
+          data: { isCorrect: false, pointsEarned: 0 },
+        })
+      }
+
+      // Process winners
+      for (const participant of correctOnes) {
+        let points = basePerWinner
+
+        if (checkedInUserIds.has(participant.userId)) {
           points = Math.round(points * question.league.presentialMultiplier)
         }
+
+        // Mark correct
+        if (participant.model === 'answer') {
+          await tx.answer.update({
+            where: { id: participant.id },
+            data: { isCorrect: true, pointsEarned: points },
+          })
+        } else {
+          await tx.prediction.update({
+            where: { id: participant.id },
+            data: { isCorrect: true, pointsEarned: points },
+          })
+        }
+
+        // Credit wallet (inline to stay in transaction)
+        const wallet = await tx.wallet.upsert({
+          where: { userId: participant.userId },
+          create: { userId: participant.userId },
+          update: {},
+        })
+        await tx.walletTransaction.create({
+          data: {
+            walletId: wallet.id,
+            type: participant.model === 'answer' ? 'MATCH_WIN' : 'PREDICTION_WIN',
+            amount: points,
+            description: `Respuesta correcta: ${question.text.substring(0, 50)}`,
+            referenceId: questionId,
+          },
+        })
+
+        // Update LeagueMember.totalPoints
+        await tx.leagueMember.updateMany({
+          where: { leagueId: question.league.id, userId: participant.userId, status: 'APPROVED' },
+          data: { totalPoints: { increment: points } },
+        })
       }
 
-      // Update the correct record in the right model
-      if (participant.model === 'answer') {
-        await prisma.answer.update({
-          where: { id: participant.id },
-          data: { isCorrect: true, pointsEarned: points },
-        })
-      } else {
-        await prisma.prediction.update({
-          where: { id: participant.id },
-          data: { isCorrect: true, pointsEarned: points },
-        })
-      }
-
-      // Credit wallet
-      const txType = participant.model === 'answer' ? 'MATCH_WIN' : 'PREDICTION_WIN'
-      await creditWallet(
-        participant.userId,
-        points,
-        txType,
-        `Respuesta correcta: ${question.text.substring(0, 50)}`,
-        questionId
-      )
-
-      // Update LeagueMember.totalPoints
-      await prisma.leagueMember.updateMany({
-        where: { leagueId: question.league.id, userId: participant.userId, status: 'APPROVED' },
-        data: { totalPoints: { increment: points } },
+      // Store pot metadata
+      await tx.leagueQuestion.update({
+        where: { id: questionId },
+        data: { totalPot, winnersCount },
       })
-
-      // Award XP (5 XP for live answers, 10 XP for predictions)
-      await awardXp(participant.userId, participant.model === 'answer' ? 5 : 10)
-
-      // Update streak
-      await updateStreak(participant.userId)
-    }
-
-    // Store pot metadata on the question for UI display
-    await prisma.leagueQuestion.update({
-      where: { id: questionId },
-      data: { totalPot, winnersCount },
     })
+
+    // XP and streaks outside the transaction (non-critical, OK if they fail independently)
+    for (const participant of correctOnes) {
+      try {
+        await awardXp(participant.userId, participant.model === 'answer' ? 5 : 10)
+        await updateStreak(participant.userId)
+      } catch (e) {
+        console.error(`[scoring] XP/streak error for user ${participant.userId}:`, e)
+      }
+    }
 
     return { scored: totalParticipants, correct: winnersCount, totalPot, winnersCount }
   }
