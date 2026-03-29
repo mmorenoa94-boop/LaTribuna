@@ -78,7 +78,7 @@ interface SocketEvent {
   timestamp: number
 }
 
-async function pollEvents() {
+async function pollEvents(): Promise<boolean> {
   try {
     // Pop up to 10 events at a time
     const events: SocketEvent[] = []
@@ -97,13 +97,35 @@ async function pollEvents() {
       io.to(evt.room).emit(evt.event, evt.data)
       console.log(`[socket] emitted ${evt.event} to ${evt.room}`)
     }
+
+    return events.length > 0
   } catch (error) {
     console.error('[socket] Poll error:', error)
+    return false
   }
 }
 
-// Poll every 500ms
-setInterval(pollEvents, 500)
+// Adaptive polling: 1500ms base, backs off to 5s when idle, speeds up when events found
+let pollInterval = 1500
+let consecutiveEmpty = 0
+const MIN_POLL_MS = 1500
+const MAX_POLL_MS = 5000
+
+async function adaptivePoll() {
+  const hadEvents = await pollEvents()
+  if (hadEvents) {
+    consecutiveEmpty = 0
+    pollInterval = MIN_POLL_MS
+  } else {
+    consecutiveEmpty++
+    if (consecutiveEmpty > 10) {
+      pollInterval = Math.min(pollInterval + 500, MAX_POLL_MS)
+    }
+  }
+  setTimeout(adaptivePoll, pollInterval)
+}
+
+adaptivePoll()
 
 // ── Start server ──
 httpServer.listen(PORT, () => {

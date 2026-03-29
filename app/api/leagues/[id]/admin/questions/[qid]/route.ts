@@ -14,24 +14,25 @@ export async function PATCH(
   req: Request,
   { params }: { params: { id: string; qid: string } }
 ) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const league = await verifyCreator(params.id, session.user.id)
-  if (!league) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+    const league = await verifyCreator(params.id, session.user.id)
+    if (!league) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
-  const question = await prisma.leagueQuestion.findUnique({
-    where: { id: params.qid },
-  })
-  if (!question || question.leagueId !== params.id) {
-    return NextResponse.json({ error: 'Pregunta no encontrada' }, { status: 404 })
-  }
+    const question = await prisma.leagueQuestion.findUnique({
+      where: { id: params.qid },
+    })
+    if (!question || question.leagueId !== params.id) {
+      return NextResponse.json({ error: 'Pregunta no encontrada' }, { status: 404 })
+    }
 
-  const body = await req.json()
-  const { action, correctAnswer, windowSecs, text, type, options, pointsValue, timing } = body
+    const body = await req.json()
+    const { action, correctAnswer, windowSecs, text, type, options, pointsValue, timing } = body
 
-  // ── Abrir ──────────────────────────────────────────────────────────────────
-  if (action === 'open') {
+    // ── Abrir ──────────────────────────────────────────────────────────────────
+    if (action === 'open') {
     if (question.status !== 'PENDING') {
       return NextResponse.json({ error: 'Solo se puede abrir una pregunta pendiente' }, { status: 400 })
     }
@@ -161,7 +162,11 @@ export async function PATCH(
     return NextResponse.json(updated)
   }
 
-  return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
+    return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
+  } catch (error) {
+    console.error('[questions] PATCH error:', error)
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+  }
 }
 
 // DELETE: eliminar pregunta (PENDING u OPEN — si OPEN, borra respuestas también)
@@ -169,25 +174,30 @@ export async function DELETE(
   _req: Request,
   { params }: { params: { id: string; qid: string } }
 ) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  try {
+    const session = await auth()
+    if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const league = await verifyCreator(params.id, session.user.id)
-  if (!league) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+    const league = await verifyCreator(params.id, session.user.id)
+    if (!league) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
-  const question = await prisma.leagueQuestion.findUnique({ where: { id: params.qid } })
-  if (!question || question.leagueId !== params.id) {
-    return NextResponse.json({ error: 'Pregunta no encontrada' }, { status: 404 })
+    const question = await prisma.leagueQuestion.findUnique({ where: { id: params.qid } })
+    if (!question || question.leagueId !== params.id) {
+      return NextResponse.json({ error: 'Pregunta no encontrada' }, { status: 404 })
+    }
+    if (question.status !== 'PENDING' && question.status !== 'OPEN') {
+      return NextResponse.json({ error: 'Solo se pueden eliminar preguntas pendientes o abiertas' }, { status: 400 })
+    }
+
+    // If open, delete any answers first
+    if (question.status === 'OPEN') {
+      await prisma.answer.deleteMany({ where: { questionId: params.qid } })
+    }
+
+    await prisma.leagueQuestion.delete({ where: { id: params.qid } })
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('[questions] DELETE error:', error)
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
   }
-  if (question.status !== 'PENDING' && question.status !== 'OPEN') {
-    return NextResponse.json({ error: 'Solo se pueden eliminar preguntas pendientes o abiertas' }, { status: 400 })
-  }
-
-  // If open, delete any answers first
-  if (question.status === 'OPEN') {
-    await prisma.answer.deleteMany({ where: { questionId: params.qid } })
-  }
-
-  await prisma.leagueQuestion.delete({ where: { id: params.qid } })
-  return NextResponse.json({ ok: true })
 }

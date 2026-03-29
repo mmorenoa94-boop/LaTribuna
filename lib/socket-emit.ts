@@ -25,7 +25,11 @@ export async function emitSocketEvent(
     timestamp: Date.now(),
   }
 
-  await redis.rpush(EVENT_QUEUE_KEY, JSON.stringify(socketEvent))
+  try {
+    await redis.rpush(EVENT_QUEUE_KEY, JSON.stringify(socketEvent))
+  } catch (error) {
+    console.error('[socket-emit] Failed to push event to Redis:', error)
+  }
 }
 
 // ── Convenience helpers ──
