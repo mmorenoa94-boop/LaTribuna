@@ -114,13 +114,13 @@ export function GenerateQuestionsModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 40 }}
-        className="relative w-full max-w-lg max-h-[90vh] md:max-h-[85vh] overflow-y-auto bg-lt-dark border border-[rgba(255,255,255,0.1)] rounded-t-2xl md:rounded-2xl p-4 md:p-5 z-10"
+        className="relative w-full max-w-lg max-h-[85vh] md:max-h-[85vh] overflow-y-auto bg-lt-dark border border-[rgba(255,255,255,0.1)] rounded-t-2xl md:rounded-2xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:p-5 z-10 mb-0 md:mb-0"
       >
         <AnimatePresence mode="wait">
           {step === 'profiles' ? (
@@ -153,7 +153,7 @@ export function GenerateQuestionsModal({
               </p>
 
               {/* Profile cards */}
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 pb-4">
                 {QUESTION_PROFILES.map((profile) => (
                   <button
                     key={profile.id}
@@ -314,7 +314,7 @@ export function GenerateQuestionsModal({
               {error && <p className="text-lt-red text-sm font-condensed mb-3">{error}</p>}
 
               {/* Generate button — sticky at bottom */}
-              <div className="sticky bottom-0 pt-3 -mx-4 md:-mx-5 px-4 md:px-5 pb-1 bg-gradient-to-t from-lt-dark via-lt-dark to-transparent">
+              <div className="sticky bottom-0 pt-3 -mx-4 md:-mx-5 px-4 md:px-5 pb-2 bg-gradient-to-t from-lt-dark via-lt-dark to-transparent">
                 <button
                   onClick={handleGenerate}
                   disabled={generating || selectedCount === 0}

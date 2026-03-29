@@ -29,6 +29,7 @@ interface Props {
   initialBannerUrl: string | null
   initialThemeColor: string
   leagueScoringMode: 'FIXED' | 'POOL'
+  leagueMatchMode: 'PER_MATCH' | 'SEASON'
   hasLinkedBusiness: boolean
 }
 
@@ -47,6 +48,7 @@ export function AdminPanel({
   initialBannerUrl,
   initialThemeColor,
   leagueScoringMode,
+  leagueMatchMode,
   hasLinkedBusiness,
 }: Props) {
   const [activeTab, setActiveTab]         = useState<Tab>('matches')
@@ -670,6 +672,7 @@ export function AdminPanel({
                 initialAllowRemote={leagueAllowRemote}
                 initialAllowMemberInvites={leagueAllowMemberInvites}
                 initialScoringMode={leagueScoringMode}
+                initialMatchMode={leagueMatchMode}
                 hasLinkedBusiness={hasLinkedBusiness}
               />
             </motion.div>

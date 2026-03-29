@@ -39,7 +39,7 @@ export function MatchWidget({ match, compact, className }: MatchWidgetProps) {
           </span>
         ) : (
           <span className="text-lt-muted2 font-condensed text-sm">
-            {new Date(match.kickoffAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+            {new Date(match.kickoffAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
           </span>
         )}
         {isLive && (
