@@ -4,6 +4,7 @@ import { getBalance } from '@/lib/wallet'
 import { prisma } from '@/lib/prisma'
 import { formatCOP } from '@/lib/utils'
 import type { TransactionType } from '@prisma/client'
+import RewardsCTA from './_components/RewardsCTA'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -117,12 +118,7 @@ export default async function WalletPage() {
         </div>
 
         {/* CTA canje */}
-        <button
-          className="w-full py-3.5 rounded-btn bg-lt-green/10 border border-lt-green/30 text-lt-green font-condensed font-700 text-sm tracking-wide hover:bg-lt-green/15 transition-colors"
-          disabled
-        >
-          🎁 Explorar premios y canjes
-        </button>
+        <RewardsCTA />
 
         {/* Historial */}
         <div>
