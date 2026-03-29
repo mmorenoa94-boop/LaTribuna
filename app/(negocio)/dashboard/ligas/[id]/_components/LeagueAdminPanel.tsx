@@ -21,6 +21,7 @@ export interface LeagueData {
   matchMode: string
   scoringMode: string
   maxMembers: number
+  type: string
   status: string
   memberCount: number
   bannerUrl: string | null

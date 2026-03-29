@@ -57,6 +57,10 @@ export async function PATCH(
     const validModes = ['FIXED', 'POOL']
     if (validModes.includes(body.scoringMode)) data.scoringMode = body.scoringMode
   }
+  if (body.type !== undefined) {
+    const validTypes = ['PRIVATE', 'INVITE_ONLY', 'PUBLIC', 'BUSINESS']
+    if (validTypes.includes(body.type)) data.type = body.type
+  }
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: 'Sin campos para actualizar' }, { status: 400 })
