@@ -6,6 +6,7 @@ import { InviteTab } from './InviteTab'
 import { MatchesTab } from './MatchesTab'
 import { SettingsTab } from './SettingsTab'
 import { MembersTab } from './MembersTab'
+import { CustomizeTab } from '@/app/(hincha)/ligas/[id]/admin/_components/CustomizeTab'
 
 export interface LeagueData {
   id: string
@@ -22,6 +23,8 @@ export interface LeagueData {
   maxMembers: number
   status: string
   memberCount: number
+  bannerUrl: string | null
+  themeColor: string
 }
 
 export interface MemberData {
@@ -36,12 +39,13 @@ export interface MemberData {
   consumptionVerified: boolean
 }
 
-type Tab = 'invite' | 'matches' | 'members' | 'settings'
+type Tab = 'invite' | 'matches' | 'members' | 'customize' | 'settings'
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'invite', label: 'Invitar', icon: '🔗' },
   { key: 'matches', label: 'Partidos', icon: '⚽' },
   { key: 'members', label: 'Miembros', icon: '👥' },
+  { key: 'customize', label: 'Marca', icon: '🎨' },
   { key: 'settings', label: 'Ajustes', icon: '⚙️' },
 ]
 
@@ -103,6 +107,13 @@ export function LeagueAdminPanel({ league, members }: { league: LeagueData; memb
           leagueId={leagueState.id}
           members={memberList}
           onMembersChange={setMemberList}
+        />
+      )}
+      {tab === 'customize' && (
+        <CustomizeTab
+          leagueId={leagueState.id}
+          initialBannerUrl={leagueState.bannerUrl}
+          initialThemeColor={leagueState.themeColor}
         />
       )}
       {tab === 'settings' && (
