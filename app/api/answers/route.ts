@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
   const question = await prisma.leagueQuestion.findUnique({
     where: { id: questionId },
-    include: { league: { select: { creatorId: true } } },
+    include: { league: { select: { id: true, creatorId: true, minConsumption: true } } },
   })
 
   if (!question || question.status !== 'OPEN') {
@@ -23,6 +23,20 @@ export async function POST(req: Request) {
 
   if (question.league.creatorId === session.user.id) {
     return NextResponse.json({ error: 'El administrador no puede responder preguntas' }, { status: 403 })
+  }
+
+  // If league requires minimum consumption, check the user's verification status
+  if (question.league.minConsumption) {
+    const membership = await prisma.leagueMember.findUnique({
+      where: { leagueId_userId: { leagueId: question.league.id, userId: session.user.id } },
+      select: { consumptionVerified: true },
+    })
+    if (!membership?.consumptionVerified) {
+      return NextResponse.json(
+        { error: 'Debes verificar tu consumo mínimo para participar. Pide al mesero que te verifique.' },
+        { status: 403 }
+      )
+    }
   }
 
   if (question.closedAt && serverTimestamp > question.closedAt.getTime()) {
