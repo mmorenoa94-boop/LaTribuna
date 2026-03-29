@@ -79,6 +79,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Allow relative URLs (internal paths like /invite/ABC123)
+      if (url.startsWith('/')) return `${baseUrl}${url}`
+      // Allow URLs on the same origin
+      if (url.startsWith(baseUrl)) return url
+      // Block external redirects (security)
+      return baseUrl
+    },
     async signIn({ user, account }) {
       // Link OAuth account to existing user if email already exists
       if (account && account.provider !== 'credentials' && user.email) {

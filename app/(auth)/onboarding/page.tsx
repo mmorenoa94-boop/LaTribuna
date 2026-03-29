@@ -1,9 +1,21 @@
 'use client'
-import { useRouter } from 'next/navigation'
+import { Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-lt-black" />}>
+      <OnboardingContent />
+    </Suspense>
+  )
+}
+
+function OnboardingContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl')
+  const cbParam = callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ''
 
   return (
     <div className="flex flex-col min-h-screen items-center justify-center px-6 gap-8">
@@ -34,7 +46,7 @@ export default function OnboardingPage() {
 
         {/* Hincha */}
         <button
-          onClick={() => router.push('/register/hincha')}
+          onClick={() => router.push(`/register/hincha${cbParam}`)}
           className="w-full bg-lt-card border border-lt-muted rounded-card p-5 text-left group hover:border-lt-green/50 hover:bg-lt-card2 transition-all active:scale-[0.98]"
         >
           <div className="flex items-center justify-between">
@@ -53,7 +65,7 @@ export default function OnboardingPage() {
 
         {/* Negocio */}
         <button
-          onClick={() => router.push('/register/negocio')}
+          onClick={() => router.push(`/register/negocio${cbParam}`)}
           className="w-full bg-lt-card border border-lt-muted rounded-card p-5 text-left group hover:border-lt-amber/50 hover:bg-lt-card2 transition-all active:scale-[0.98]"
         >
           <div className="flex items-center justify-between">
@@ -72,7 +84,7 @@ export default function OnboardingPage() {
 
         <div className="text-center pt-2">
           <button
-            onClick={() => router.push('/login')}
+            onClick={() => router.push(`/login${cbParam}`)}
             className="text-lt-muted2 font-condensed text-sm hover:text-lt-white transition-colors"
           >
             Ya tengo cuenta → Iniciar sesión
