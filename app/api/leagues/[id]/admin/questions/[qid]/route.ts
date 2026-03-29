@@ -141,10 +141,10 @@ export async function PATCH(
     return NextResponse.json(updated)
   }
 
-  // ── Editar (solo PENDING) ──────────────────────────────────────────────────
+  // ── Editar (PENDING u OPEN) ─────────────────────────────────────────────────
   if (action === 'edit' || !action) {
-    if (question.status !== 'PENDING') {
-      return NextResponse.json({ error: 'Solo se pueden editar preguntas pendientes' }, { status: 400 })
+    if (question.status !== 'PENDING' && question.status !== 'OPEN') {
+      return NextResponse.json({ error: 'Solo se pueden editar preguntas pendientes o abiertas' }, { status: 400 })
     }
     const validTypes = ['WINNER', 'SCORE', 'YES_NO', 'SCORER', 'RANGE', 'CUSTOM']
     const updated = await prisma.leagueQuestion.update({
@@ -164,7 +164,7 @@ export async function PATCH(
   return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
 }
 
-// DELETE: eliminar pregunta (solo PENDING)
+// DELETE: eliminar pregunta (PENDING u OPEN — si OPEN, borra respuestas también)
 export async function DELETE(
   _req: Request,
   { params }: { params: { id: string; qid: string } }
@@ -179,8 +179,13 @@ export async function DELETE(
   if (!question || question.leagueId !== params.id) {
     return NextResponse.json({ error: 'Pregunta no encontrada' }, { status: 404 })
   }
-  if (question.status !== 'PENDING') {
-    return NextResponse.json({ error: 'Solo se pueden eliminar preguntas pendientes' }, { status: 400 })
+  if (question.status !== 'PENDING' && question.status !== 'OPEN') {
+    return NextResponse.json({ error: 'Solo se pueden eliminar preguntas pendientes o abiertas' }, { status: 400 })
+  }
+
+  // If open, delete any answers first
+  if (question.status === 'OPEN') {
+    await prisma.answer.deleteMany({ where: { questionId: params.qid } })
   }
 
   await prisma.leagueQuestion.delete({ where: { id: params.qid } })
