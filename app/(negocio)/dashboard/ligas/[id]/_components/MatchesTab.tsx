@@ -641,8 +641,6 @@ function MatchDetail({ leagueId, match, onBack, onMatchUpdated }: { leagueId: st
                 key={q.id}
                 question={q}
                 leagueId={leagueId}
-                homeTeam={match.homeTeam}
-                awayTeam={match.awayTeam}
                 onSaved={(updated) => { handleQuestionUpdated(updated); setEditingQuestion(null) }}
                 onCancel={() => setEditingQuestion(null)}
               />
@@ -1120,12 +1118,10 @@ function AddQuestionForm({
 
 // ── Edit Question Form ───────────────────────────────────────
 function EditQuestionForm({
-  question, leagueId, homeTeam, awayTeam, onSaved, onCancel,
+  question, leagueId, onSaved, onCancel,
 }: {
   question: QuestionData
   leagueId: string
-  homeTeam: string
-  awayTeam: string
   onSaved: (q: QuestionData) => void
   onCancel: () => void
 }) {
