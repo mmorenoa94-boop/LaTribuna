@@ -38,6 +38,9 @@ export default function ComingSoonModal({ open, onClose }: ComingSoonModalProps)
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Premios próximamente"
           className="fixed inset-0 z-[100] flex items-center justify-center px-5"
           style={{ backgroundColor: 'rgba(10, 15, 26, 0.92)' }}
           onClick={(e) => { if (e.target === backdropRef.current) onClose() }}
