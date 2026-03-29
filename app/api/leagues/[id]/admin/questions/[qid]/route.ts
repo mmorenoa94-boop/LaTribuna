@@ -28,7 +28,7 @@ export async function PATCH(
   }
 
   const body = await req.json()
-  const { action, correctAnswer, windowSecs, text, options, pointsValue, timing } = body
+  const { action, correctAnswer, windowSecs, text, type, options, pointsValue, timing } = body
 
   // ── Abrir ──────────────────────────────────────────────────────────────────
   if (action === 'open') {
@@ -146,10 +146,12 @@ export async function PATCH(
     if (question.status !== 'PENDING') {
       return NextResponse.json({ error: 'Solo se pueden editar preguntas pendientes' }, { status: 400 })
     }
+    const validTypes = ['WINNER', 'SCORE', 'YES_NO', 'SCORER', 'RANGE', 'CUSTOM']
     const updated = await prisma.leagueQuestion.update({
       where: { id: params.qid },
       data: {
         ...(text && { text: text.trim() }),
+        ...(type && validTypes.includes(type) && { type }),
         ...(options && { options }),
         ...(pointsValue && { pointsValue: Number(pointsValue) }),
         ...(timing && { timing }),

@@ -191,7 +191,7 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
                   )}
                   <div className="text-right flex-shrink-0">
                     <p className="font-condensed text-xs text-lt-muted2">
-                      {new Date(match.kickoffAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                      {new Date(match.kickoffAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', timeZone: 'America/Bogota' })}
                     </p>
                     <p className="font-condensed text-xs text-lt-muted2">
                       {new Date(match.kickoffAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
@@ -228,10 +228,12 @@ function AddMatchForm({
     setSaving(true)
     setError('')
     try {
+      // Append Colombia timezone offset (UTC-5) to datetime-local value
+      const kickoffWithTZ = form.kickoffAt ? `${form.kickoffAt}:00-05:00` : form.kickoffAt
       const res = await fetch(`/api/leagues/${leagueId}/admin/matches`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, kickoffAt: kickoffWithTZ }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Error')
@@ -288,6 +290,7 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
+  const [editingQuestion, setEditingQuestion] = useState<QuestionData | null>(null)
 
   const fetchQuestions = useCallback(async () => {
     const res = await fetch(`/api/leagues/${leagueId}/admin/questions?matchId=${match.id}`)
@@ -313,22 +316,17 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
   const openCount = questions.filter((q) => q.status === 'OPEN').length
 
   async function bulkAction(action: 'open' | 'close') {
-    const targets = questions.filter((q) =>
-      action === 'open' ? q.status === 'PENDING' : q.status === 'OPEN'
-    )
-    for (const q of targets) {
-      try {
-        const res = await fetch(`/api/leagues/${leagueId}/admin/questions/${q.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action }),
-        })
-        if (res.ok) {
-          const updated = await res.json()
-          handleQuestionUpdated(updated)
-        }
-      } catch { /* ignore */ }
-    }
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/admin/questions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action === 'open' ? 'open-all' : 'close-all', matchId: match.id }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setQuestions(updated)
+      }
+    } catch { /* ignore */ }
   }
 
   return (
@@ -455,14 +453,27 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
       ) : (
         <div className="space-y-2">
           {questions.map((q, i) => (
-            <QuestionCard
-              key={q.id}
-              question={q}
-              index={i}
-              leagueId={leagueId}
-              onUpdated={handleQuestionUpdated}
-              onDeleted={handleQuestionDeleted}
-            />
+            editingQuestion?.id === q.id ? (
+              <EditQuestionForm
+                key={q.id}
+                question={q}
+                leagueId={leagueId}
+                homeTeam={match.homeTeam}
+                awayTeam={match.awayTeam}
+                onSaved={(updated) => { handleQuestionUpdated(updated); setEditingQuestion(null) }}
+                onCancel={() => setEditingQuestion(null)}
+              />
+            ) : (
+              <QuestionCard
+                key={q.id}
+                question={q}
+                index={i}
+                leagueId={leagueId}
+                onUpdated={handleQuestionUpdated}
+                onDeleted={handleQuestionDeleted}
+                onEdit={(q) => setEditingQuestion(q)}
+              />
+            )
           ))}
         </div>
       )}
@@ -472,13 +483,14 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
 
 // ── Question Card with lifecycle actions ──────────────────────
 function QuestionCard({
-  question: q, index, leagueId, onUpdated, onDeleted,
+  question: q, index, leagueId, onUpdated, onDeleted, onEdit,
 }: {
   question: QuestionData
   index: number
   leagueId: string
   onUpdated: (q: QuestionData) => void
   onDeleted: (id: string) => void
+  onEdit?: (q: QuestionData) => void
 }) {
   const [loading, setLoading] = useState(false)
   const [showOpenPicker, setShowOpenPicker] = useState(false)
@@ -622,6 +634,14 @@ function QuestionCard({
               className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-green/15 border border-lt-green/40 text-lt-green font-condensed text-sm hover:bg-lt-green/25 transition-colors disabled:opacity-50"
             >
               ▶ Abrir
+            </button>
+          )}
+          {onEdit && (
+            <button
+              onClick={() => onEdit(q)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-card2 border border-[rgba(255,255,255,0.07)] text-lt-muted2 font-condensed text-sm hover:text-lt-white transition-colors"
+            >
+              ✏️ Editar
             </button>
           )}
           <button
@@ -889,6 +909,197 @@ function AddQuestionForm({
       <div className="flex gap-2">
         <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 disabled:opacity-40">
           {saving ? 'Creando...' : 'Crear pregunta'}
+        </button>
+        <button type="button" onClick={onCancel} className="px-4 py-2.5 rounded-btn border border-lt-muted text-lt-muted2 font-condensed text-sm">
+          Cancelar
+        </button>
+      </div>
+    </form>
+  )
+}
+
+// ── Edit Question Form ───────────────────────────────────────
+function EditQuestionForm({
+  question, leagueId, homeTeam, awayTeam, onSaved, onCancel,
+}: {
+  question: QuestionData
+  leagueId: string
+  homeTeam: string
+  awayTeam: string
+  onSaved: (q: QuestionData) => void
+  onCancel: () => void
+}) {
+  const [form, setForm] = useState({
+    text: question.text,
+    type: question.type,
+    timing: question.timing,
+    pointsValue: question.pointsValue,
+    options: [...(question.options as string[])],
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const inputCls = 'w-full bg-lt-card2 border border-lt-muted rounded-btn px-4 py-3 text-lt-white font-barlow text-sm focus:outline-none focus:border-lt-amber transition-colors placeholder:text-lt-muted2'
+
+  function addOption() {
+    setForm((f) => ({ ...f, options: [...f.options, ''] }))
+  }
+
+  function removeOption(index: number) {
+    if (form.options.length <= 2) return
+    setForm((f) => ({ ...f, options: f.options.filter((_, i) => i !== index) }))
+  }
+
+  function updateOption(index: number, value: string) {
+    setForm((f) => ({ ...f, options: f.options.map((o, i) => (i === index ? value : o)) }))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const validOptions = form.options.filter((o) => o.trim())
+    if (!form.text.trim() || validOptions.length < 2) return
+    setSaving(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/admin/questions/${question.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'edit',
+          text: form.text,
+          type: form.type,
+          timing: form.timing,
+          pointsValue: form.pointsValue,
+          options: validOptions,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Error')
+      onSaved(data)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-lt-card rounded-card border border-lt-green/20 p-4 space-y-4">
+      <p className="font-condensed text-sm text-lt-green font-700">Editar pregunta</p>
+
+      {/* Type */}
+      <div>
+        <label className="block text-lt-white font-condensed text-xs mb-1.5">Tipo de pregunta</label>
+        <div className="grid grid-cols-3 gap-1.5">
+          {QUESTION_TYPES.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, type: value }))}
+              className={cn(
+                'py-2 px-2 rounded-btn border font-condensed text-xs font-600 transition-all',
+                form.type === value
+                  ? 'bg-lt-amber/20 border-lt-amber text-lt-amber'
+                  : 'bg-lt-card2 border-lt-muted text-lt-white hover:border-lt-amber/30'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Text */}
+      <div>
+        <label className="block text-lt-white font-condensed text-xs mb-1">Pregunta</label>
+        <input
+          type="text"
+          value={form.text}
+          onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))}
+          maxLength={200}
+          className={inputCls}
+        />
+      </div>
+
+      {/* Options */}
+      <div>
+        <label className="block text-lt-white font-condensed text-xs mb-1.5">
+          Opciones de respuesta <span className="text-lt-muted2">(min. 2)</span>
+        </label>
+        <div className="space-y-2">
+          {form.options.map((opt, i) => (
+            <div key={i} className="flex gap-2">
+              <span className="w-7 h-10 flex items-center justify-center font-bebas text-sm text-lt-muted2 flex-shrink-0">
+                {String.fromCharCode(65 + i)}
+              </span>
+              <input
+                type="text"
+                value={opt}
+                onChange={(e) => updateOption(i, e.target.value)}
+                placeholder={`Opción ${i + 1}`}
+                className={cn(inputCls, 'flex-1')}
+              />
+              {form.options.length > 2 && (
+                <button
+                  type="button"
+                  onClick={() => removeOption(i)}
+                  className="px-2 text-lt-red hover:text-lt-red/80 font-condensed text-sm"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addOption}
+            className="text-lt-amber font-condensed text-xs font-600 hover:underline"
+          >
+            + Agregar opcion
+          </button>
+        </div>
+      </div>
+
+      {/* Timing + Points */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-lt-white font-condensed text-xs mb-1.5">Timing</label>
+          <div className="flex gap-1.5">
+            {TIMING_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, timing: value }))}
+                className={cn(
+                  'flex-1 py-2 rounded-btn border font-condensed text-xs font-600 transition-all',
+                  form.timing === value
+                    ? 'bg-lt-amber/20 border-lt-amber text-lt-amber'
+                    : 'bg-lt-card2 border-lt-muted text-lt-white hover:border-lt-amber/30'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-lt-white font-condensed text-xs mb-1.5">Puntos</label>
+          <input
+            type="number"
+            value={form.pointsValue}
+            onChange={(e) => setForm((f) => ({ ...f, pointsValue: Number(e.target.value) || 10 }))}
+            min={5}
+            max={100}
+            step={5}
+            className={inputCls}
+          />
+        </div>
+      </div>
+
+      {error && <p className="text-lt-red text-xs font-condensed">{error}</p>}
+
+      <div className="flex gap-2">
+        <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 disabled:opacity-40">
+          {saving ? 'Guardando...' : 'Guardar cambios'}
         </button>
         <button type="button" onClick={onCancel} className="px-4 py-2.5 rounded-btn border border-lt-muted text-lt-muted2 font-condensed text-sm">
           Cancelar

@@ -63,6 +63,11 @@ export async function POST(
     )
   }
 
+  // If kickoffAt lacks timezone info (e.g. from datetime-local), treat as Colombia time (UTC-5)
+  const parsedKickoff = kickoffAt.includes('T') && !kickoffAt.includes('+') && !kickoffAt.includes('-', kickoffAt.indexOf('T'))
+    ? new Date(kickoffAt + '-05:00')
+    : new Date(kickoffAt)
+
   const externalId = `manual-${params.id}-${homeTeam}-${awayTeam}-${kickoffAt}`
     .replace(/\s+/g, '-')
     .toLowerCase()
@@ -76,7 +81,7 @@ export async function POST(
       awayTeam: awayTeam.trim(),
       competition: competition.trim(),
       venue: venue?.trim() || null,
-      kickoffAt: new Date(kickoffAt),
+      kickoffAt: parsedKickoff,
       status: 'SCHEDULED',
     },
     update: {},

@@ -10,6 +10,7 @@ interface Props {
   initialAllowRemote: boolean
   initialAllowMemberInvites: boolean
   initialScoringMode: 'FIXED' | 'POOL'
+  initialMatchMode: 'PER_MATCH' | 'SEASON'
   hasLinkedBusiness: boolean
 }
 
@@ -21,6 +22,7 @@ export function SettingsTab({
   initialAllowRemote,
   initialAllowMemberInvites,
   initialScoringMode,
+  initialMatchMode,
   hasLinkedBusiness,
 }: Props) {
   const [name, setName] = useState(initialName)
@@ -29,6 +31,7 @@ export function SettingsTab({
   const [allowRemote, setAllowRemote] = useState(initialAllowRemote)
   const [allowMemberInvites, setAllowMemberInvites] = useState(initialAllowMemberInvites)
   const [scoringMode, setScoringMode] = useState(initialScoringMode)
+  const [matchMode, setMatchMode] = useState(initialMatchMode)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -50,6 +53,7 @@ export function SettingsTab({
           allowRemote,
           allowMemberInvites,
           scoringMode,
+          matchMode,
         }),
       })
       if (res.ok) {
@@ -81,7 +85,8 @@ export function SettingsTab({
     maxMembers !== initialMaxMembers ||
     allowRemote !== initialAllowRemote ||
     allowMemberInvites !== initialAllowMemberInvites ||
-    scoringMode !== initialScoringMode
+    scoringMode !== initialScoringMode ||
+    matchMode !== initialMatchMode
 
   return (
     <div className="flex flex-col gap-6">
@@ -172,6 +177,47 @@ export function SettingsTab({
               </p>
               <p className="font-condensed text-[10px] text-lt-muted2 mt-0.5 leading-snug">
                 Los puntos se reparten entre los que aciertan
+              </p>
+            </button>
+          </div>
+        </div>
+
+        {/* Match Mode */}
+        <div>
+          <label className="block font-condensed text-xs text-lt-muted2 mb-2 uppercase tracking-wide">
+            Modalidad de la liga
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setMatchMode('PER_MATCH')}
+              className={`p-3 rounded-btn border text-left transition-all ${
+                matchMode === 'PER_MATCH'
+                  ? 'border-lt-green bg-lt-green/10'
+                  : 'border-[rgba(255,255,255,0.07)] bg-lt-card2 hover:border-[rgba(255,255,255,0.15)]'
+              }`}
+            >
+              <p className={`font-condensed text-sm font-700 ${matchMode === 'PER_MATCH' ? 'text-lt-green' : 'text-lt-white'}`}>
+                Partido a partido
+              </p>
+              <p className="font-condensed text-[10px] text-lt-muted2 mt-0.5 leading-snug">
+                Puntos se calculan por partido individual
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMatchMode('SEASON')}
+              className={`p-3 rounded-btn border text-left transition-all ${
+                matchMode === 'SEASON'
+                  ? 'border-lt-green bg-lt-green/10'
+                  : 'border-[rgba(255,255,255,0.07)] bg-lt-card2 hover:border-[rgba(255,255,255,0.15)]'
+              }`}
+            >
+              <p className={`font-condensed text-sm font-700 ${matchMode === 'SEASON' ? 'text-lt-green' : 'text-lt-white'}`}>
+                Temporada
+              </p>
+              <p className="font-condensed text-[10px] text-lt-muted2 mt-0.5 leading-snug">
+                Puntos se acumulan a lo largo de toda la temporada
               </p>
             </button>
           </div>

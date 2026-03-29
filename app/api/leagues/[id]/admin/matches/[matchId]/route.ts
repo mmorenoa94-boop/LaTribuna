@@ -48,7 +48,12 @@ export async function PATCH(
   if (awayTeam?.trim()) data.awayTeam = awayTeam.trim()
   if (competition?.trim()) data.competition = competition.trim()
   if (venue !== undefined) data.venue = venue?.trim() || null
-  if (kickoffAt) data.kickoffAt = new Date(kickoffAt)
+  if (kickoffAt) {
+    // If kickoffAt lacks timezone info, treat as Colombia time (UTC-5)
+    data.kickoffAt = kickoffAt.includes('T') && !kickoffAt.includes('+') && !kickoffAt.includes('-', kickoffAt.indexOf('T'))
+      ? new Date(kickoffAt + '-05:00')
+      : new Date(kickoffAt)
+  }
   if (homeScore !== undefined) data.homeScore = homeScore === null ? null : Number(homeScore)
   if (awayScore !== undefined) data.awayScore = awayScore === null ? null : Number(awayScore)
   if (status && ['SCHEDULED', 'LIVE', 'HALFTIME', 'FINISHED', 'CANCELLED'].includes(status)) {
