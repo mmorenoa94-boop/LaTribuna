@@ -38,6 +38,7 @@ export default async function LeagueAdminPage({ params }: { params: { id: string
           allowMemberInvites: league.allowMemberInvites,
           minConsumption: league.minConsumption,
           minConsumptionAmount: league.minConsumptionAmount,
+          type: league.type,
           matchMode: league.matchMode,
           scoringMode: league.scoringMode,
           maxMembers: league.maxMembers,

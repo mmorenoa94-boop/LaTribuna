@@ -8,6 +8,13 @@ interface Prize {
   pointsValue: number
 }
 
+const LEAGUE_TYPE_OPTIONS = [
+  { value: 'BUSINESS', label: 'Local', desc: 'Liga asociada a tu negocio' },
+  { value: 'PRIVATE', label: 'Privada', desc: 'Solo tú puedes invitar' },
+  { value: 'INVITE_ONLY', label: 'Con invitación', desc: 'Necesitan código para unirse' },
+  { value: 'PUBLIC', label: 'Pública', desc: 'Cualquiera puede unirse' },
+] as const
+
 export function SettingsTab({ league, onUpdate }: { league: LeagueData; onUpdate: (l: LeagueData) => void }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -52,6 +59,31 @@ export function SettingsTab({ league, onUpdate }: { league: LeagueData; onUpdate
 
   return (
     <div className="space-y-4">
+      {/* League Type */}
+      <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] px-4 py-4">
+        <label className="block text-lt-white font-condensed text-sm mb-2">Tipo de liga</label>
+        <div className="grid grid-cols-2 gap-2">
+          {LEAGUE_TYPE_OPTIONS.map(({ value, label, desc }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                onUpdate({ ...league, type: value })
+                saveSettings({ type: value })
+              }}
+              className={`py-3 px-3 rounded-btn border font-condensed text-sm text-left transition-all ${
+                league.type === value
+                  ? 'bg-lt-amber/20 border-lt-amber text-lt-amber'
+                  : 'bg-lt-card2 border-lt-muted text-lt-white hover:border-lt-amber/30'
+              }`}
+            >
+              <p className="font-600">{label}</p>
+              <p className="text-xs mt-0.5 opacity-70">{desc}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Match Mode */}
       <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] px-4 py-4">
         <label className="block text-lt-white font-condensed text-sm mb-2">Modalidad</label>

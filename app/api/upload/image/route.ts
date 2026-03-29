@@ -6,6 +6,8 @@ const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
 const ALLOWED_FOLDERS = ['avatars', 'logos', 'rewards', 'banners', 'promotions']
 
+export const runtime = 'nodejs'
+
 // POST — Upload image to Cloudinary
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -62,8 +64,9 @@ export async function POST(req: NextRequest) {
       width: result.width,
       height: result.height,
     }, { status: 201 })
-  } catch (error) {
-    console.error('[upload/image] Error:', error)
-    return NextResponse.json({ error: 'Error al subir imagen' }, { status: 500 })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('[upload/image] Error:', message, error)
+    return NextResponse.json({ error: `Error al subir imagen: ${message}` }, { status: 500 })
   }
 }

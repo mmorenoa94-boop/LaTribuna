@@ -71,7 +71,7 @@ const COMPETITIONS_MANUAL = [
 ]
 
 export function AddMatchModal({ leagueId, open, onClose, onCreated, editMatch }: Props) {
-  const [tab, setTab] = useState<'search' | 'manual'>('search')
+  const [tab, setTab] = useState<'search' | 'manual'>('manual')
 
   // ── Search state ──────────────────────────────────────────────────────────
   const [searchDate, setSearchDate]         = useState(() =>
@@ -106,7 +106,7 @@ export function AddMatchModal({ leagueId, open, onClose, onCreated, editMatch }:
         kickoffAt: local.toISOString().slice(0, 16),
       })
     } else if (open && !editMatch) {
-      setTab('search')
+      setTab('manual')
       setForm({ homeTeam: '', awayTeam: '', competition: 'Liga BetPlay Dimayor', venue: '', kickoffAt: '' })
     }
   }, [open, editMatch])
@@ -224,23 +224,7 @@ export function AddMatchModal({ leagueId, open, onClose, onCreated, editMatch }:
               </button>
             </div>
 
-            {/* Tabs (hide when editing) */}
-            {!editMatch && <div className="flex-shrink-0 flex gap-1 px-5 mb-3">
-              {(['search', 'manual'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={cn(
-                    'flex-1 py-2 rounded-btn font-condensed text-sm font-700 transition-all',
-                    tab === t
-                      ? 'bg-lt-green text-lt-black'
-                      : 'bg-lt-card2 text-lt-muted2 hover:text-lt-white'
-                  )}
-                >
-                  {t === 'search' ? '🔍 Buscar partido' : '✏️ Manual'}
-                </button>
-              ))}
-            </div>}
+            {/* Tabs hidden — search disabled until API-Football plan is upgraded */}
 
             {/* ── SEARCH TAB ────────────────────────────────────────────────── */}
             {tab === 'search' && (

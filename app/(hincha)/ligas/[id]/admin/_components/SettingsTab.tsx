@@ -11,8 +11,15 @@ interface Props {
   initialAllowMemberInvites: boolean
   initialScoringMode: 'FIXED' | 'POOL'
   initialMatchMode: 'PER_MATCH' | 'SEASON'
+  initialLeagueType: 'PRIVATE' | 'INVITE_ONLY' | 'PUBLIC' | 'BUSINESS'
   hasLinkedBusiness: boolean
 }
+
+const LEAGUE_TYPES = [
+  { value: 'PRIVATE', label: 'Privada', desc: 'Solo tú puedes invitar miembros' },
+  { value: 'INVITE_ONLY', label: 'Con invitación', desc: 'Los miembros necesitan un código para unirse' },
+  { value: 'PUBLIC', label: 'Pública', desc: 'Cualquiera puede unirse desde Explorar' },
+] as const
 
 export function SettingsTab({
   leagueId,
@@ -23,6 +30,7 @@ export function SettingsTab({
   initialAllowMemberInvites,
   initialScoringMode,
   initialMatchMode,
+  initialLeagueType,
   hasLinkedBusiness,
 }: Props) {
   const [name, setName] = useState(initialName)
@@ -32,6 +40,7 @@ export function SettingsTab({
   const [allowMemberInvites, setAllowMemberInvites] = useState(initialAllowMemberInvites)
   const [scoringMode, setScoringMode] = useState(initialScoringMode)
   const [matchMode, setMatchMode] = useState(initialMatchMode)
+  const [leagueType, setLeagueType] = useState(initialLeagueType)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -54,6 +63,7 @@ export function SettingsTab({
           allowMemberInvites,
           scoringMode,
           matchMode,
+          type: leagueType,
         }),
       })
       if (res.ok) {
@@ -86,7 +96,8 @@ export function SettingsTab({
     allowRemote !== initialAllowRemote ||
     allowMemberInvites !== initialAllowMemberInvites ||
     scoringMode !== initialScoringMode ||
-    matchMode !== initialMatchMode
+    matchMode !== initialMatchMode ||
+    leagueType !== initialLeagueType
 
   return (
     <div className="flex flex-col gap-6">
@@ -124,6 +135,36 @@ export function SettingsTab({
             placeholder="Descripción opcional de la liga"
           />
         </div>
+
+        {/* League type */}
+        {!hasLinkedBusiness && (
+          <div>
+            <label className="block font-condensed text-xs text-lt-muted2 mb-2 uppercase tracking-wide">
+              Tipo de liga
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {LEAGUE_TYPES.map(({ value, label, desc }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setLeagueType(value)}
+                  className={`p-3 rounded-btn border text-left transition-all ${
+                    leagueType === value
+                      ? 'border-lt-green bg-lt-green/10'
+                      : 'border-[rgba(255,255,255,0.07)] bg-lt-card2 hover:border-[rgba(255,255,255,0.15)]'
+                  }`}
+                >
+                  <p className={`font-condensed text-sm font-700 ${leagueType === value ? 'text-lt-green' : 'text-lt-white'}`}>
+                    {label}
+                  </p>
+                  <p className="font-condensed text-[10px] text-lt-muted2 mt-0.5 leading-snug">
+                    {desc}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Max members */}
         <div>

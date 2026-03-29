@@ -24,7 +24,7 @@ export function RulesButton({ scoringMode, pointsExample = 10 }: Props) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 animate-fade-in"
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 animate-fade-in"
           onClick={() => setOpen(false)}
         >
           <div
