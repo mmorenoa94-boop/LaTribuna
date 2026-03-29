@@ -677,6 +677,9 @@ function QuestionCard({
   const [showOpenPicker, setShowOpenPicker] = useState(false)
   const [showResolvePicker, setShowResolvePicker] = useState(false)
   const [windowSecs, setWindowSecs] = useState(30)
+  const [showAnswers, setShowAnswers] = useState(false)
+  const [answersList, setAnswersList] = useState<{ userName: string; answer: string; isCorrect: boolean | null; pointsEarned: number }[]>([])
+  const [loadingAnswers, setLoadingAnswers] = useState(false)
 
   const cfg = Q_STATUS[q.status] ?? Q_STATUS.PENDING
 
@@ -698,8 +701,15 @@ function QuestionCard({
     if (!confirm('¿Eliminar esta pregunta?')) return
     setLoading(true)
     try {
-      await fetch(`/api/leagues/${leagueId}/admin/questions/${q.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/leagues/${leagueId}/admin/questions/${q.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || 'No se pudo eliminar la pregunta')
+        return
+      }
       onDeleted(q.id)
+    } catch {
+      alert('Error de conexión al eliminar')
     } finally {
       setLoading(false)
     }
@@ -723,8 +733,13 @@ function QuestionCard({
           <span className={cn('font-condensed text-xs font-700 uppercase tracking-wide', cfg.color)}>
             {cfg.label}
           </span>
-          <span className="text-lt-muted2 font-condensed text-xs">
-            {q.timing === 'LIVE' ? '🔴 Vivo' : '⏱️ Pre'}
+          <span className={cn(
+            'font-condensed text-xs px-1.5 py-0.5 rounded-full',
+            q.timing === 'LIVE'
+              ? 'bg-lt-red/15 text-lt-red border border-lt-red/30'
+              : 'bg-lt-card2 text-lt-muted2 border border-[rgba(255,255,255,0.07)]'
+          )} title={q.timing === 'LIVE' ? 'Se abre manualmente durante el partido' : 'Se abre antes del kickoff'}>
+            {q.timing === 'LIVE' ? '🔴 En vivo' : '⏱️ Pre-partido'}
           </span>
           <span className="text-lt-amber font-condensed text-xs font-700">+{q.pointsValue} pts</span>
           {q._count.answers > 0 && (
@@ -909,6 +924,62 @@ function QuestionCard({
         <p className="font-condensed text-xs text-lt-green">
           ✅ Respuesta: <strong>{q.correctAnswer}</strong> · {q._count.answers} respuestas
         </p>
+      )}
+
+      {/* Participation viewer */}
+      {q._count.answers > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={async () => {
+              if (showAnswers) { setShowAnswers(false); return }
+              setLoadingAnswers(true)
+              try {
+                const res = await fetch(`/api/leagues/${leagueId}/admin/questions/${q.id}/answers`)
+                if (res.ok) setAnswersList(await res.json())
+              } finally { setLoadingAnswers(false) }
+              setShowAnswers(true)
+            }}
+            className="flex items-center gap-1 text-lt-muted2 font-condensed text-xs hover:text-lt-white transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            {showAnswers ? 'Ocultar respuestas' : `Ver ${q._count.answers} respuestas`}
+          </button>
+          <AnimatePresence>
+            {showAnswers && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                className="mt-2 overflow-hidden"
+              >
+                {loadingAnswers ? (
+                  <span className="w-4 h-4 border-2 border-lt-amber/30 border-t-lt-amber rounded-full animate-spin inline-block" />
+                ) : (
+                  <div className="bg-lt-card2 rounded-btn p-2 space-y-1 max-h-40 overflow-y-auto">
+                    {answersList.map((a, i) => (
+                      <div key={i} className="flex items-center justify-between gap-2 px-2 py-1">
+                        <span className="font-condensed text-xs text-lt-white truncate">{a.userName}</span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={cn(
+                            'font-condensed text-xs px-1.5 py-0.5 rounded-full',
+                            a.isCorrect === true ? 'bg-lt-green/20 text-lt-green' :
+                            a.isCorrect === false ? 'bg-lt-red/20 text-lt-red' :
+                            'bg-lt-card text-lt-muted2'
+                          )}>
+                            {a.answer}
+                          </span>
+                          {a.pointsEarned > 0 && (
+                            <span className="font-condensed text-[10px] text-lt-green">+{a.pointsEarned}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       )}
     </div>
   )

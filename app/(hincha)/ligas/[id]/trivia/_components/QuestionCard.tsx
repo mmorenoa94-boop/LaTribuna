@@ -31,6 +31,8 @@ export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions
   const hasAnswered = myAnswer !== null
   const [submitting, setSubmitting] = useState(false)
   const [optimistic, setOptimistic] = useState<string | null>(myAnswer?.answer ?? null)
+  const [pendingSelection, setPendingSelection] = useState<string | null>(null)
+  const [locked, setLocked] = useState(hasAnswered)
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     if (!question.closedAt) return 30
     return Math.max(0, Math.floor((new Date(question.closedAt).getTime() - Date.now()) / 1000))
@@ -70,15 +72,21 @@ export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions
 
   async function handleSelect(option: string) {
     if (submitting || expired) return
-    // Allow re-selecting a different option
-    if (option === optimistic) return
-    setSubmitting(true)
-    setOptimistic(option)
-    await onAnswer(option)
-    setSubmitting(false)
+    if (locked) return // Already locked in
+    setPendingSelection(option)
   }
 
-  const selected = optimistic
+  async function handleLockIn() {
+    if (!pendingSelection || submitting || expired || locked) return
+    setSubmitting(true)
+    setOptimistic(pendingSelection)
+    setLocked(true)
+    await onAnswer(pendingSelection)
+    setSubmitting(false)
+    setPendingSelection(null)
+  }
+
+  const selected = locked ? optimistic : pendingSelection
 
   return (
     <motion.div
@@ -180,14 +188,39 @@ export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions
         </AnimatePresence>
       </div>
 
-      {hasAnswered && !expired && (
-        <p className="text-center text-lt-muted2 font-condensed text-sm">
-          Puedes cambiar tu respuesta antes de que se cierre
+      {/* Lock-in button */}
+      {!locked && pendingSelection && !expired && (
+        <motion.button
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={handleLockIn}
+          disabled={submitting}
+          className={cn(
+            'w-full py-4 rounded-btn font-condensed text-base font-700 transition-all active:scale-[0.97]',
+            'bg-lt-green text-lt-black shadow-[0_0_24px_rgba(0,230,118,0.3)]',
+            submitting && 'opacity-60'
+          )}
+        >
+          {submitting ? 'Enviando...' : '🔒 Envío definitivo'}
+        </motion.button>
+      )}
+
+      {locked && !expired && (
+        <p className="text-center text-lt-green font-condensed text-sm flex items-center justify-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Respuesta enviada
         </p>
       )}
-      {hasAnswered && expired && (
+      {locked && expired && (
         <p className="text-center text-lt-muted2 font-condensed text-sm">
           Esperando que se resuelva la pregunta…
+        </p>
+      )}
+      {!locked && !pendingSelection && !expired && (
+        <p className="text-center text-lt-muted2 font-condensed text-sm">
+          Selecciona una opción y confirma tu respuesta
         </p>
       )}
     </motion.div>

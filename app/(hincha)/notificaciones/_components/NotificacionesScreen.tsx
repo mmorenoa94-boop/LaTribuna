@@ -130,7 +130,7 @@ export function NotificacionesScreen() {
                       <p className="text-lt-white font-condensed text-sm font-700 leading-snug">
                         {n.title}
                       </p>
-                      <p className="text-lt-muted2 text-xs mt-0.5 leading-relaxed">
+                      <p className="text-lt-muted2 text-xs mt-0.5 leading-relaxed whitespace-pre-line">
                         {n.body}
                       </p>
                       <p className="text-lt-muted2/60 text-[10px] font-condensed mt-1">
