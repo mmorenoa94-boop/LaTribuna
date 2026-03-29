@@ -48,7 +48,12 @@ export async function uploadImage(
         folder: `latribuna/${folder}`,
         public_id: publicId,
         transformation: [
-          { width: transform.width, height: transform.height, crop: transform.crop, gravity: 'auto' },
+          {
+            width: transform.width,
+            height: transform.height,
+            crop: transform.crop,
+            ...(transform.crop !== 'limit' && { gravity: 'auto' }),
+          },
           { quality: 'auto:good', fetch_format: 'auto' },
         ],
         resource_type: 'image',
