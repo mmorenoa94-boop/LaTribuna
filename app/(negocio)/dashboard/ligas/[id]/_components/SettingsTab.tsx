@@ -26,6 +26,27 @@ export function SettingsTab({ league, onUpdate }: { league: LeagueData; onUpdate
     await saveSettings({ [key]: value })
   }
 
+  // When league type changes, auto-configure sensible defaults
+  async function changeType(type: string) {
+    let defaults: Record<string, unknown> = { type }
+    switch (type) {
+      case 'PUBLIC':
+        defaults = { ...defaults, requireApproval: false, allowMemberInvites: true, allowRemote: true }
+        break
+      case 'PRIVATE':
+        defaults = { ...defaults, requireApproval: true, allowMemberInvites: false, allowRemote: false }
+        break
+      case 'INVITE_ONLY':
+        defaults = { ...defaults, requireApproval: false, allowMemberInvites: true, allowRemote: true }
+        break
+      case 'BUSINESS':
+        defaults = { ...defaults, requireApproval: false, allowMemberInvites: true, allowRemote: false }
+        break
+    }
+    onUpdate({ ...league, ...defaults } as LeagueData)
+    await saveSettings(defaults)
+  }
+
   async function updateAmount(value: string) {
     const amount = value ? parseInt(value, 10) : null
     onUpdate({ ...league, minConsumptionAmount: amount })
@@ -67,10 +88,7 @@ export function SettingsTab({ league, onUpdate }: { league: LeagueData; onUpdate
             <button
               key={value}
               type="button"
-              onClick={() => {
-                onUpdate({ ...league, type: value })
-                saveSettings({ type: value })
-              }}
+              onClick={() => changeType(value)}
               className={`py-3 px-3 rounded-btn border font-condensed text-sm text-left transition-all ${
                 league.type === value
                   ? 'bg-lt-amber/20 border-lt-amber text-lt-amber'

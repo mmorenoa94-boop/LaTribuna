@@ -102,6 +102,21 @@ export async function emitLeaderboardUpdate(leagueId: string, matchId: string, d
   )
 }
 
+/** Emit promotion sent to league players */
+export async function emitPromotionSent(businessId: string, data: {
+  promotionId: string
+  title: string
+  message: string
+  imageUrl: string | null
+  businessName: string
+}) {
+  await emitSocketEvent(
+    `business:${businessId}`,
+    'promotion:sent',
+    data
+  )
+}
+
 /** Emit power-up fired */
 export async function emitPowerUpFire(leagueId: string, matchId: string, data: {
   powerupId: string

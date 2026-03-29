@@ -447,7 +447,7 @@ model Promotion {
   businessId  String
   business    Business     @relation(fields: [businessId], references: [id])
   title       String?      @db.VarChar(60)
-  message     String       @db.VarChar(120)
+  message     String       @db.VarChar(280)
   imageUrl    String?
   segment     PromoSegment @default(ALL_IN_VENUE)
   channels    Json
