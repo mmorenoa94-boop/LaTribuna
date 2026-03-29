@@ -698,8 +698,15 @@ function QuestionCard({
     if (!confirm('¿Eliminar esta pregunta?')) return
     setLoading(true)
     try {
-      await fetch(`/api/leagues/${leagueId}/admin/questions/${q.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/leagues/${leagueId}/admin/questions/${q.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error || 'No se pudo eliminar la pregunta')
+        return
+      }
       onDeleted(q.id)
+    } catch {
+      alert('Error de conexión al eliminar')
     } finally {
       setLoading(false)
     }

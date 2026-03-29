@@ -185,13 +185,14 @@ export async function DELETE(
     if (!question || question.leagueId !== params.id) {
       return NextResponse.json({ error: 'Pregunta no encontrada' }, { status: 404 })
     }
-    if (question.status !== 'PENDING' && question.status !== 'OPEN') {
-      return NextResponse.json({ error: 'Solo se pueden eliminar preguntas pendientes o abiertas' }, { status: 400 })
+    if (question.status === 'RESOLVED') {
+      return NextResponse.json({ error: 'No se pueden eliminar preguntas ya resueltas (tienen puntos asignados)' }, { status: 400 })
     }
 
-    // If open, delete any answers first
-    if (question.status === 'OPEN') {
+    // Delete related answers/predictions first
+    if (question.status === 'OPEN' || question.status === 'CLOSED') {
       await prisma.answer.deleteMany({ where: { questionId: params.qid } })
+      await prisma.prediction.deleteMany({ where: { questionId: params.qid } })
     }
 
     await prisma.leagueQuestion.delete({ where: { id: params.qid } })
