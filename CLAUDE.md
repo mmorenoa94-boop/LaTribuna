@@ -105,9 +105,10 @@ The `.env` file points to **development** by default. Vercel has its own env var
 **Failure to push to prod will crash the entire app** with `PrismaClientKnownRequestError: column does not exist`.
 
 ## Git Workflow
-- **Always `git pull` before `git push`** to avoid conflicts with changes merged via PRs
-- Never push directly to `main` — always create a PR from `develop` and let Juan approve
-- Work on `develop` branch; PRs go `develop → main`
+- **Always `git pull` before pushing** to any branch
+- **Always create a new feature branch** from `develop` for each task
+- Merge into `develop` first, verify, then create a PR to `main`
+- Never push directly to `main` — always create a PR from `develop`
 
 ## Important Notes
 - Cron jobs are defined in `app/api/cron/` but **not registered in `vercel.json`** (Hobby plan limit) — must be triggered manually or externally
