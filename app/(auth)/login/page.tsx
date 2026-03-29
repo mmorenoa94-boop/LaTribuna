@@ -1,11 +1,21 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-lt-black" />}>
+      <LoginContent />
+    </Suspense>
+  )
+}
+
+function LoginContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') || '/home'
   const [tab, setTab] = useState<'email' | 'social'>('email')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -22,7 +32,7 @@ export default function LoginPage() {
     if (res?.error) {
       setError('Email o contraseña incorrectos')
     } else {
-      router.push('/home')
+      router.push(callbackUrl)
     }
   }
 
@@ -110,14 +120,14 @@ export default function LoginPage() {
         ) : (
           <div className="space-y-3">
             <button
-              onClick={() => signIn('google', { callbackUrl: '/home' })}
+              onClick={() => signIn('google', { callbackUrl })}
               className="w-full flex items-center justify-center gap-3 bg-lt-card border border-lt-muted rounded-btn px-4 py-3.5 text-lt-white font-condensed text-sm hover:border-lt-white/20 transition-colors"
             >
               <GoogleIcon />
               Continuar con Google
             </button>
             <button
-              onClick={() => signIn('apple', { callbackUrl: '/home' })}
+              onClick={() => signIn('apple', { callbackUrl })}
               className="w-full flex items-center justify-center gap-3 bg-lt-card border border-lt-muted rounded-btn px-4 py-3.5 text-lt-white font-condensed text-sm hover:border-lt-white/20 transition-colors"
             >
               <AppleIcon />
@@ -128,7 +138,7 @@ export default function LoginPage() {
 
         <p className="text-center text-lt-muted2 text-sm font-condensed mt-6">
           ¿No tienes cuenta?{' '}
-          <button onClick={() => router.push('/onboarding')} className="text-lt-green hover:underline">
+          <button onClick={() => router.push(callbackUrl !== '/home' ? `/onboarding?callbackUrl=${encodeURIComponent(callbackUrl)}` : '/onboarding')} className="text-lt-green hover:underline">
             Regístrate
           </button>
         </p>

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
@@ -20,6 +21,8 @@ interface LeaguePreview {
 export default function InvitePage() {
   const router = useRouter()
   const params = useParams<{ code: string }>()
+  const { status: sessionStatus } = useSession()
+  const isAuthenticated = sessionStatus === 'authenticated'
   const code = params.code?.toUpperCase()
 
   const [league, setLeague] = useState<LeaguePreview | null>(null)
@@ -40,6 +43,12 @@ export default function InvitePage() {
   }, [code])
 
   async function handleJoin() {
+    // Si no está autenticado, ir directo a login sin hacer el fetch innecesario
+    if (!isAuthenticated) {
+      router.push(`/login?callbackUrl=${encodeURIComponent(`/invite/${code}`)}`)
+      return
+    }
+
     setJoining(true)
     setError('')
     try {
@@ -50,7 +59,7 @@ export default function InvitePage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        // Si no está autenticado, redirigir a login con callback
+        // Si no está autenticado (sesión expirada), redirigir a login con callback
         if (res.status === 401) {
           router.push(`/login?callbackUrl=${encodeURIComponent(`/invite/${code}`)}`)
           return
@@ -201,7 +210,7 @@ export default function InvitePage() {
                 disabled={joining}
                 className="w-full py-3.5 rounded-btn bg-lt-green text-lt-black font-condensed font-700 text-base disabled:opacity-50 active:scale-[0.97] transition-all"
               >
-                {joining ? 'Uniéndome...' : 'Unirme a la liga'}
+                {joining ? 'Uniéndome...' : isAuthenticated ? 'Unirme a la liga' : 'Iniciar sesión y unirme'}
               </button>
             )}
 

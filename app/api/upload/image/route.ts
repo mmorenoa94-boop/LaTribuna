@@ -48,6 +48,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Validate Cloudinary config
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error('[upload/image] Missing Cloudinary env vars')
+      return NextResponse.json({ error: 'Servicio de imágenes no configurado' }, { status: 503 })
+    }
+
     // Convert to buffer
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
@@ -65,8 +71,8 @@ export async function POST(req: NextRequest) {
       height: result.height,
     }, { status: 201 })
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error)
-    console.error('[upload/image] Error:', message, error)
-    return NextResponse.json({ error: `Error al subir imagen: ${message}` }, { status: 500 })
+    const message = error instanceof Error ? error.message : JSON.stringify(error)
+    console.error('[upload/image] Error:', message)
+    return NextResponse.json({ error: message || 'Error al subir imagen' }, { status: 500 })
   }
 }
