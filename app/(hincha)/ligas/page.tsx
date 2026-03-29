@@ -78,7 +78,7 @@ export default async function LigasPage() {
 
       {/* CTA explorar públicas */}
       <Link
-        href="/ligas/publicas"
+        href="/explorar"
         className="flex items-center justify-between w-full bg-lt-card border border-dashed border-lt-muted rounded-card px-4 py-4 group hover:border-lt-green/40 transition-colors"
       >
         <div>
