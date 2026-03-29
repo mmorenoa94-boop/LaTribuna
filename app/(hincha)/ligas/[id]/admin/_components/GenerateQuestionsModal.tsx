@@ -120,7 +120,7 @@ export function GenerateQuestionsModal({
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 40 }}
-        className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto bg-lt-dark border border-[rgba(255,255,255,0.1)] rounded-t-2xl md:rounded-2xl p-5 z-10"
+        className="relative w-full max-w-lg max-h-[90vh] md:max-h-[85vh] overflow-y-auto bg-lt-dark border border-[rgba(255,255,255,0.1)] rounded-t-2xl md:rounded-2xl p-4 md:p-5 z-10"
       >
         <AnimatePresence mode="wait">
           {step === 'profiles' ? (
@@ -274,7 +274,7 @@ export function GenerateQuestionsModal({
                         </div>
 
                         {/* Meta row */}
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 mt-2">
                           <span className={cn(
                             'font-condensed text-[10px] font-700 uppercase tracking-wider px-1.5 py-0.5 rounded-full border',
                             t.timing === 'PRE_MATCH'
@@ -286,13 +286,13 @@ export function GenerateQuestionsModal({
 
                           {/* Points selector */}
                           {t.selected && (
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-0.5">
                               {[10, 15, 20, 25, 30].map((p) => (
                                 <button
                                   key={p}
                                   onClick={() => updatePoints(t.index, p)}
                                   className={cn(
-                                    'font-condensed text-[10px] font-700 px-1.5 py-0.5 rounded transition-all',
+                                    'font-condensed text-[10px] font-700 min-w-[26px] py-0.5 rounded text-center transition-all',
                                     t.points === p
                                       ? 'bg-lt-green/20 text-lt-green'
                                       : 'text-lt-muted2 hover:text-lt-white'
@@ -301,7 +301,7 @@ export function GenerateQuestionsModal({
                                   {p}
                                 </button>
                               ))}
-                              <span className="font-condensed text-[10px] text-lt-muted2">pts</span>
+                              <span className="font-condensed text-[10px] text-lt-muted2 ml-0.5">pts</span>
                             </div>
                           )}
                         </div>
@@ -313,16 +313,18 @@ export function GenerateQuestionsModal({
 
               {error && <p className="text-lt-red text-sm font-condensed mb-3">{error}</p>}
 
-              {/* Generate button */}
-              <button
-                onClick={handleGenerate}
-                disabled={generating || selectedCount === 0}
-                className="w-full py-3.5 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 disabled:opacity-40 active:scale-[0.97] transition-all"
-              >
-                {generating
-                  ? 'Generando...'
-                  : `Crear ${selectedCount} pregunta${selectedCount !== 1 ? 's' : ''}`}
-              </button>
+              {/* Generate button — sticky at bottom */}
+              <div className="sticky bottom-0 pt-3 -mx-4 md:-mx-5 px-4 md:px-5 pb-1 bg-gradient-to-t from-lt-dark via-lt-dark to-transparent">
+                <button
+                  onClick={handleGenerate}
+                  disabled={generating || selectedCount === 0}
+                  className="w-full py-3.5 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 disabled:opacity-40 active:scale-[0.97] transition-all"
+                >
+                  {generating
+                    ? 'Generando...'
+                    : `Crear ${selectedCount} pregunta${selectedCount !== 1 ? 's' : ''}`}
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
