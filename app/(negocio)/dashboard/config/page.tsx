@@ -12,6 +12,7 @@ export default async function ConfigPage() {
     select: {
       name: true,
       type: true,
+      logoUrl: true,
       address: true,
       city: true,
       phone: true,

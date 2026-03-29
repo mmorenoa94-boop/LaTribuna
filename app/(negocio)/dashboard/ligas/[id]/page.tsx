@@ -43,6 +43,8 @@ export default async function LeagueAdminPage({ params }: { params: { id: string
           maxMembers: league.maxMembers,
           status: league.status,
           memberCount: league._count.members,
+          bannerUrl: league.bannerUrl,
+          themeColor: league.themeColor ?? '#00E676',
         }}
         members={members.map((m) => ({
           id: m.userId,

@@ -175,9 +175,20 @@ export default async function LigaDetailPage({
               {TYPE_LABELS[league.type] ?? league.type}
             </span>
 
-            <h1 className="text-lt-white font-bebas text-4xl leading-tight tracking-wide line-clamp-2">
-              {league.name}
-            </h1>
+            <div className="flex items-center gap-3">
+              {league.business?.logoUrl && (
+                <Image
+                  src={league.business.logoUrl}
+                  alt={league.business.name}
+                  width={48}
+                  height={48}
+                  className="w-12 h-12 rounded-card object-cover border border-[rgba(255,255,255,0.1)] flex-shrink-0"
+                />
+              )}
+              <h1 className="text-lt-white font-bebas text-4xl leading-tight tracking-wide line-clamp-2">
+                {league.name}
+              </h1>
+            </div>
             {league.themeColor && league.themeColor !== '#00E676' && (
               <div className="w-12 h-1 rounded-full mt-1" style={{ backgroundColor: league.themeColor }} />
             )}
@@ -206,8 +217,19 @@ export default async function LigaDetailPage({
             </span>
           )}
           {league.business && (
-            <span className="text-lt-amber font-condensed text-xs">
-              📍 {league.business.name}
+            <span className="text-lt-amber font-condensed text-xs flex items-center gap-1.5">
+              {league.business.logoUrl ? (
+                <Image
+                  src={league.business.logoUrl}
+                  alt={league.business.name}
+                  width={18}
+                  height={18}
+                  className="w-[18px] h-[18px] rounded-full object-cover border border-lt-amber/30"
+                />
+              ) : (
+                <span>📍</span>
+              )}
+              {league.business.name}
               {league.business.city ? `, ${league.business.city}` : ''}
             </span>
           )}

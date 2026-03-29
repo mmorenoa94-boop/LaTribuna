@@ -1,5 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import Image from 'next/image'
 
 const BUSINESS_TYPES = [
   { value: 'BAR',          label: 'Bar' },
@@ -11,6 +12,7 @@ const BUSINESS_TYPES = [
 interface BusinessData {
   name: string
   type: string
+  logoUrl: string | null
   address: string | null
   city: string | null
   phone: string | null
@@ -30,11 +32,60 @@ export function BusinessConfigForm({ business }: { business: BusinessData }) {
     checkinRadius: business.checkinRadius,
     maxCapacity: business.maxCapacity ?? '',
   })
+  const [logoUrl, setLogoUrl] = useState<string | null>(business.logoUrl)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [geoLoading, setGeoLoading] = useState(false)
   const [geoOk, setGeoOk] = useState(!!business.lat)
+
+  async function handleLogoUpload(file: File) {
+    if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
+      setError('Solo se permiten imágenes JPEG, PNG o WebP')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('La imagen no puede superar 2MB')
+      return
+    }
+    setLogoUploading(true)
+    setError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'logos')
+      const res = await fetch('/api/upload/image', { method: 'POST', body: formData })
+      if (!res.ok) {
+        const d = await res.json()
+        setError(d.error || 'Error al subir imagen')
+        return
+      }
+      const data = await res.json()
+      setLogoUrl(data.url)
+      // Save immediately
+      await fetch('/api/businesses/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logoUrl: data.url }),
+      })
+      setSaved(false)
+    } catch {
+      setError('Error al subir imagen')
+    } finally {
+      setLogoUploading(false)
+    }
+  }
+
+  async function handleRemoveLogo() {
+    setLogoUrl(null)
+    await fetch('/api/businesses/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logoUrl: '' }),
+    })
+  }
 
   function update(key: string, value: string | number) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -96,6 +147,69 @@ export function BusinessConfigForm({ business }: { business: BusinessData }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Logo */}
+      <div>
+        <label className="block text-lt-white font-condensed text-sm mb-2">Logo del negocio</label>
+        <p className="text-lt-muted2 font-condensed text-xs mb-3">
+          Se muestra en tus ligas y perfil público. Recomendado: 400×400px, cuadrado.
+        </p>
+        <div className="flex items-center gap-4">
+          {logoUrl ? (
+            <div className="relative flex-shrink-0">
+              <Image
+                src={logoUrl}
+                alt="Logo del negocio"
+                width={80}
+                height={80}
+                className="w-20 h-20 rounded-card object-cover border border-[rgba(255,255,255,0.1)]"
+              />
+              <button
+                type="button"
+                onClick={handleRemoveLogo}
+                className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center bg-lt-red rounded-full text-white text-xs hover:bg-lt-red/80 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <div className="w-20 h-20 rounded-card bg-lt-card2 border-2 border-dashed border-[rgba(255,255,255,0.15)] flex items-center justify-center flex-shrink-0">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-lt-muted2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
+              </svg>
+            </div>
+          )}
+          <div className="flex-1">
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={logoUploading}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-btn bg-lt-card border border-lt-muted text-lt-white font-condensed text-sm hover:border-lt-amber/30 transition-colors disabled:opacity-50"
+            >
+              {logoUploading ? (
+                <span className="w-4 h-4 border-2 border-lt-amber/30 border-t-lt-amber rounded-full animate-spin" />
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+              )}
+              {logoUploading ? 'Subiendo...' : logoUrl ? 'Cambiar logo' : 'Subir logo'}
+            </button>
+            <p className="text-lt-muted font-condensed text-[11px] mt-1.5">JPEG, PNG o WebP — máx. 2MB</p>
+          </div>
+        </div>
+        <input
+          ref={logoInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); e.target.value = '' }}
+          className="hidden"
+        />
+      </div>
+
       {/* Nombre */}
       <div>
         <label className="block text-lt-white font-condensed text-sm mb-1.5">Nombre del negocio</label>
