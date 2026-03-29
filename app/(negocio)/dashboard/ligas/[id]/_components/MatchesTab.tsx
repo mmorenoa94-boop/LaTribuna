@@ -2,6 +2,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { ImportMatchesModal } from '@/app/(hincha)/ligas/[id]/admin/_components/ImportMatchesModal'
+import { GenerateQuestionsModal } from '@/app/(hincha)/ligas/[id]/admin/_components/GenerateQuestionsModal'
+import type { QuestionRow } from '@/app/(hincha)/ligas/[id]/admin/_components/AddQuestionModal'
 
 interface MatchData {
   id: string
@@ -90,6 +93,7 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
   const [matches, setMatches] = useState<MatchData[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [showImportCSV, setShowImportCSV] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null)
 
   const fetchMatches = useCallback(async () => {
@@ -112,13 +116,26 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
 
   return (
     <div className="space-y-4">
-      <button
-        onClick={() => setShowForm(!showForm)}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 active:scale-[0.97] transition-all"
-      >
-        <span className="text-lg leading-none">+</span>
-        Agregar partido
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => setShowImportCSV(true)}
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-btn bg-lt-card2 border border-[rgba(255,255,255,0.07)] text-lt-muted2 hover:text-lt-white font-condensed text-sm font-700 active:scale-95 transition-all"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          CSV
+        </button>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 active:scale-[0.97] transition-all"
+        >
+          <span className="text-lg leading-none">+</span>
+          Agregar partido
+        </button>
+      </div>
 
       {showForm && (
         <AddMatchForm
@@ -127,6 +144,13 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
           onCancel={() => setShowForm(false)}
         />
       )}
+
+      <ImportMatchesModal
+        leagueId={leagueId}
+        open={showImportCSV}
+        onClose={() => setShowImportCSV(false)}
+        onImported={(imported) => { setMatches((prev) => [...prev, ...imported.map((m) => ({ ...m, questionCount: 0 }))]); setShowImportCSV(false) }}
+      />
 
       {loading ? (
         <div className="text-center py-8">
@@ -263,6 +287,7 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
   const [questions, setQuestions] = useState<QuestionData[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [showGenerate, setShowGenerate] = useState(false)
 
   const fetchQuestions = useCallback(async () => {
     const res = await fetch(`/api/leagues/${leagueId}/admin/questions?matchId=${match.id}`)
@@ -362,13 +387,25 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
       )}
 
       {/* Add question */}
-      <button
-        onClick={() => setShowForm(!showForm)}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 active:scale-[0.97] transition-all"
-      >
-        <span className="text-lg leading-none">+</span>
-        Nueva pregunta
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => setShowGenerate(true)}
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm font-700 active:scale-95 transition-all"
+          title="Generar preguntas desde plantilla"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+          </svg>
+          Generar
+        </button>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 active:scale-[0.97] transition-all"
+        >
+          <span className="text-lg leading-none">+</span>
+          Nueva pregunta
+        </button>
+      </div>
 
       {showForm && (
         <AddQuestionForm
@@ -380,6 +417,30 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
           onCancel={() => setShowForm(false)}
         />
       )}
+
+      <GenerateQuestionsModal
+        leagueId={leagueId}
+        matchId={match.id}
+        homeTeam={match.homeTeam}
+        awayTeam={match.awayTeam}
+        open={showGenerate}
+        onClose={() => setShowGenerate(false)}
+        onGenerated={(qs: QuestionRow[]) => {
+          setQuestions(qs.map((q) => ({
+            id: q.id,
+            text: q.text,
+            type: q.type,
+            options: q.options as string[],
+            pointsValue: q.pointsValue,
+            timing: q.timing,
+            status: q.status,
+            correctAnswer: q.correctAnswer,
+            closedAt: q.closedAt,
+            _count: q._count,
+          })))
+          setShowGenerate(false)
+        }}
+      />
 
       {/* Questions list */}
       {loading ? (

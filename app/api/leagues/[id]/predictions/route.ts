@@ -33,13 +33,20 @@ export async function POST(
     prisma.leagueMember.findUnique({
       where: { leagueId_userId: { leagueId: params.id, userId: session.user.id } },
     }),
-    prisma.league.findUnique({ where: { id: params.id }, select: { creatorId: true } }),
+    prisma.league.findUnique({ where: { id: params.id }, select: { creatorId: true, minConsumption: true } }),
   ])
   if (!member) {
     return NextResponse.json({ error: 'No eres miembro de esta liga' }, { status: 403 })
   }
   if (league?.creatorId === session.user.id) {
     return NextResponse.json({ error: 'El administrador no puede hacer predicciones' }, { status: 403 })
+  }
+  // If league requires minimum consumption, verify before allowing predictions
+  if (league?.minConsumption && !member.consumptionVerified) {
+    return NextResponse.json(
+      { error: 'Debes verificar tu consumo mínimo para participar. Pide al mesero que te verifique.' },
+      { status: 403 }
+    )
   }
 
   // Upsert: si ya respondió esta pregunta, actualiza
