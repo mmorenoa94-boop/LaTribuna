@@ -55,7 +55,7 @@ export async function uploadImage(
         overwrite: true,
       },
       (error, result) => {
-        if (error) reject(error)
+        if (error) reject(new Error(error.message || JSON.stringify(error)))
         else if (result) {
           resolve({
             url: result.secure_url,
