@@ -12,7 +12,6 @@ interface PromoNotification {
 
 export function PromoBanner() {
   const [promos, setPromos] = useState<PromoNotification[]>([])
-  const [expanded, setExpanded] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -59,21 +58,13 @@ export function PromoBanner() {
               <p className="font-condensed text-xs text-lt-amber font-700 uppercase tracking-wide">
                 Promoción · {promo.title}
               </p>
-              <p className="text-lt-white font-barlow text-sm mt-1 leading-snug">
+              <p className="text-lt-white font-barlow text-sm mt-1 leading-snug whitespace-pre-line">
                 {promo.body}
               </p>
-              {promo.imageUrl && expanded === promo.id && (
-                <div className="relative w-full h-32 rounded-btn overflow-hidden mt-2">
+              {promo.imageUrl && (
+                <div className="relative w-full h-36 rounded-btn overflow-hidden mt-2">
                   <Image src={promo.imageUrl} alt="Promoción" fill className="object-cover" />
                 </div>
-              )}
-              {promo.imageUrl && expanded !== promo.id && (
-                <button
-                  onClick={() => setExpanded(promo.id)}
-                  className="text-lt-amber font-condensed text-xs mt-1 hover:underline"
-                >
-                  Ver imagen
-                </button>
               )}
             </div>
             <button

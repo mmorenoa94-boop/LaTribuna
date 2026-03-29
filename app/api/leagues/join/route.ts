@@ -14,14 +14,9 @@ export async function POST(req: Request) {
     if (!league) return NextResponse.json({ error: 'Liga no encontrada' }, { status: 404 })
     if (league.status !== 'ACTIVE') return NextResponse.json({ error: 'Liga inactiva' }, { status: 400 })
 
-    // If member invites are disabled, only the creator can share the code.
-    // Non-creators attempting to join directly are blocked.
-    if (!league.allowMemberInvites && league.creatorId !== session.user.id) {
-      return NextResponse.json(
-        { error: 'Esta liga solo permite acceso a través del administrador' },
-        { status: 403 }
-      )
-    }
+    // allowMemberInvites only controls whether existing members can re-share
+    // the invite code. Anyone with a valid code can always join.
+    // Access control is handled by requireApproval and league type instead.
 
     const count = await prisma.leagueMember.count({ where: { leagueId: league.id } })
     if (count >= league.maxMembers) return NextResponse.json({ error: 'Liga llena' }, { status: 400 })

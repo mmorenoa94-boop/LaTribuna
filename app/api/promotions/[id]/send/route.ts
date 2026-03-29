@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { emitPromotionSent } from '@/lib/socket-emit'
 
 /**
  * POST /api/promotions/[id]/send
@@ -159,6 +160,15 @@ export async function POST(
       })),
     })
   }
+
+  // Emit real-time event for connected clients
+  await emitPromotionSent(business.id, {
+    promotionId: promotion.id,
+    title: promotion.title ?? business.name,
+    message: promotion.message,
+    imageUrl: promotion.imageUrl,
+    businessName: business.name,
+  })
 
   // Update promotion status
   const updated = await prisma.promotion.update({

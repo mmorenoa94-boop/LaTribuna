@@ -91,8 +91,13 @@ export function QuestionItem({ question: q, leagueId, onUpdated, onDeleted, onEd
             <span className={cn('font-condensed text-xs font-700 uppercase tracking-wide', cfg.color)}>
               {cfg.label}
             </span>
-            <span className="text-lt-muted2 font-condensed text-xs">
-              {q.timing === 'PRE_MATCH' ? '⏰ Pre' : '🔴 Vivo'}
+            <span className={cn(
+              'font-condensed text-xs px-1.5 py-0.5 rounded-full',
+              q.timing === 'LIVE'
+                ? 'bg-lt-red/15 text-lt-red border border-lt-red/30'
+                : 'bg-lt-card2 text-lt-muted2 border border-[rgba(255,255,255,0.07)]'
+            )} title={q.timing === 'LIVE' ? 'Se abre manualmente durante el partido. Tú controlas cuándo.' : 'Se abre antes del kickoff y cierra automáticamente al iniciar el partido.'}>
+              {q.timing === 'PRE_MATCH' ? '⏰ Pre-partido' : '🔴 En vivo'}
             </span>
             <span className="text-lt-muted2 font-condensed text-xs">·</span>
             <span className="text-lt-green font-condensed text-xs font-700">+{q.pointsValue} pts</span>

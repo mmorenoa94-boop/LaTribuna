@@ -72,21 +72,21 @@ export function LeagueAdminPanel({ league, members }: { league: LeagueData; memb
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-1 bg-lt-card rounded-btn p-1 mb-6">
+      {/* Tab bar — scrollable on mobile */}
+      <div className="flex gap-1 bg-lt-card rounded-btn p-1 mb-6 overflow-x-auto no-scrollbar">
         {TABS.map(({ key, label, icon }) => (
           <button
             key={key}
             onClick={() => setTab(key)}
             className={cn(
-              'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-btn font-condensed text-sm font-600 transition-all relative',
+              'flex-shrink-0 flex items-center justify-center gap-1 px-3 py-2.5 rounded-btn font-condensed text-xs sm:text-sm font-600 transition-all relative whitespace-nowrap',
               tab === key
                 ? 'bg-lt-amber/20 text-lt-amber'
                 : 'text-lt-muted2 hover:text-lt-white'
             )}
           >
             <span className="text-base">{icon}</span>
-            {label}
+            <span className="hidden sm:inline">{label}</span>
             {key === 'members' && pendingCount > 0 && (
               <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-lt-red text-white text-[10px] font-700 flex items-center justify-center">
                 {pendingCount}
