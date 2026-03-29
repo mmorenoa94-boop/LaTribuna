@@ -207,13 +207,28 @@ export function QuestionItem({ question: q, leagueId, onUpdated, onDeleted, onEd
 
           {/* OPEN actions */}
           {q.status === 'OPEN' && (
-            <button
-              onClick={() => patchQuestion({ action: 'close' })}
-              disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm hover:bg-lt-amber/25 transition-colors disabled:opacity-50"
-            >
-              ⏹ Cerrar ahora
-            </button>
+            <>
+              <button
+                onClick={() => patchQuestion({ action: 'close' })}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm hover:bg-lt-amber/25 transition-colors disabled:opacity-50"
+              >
+                ⏹ Cerrar ahora
+              </button>
+              <button
+                onClick={() => onEdit(q)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-card2 border border-[rgba(255,255,255,0.07)] text-lt-muted2 font-condensed text-sm hover:text-lt-white transition-colors"
+              >
+                ✏️ Editar
+              </button>
+              <button
+                onClick={deleteQuestion}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-red/10 border border-lt-red/30 text-lt-red font-condensed text-sm hover:bg-lt-red/20 transition-colors disabled:opacity-50"
+              >
+                🗑 Borrar
+              </button>
+            </>
           )}
 
           {/* CLOSED actions */}

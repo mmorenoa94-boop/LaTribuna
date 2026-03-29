@@ -95,6 +95,9 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
   const [showForm, setShowForm] = useState(false)
   const [showImportCSV, setShowImportCSV] = useState(false)
   const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null)
+  const [editingMatch, setEditingMatch] = useState<MatchData | null>(null)
+  const [confirmDeleteMatch, setConfirmDeleteMatch] = useState<string | null>(null)
+  const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null)
 
   const fetchMatches = useCallback(async () => {
     const res = await fetch(`/api/leagues/${leagueId}/admin/matches`)
@@ -104,12 +107,32 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
 
   useEffect(() => { fetchMatches() }, [fetchMatches])
 
+  async function handleDeleteMatch(matchId: string) {
+    setDeletingMatchId(matchId)
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/admin/matches/${matchId}`, { method: 'DELETE' })
+      if (res.ok) {
+        setMatches((prev) => prev.filter((m) => m.id !== matchId))
+        if (selectedMatch?.id === matchId) setSelectedMatch(null)
+      }
+    } finally {
+      setDeletingMatchId(null)
+      setConfirmDeleteMatch(null)
+    }
+  }
+
+  function handleMatchUpdated(m: MatchData) {
+    setMatches((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...m } : x)))
+    if (selectedMatch?.id === m.id) setSelectedMatch({ ...selectedMatch, ...m })
+  }
+
   if (selectedMatch) {
     return (
       <MatchDetail
         leagueId={leagueId}
         match={selectedMatch}
         onBack={() => { setSelectedMatch(null); fetchMatches() }}
+        onMatchUpdated={handleMatchUpdated}
       />
     )
   }
@@ -129,7 +152,7 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
           CSV
         </button>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { setEditingMatch(null); setShowForm(!showForm) }}
           className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 active:scale-[0.97] transition-all"
         >
           <span className="text-lg leading-none">+</span>
@@ -137,11 +160,20 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
         </button>
       </div>
 
-      {showForm && (
+      {(showForm || editingMatch) && (
         <AddMatchForm
           leagueId={leagueId}
-          onCreated={(m) => { setMatches((prev) => [...prev, m]); setShowForm(false) }}
-          onCancel={() => setShowForm(false)}
+          editMatch={editingMatch}
+          onCreated={(m) => {
+            if (editingMatch) {
+              handleMatchUpdated(m)
+              setEditingMatch(null)
+            } else {
+              setMatches((prev) => [...prev, m])
+            }
+            setShowForm(false)
+          }}
+          onCancel={() => { setShowForm(false); setEditingMatch(null) }}
         />
       )}
 
@@ -166,40 +198,92 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
           {matches.map((match) => {
             const st = STATUS_LABEL[match.status] ?? { label: match.status, color: 'text-lt-muted2' }
             return (
-              <button
+              <div
                 key={match.id}
-                onClick={() => setSelectedMatch(match)}
-                className="w-full bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4 text-left hover:border-lt-amber/30 transition-colors"
+                className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4 hover:border-lt-amber/30 transition-colors"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-condensed text-xs text-lt-muted2">{match.competition}</span>
-                  <span className={cn('font-condensed text-xs font-700', st.color)}>
-                    {match.status === 'LIVE' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-lt-red animate-pulse-dot mr-1" />}
-                    {st.label}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="font-condensed text-sm text-lt-white font-600">{match.homeTeam}</p>
-                    <p className="font-condensed text-sm text-lt-white font-600">{match.awayTeam}</p>
-                  </div>
-                  {match.homeScore !== null && (
-                    <div className="text-right mr-4">
-                      <p className="font-bebas text-lg text-lt-white">{match.homeScore}</p>
-                      <p className="font-bebas text-lg text-lt-white">{match.awayScore}</p>
+                {confirmDeleteMatch === match.id ? (
+                  <div className="flex flex-col items-center gap-3 py-2">
+                    <p className="font-condensed text-sm text-lt-white text-center">
+                      ¿Eliminar <strong>{match.homeTeam} vs {match.awayTeam}</strong> y todas sus preguntas?
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setConfirmDeleteMatch(null)}
+                        className="px-4 py-2 rounded-btn bg-lt-card2 text-lt-muted2 font-condensed text-sm font-700"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => handleDeleteMatch(match.id)}
+                        disabled={deletingMatchId === match.id}
+                        className="px-4 py-2 rounded-btn bg-lt-red text-white font-condensed text-sm font-700 disabled:opacity-50"
+                      >
+                        {deletingMatchId === match.id ? 'Eliminando...' : 'Si, eliminar'}
+                      </button>
                     </div>
-                  )}
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-condensed text-xs text-lt-muted2">
-                      {new Date(match.kickoffAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', timeZone: 'America/Bogota' })}
-                    </p>
-                    <p className="font-condensed text-xs text-lt-muted2">
-                      {new Date(match.kickoffAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
-                    </p>
-                    <p className="font-condensed text-xs text-lt-amber mt-1">{match.questionCount} preg.</p>
                   </div>
-                </div>
-              </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setSelectedMatch(match)}
+                      className="w-full text-left"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-condensed text-xs text-lt-muted2">{match.competition}</span>
+                        <span className={cn('font-condensed text-xs font-700', st.color)}>
+                          {match.status === 'LIVE' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-lt-red animate-pulse-dot mr-1" />}
+                          {st.label}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="font-condensed text-sm text-lt-white font-600">{match.homeTeam}</p>
+                          <p className="font-condensed text-sm text-lt-white font-600">{match.awayTeam}</p>
+                        </div>
+                        {match.homeScore !== null && (
+                          <div className="text-right mr-4">
+                            <p className="font-bebas text-lg text-lt-white">{match.homeScore}</p>
+                            <p className="font-bebas text-lg text-lt-white">{match.awayScore}</p>
+                          </div>
+                        )}
+                        <div className="text-right flex-shrink-0">
+                          <p className="font-condensed text-xs text-lt-muted2">
+                            {new Date(match.kickoffAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', timeZone: 'America/Bogota' })}
+                          </p>
+                          <p className="font-condensed text-xs text-lt-muted2">
+                            {new Date(match.kickoffAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
+                          </p>
+                          <p className="font-condensed text-xs text-lt-amber mt-1">{match.questionCount} preg.</p>
+                        </div>
+                      </div>
+                    </button>
+                    {/* Edit / Delete buttons */}
+                    <div className="mt-3 pt-3 border-t border-[rgba(255,255,255,0.07)] flex gap-2">
+                      <button
+                        onClick={() => { setEditingMatch(match); setShowForm(false) }}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-btn bg-lt-card2 text-lt-muted2 hover:text-lt-white font-condensed text-xs font-700 transition-colors"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteMatch(match.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-btn bg-lt-red/10 text-lt-red hover:bg-lt-red/20 font-condensed text-xs font-700 transition-colors"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                        Eliminar
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             )
           })}
         </div>
@@ -210,13 +294,20 @@ export function MatchesTab({ leagueId }: { leagueId: string }) {
 
 // ── Add Match Form ─────────────────────────────────────────────
 function AddMatchForm({
-  leagueId, onCreated, onCancel,
+  leagueId, editMatch, onCreated, onCancel,
 }: {
   leagueId: string
+  editMatch?: MatchData | null
   onCreated: (m: MatchData) => void
   onCancel: () => void
 }) {
-  const [form, setForm] = useState({ homeTeam: '', awayTeam: '', competition: '', venue: '', kickoffAt: '' })
+  const [form, setForm] = useState({
+    homeTeam: editMatch?.homeTeam ?? '',
+    awayTeam: editMatch?.awayTeam ?? '',
+    competition: editMatch?.competition ?? '',
+    venue: editMatch?.venue ?? '',
+    kickoffAt: editMatch ? new Date(editMatch.kickoffAt).toLocaleString('sv-SE', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', 'T') : '',
+  })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -230,8 +321,11 @@ function AddMatchForm({
     try {
       // Append Colombia timezone offset (UTC-5) to datetime-local value
       const kickoffWithTZ = form.kickoffAt ? `${form.kickoffAt}:00-05:00` : form.kickoffAt
-      const res = await fetch(`/api/leagues/${leagueId}/admin/matches`, {
-        method: 'POST',
+      const url = editMatch
+        ? `/api/leagues/${leagueId}/admin/matches/${editMatch.id}`
+        : `/api/leagues/${leagueId}/admin/matches`
+      const res = await fetch(url, {
+        method: editMatch ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, kickoffAt: kickoffWithTZ }),
       })
@@ -246,7 +340,7 @@ function AddMatchForm({
 
   return (
     <form onSubmit={handleSubmit} className="bg-lt-card rounded-card border border-lt-amber/20 p-4 space-y-3">
-      <p className="font-condensed text-sm text-lt-amber font-700">Nuevo partido</p>
+      <p className="font-condensed text-sm text-lt-amber font-700">{editMatch ? 'Editar partido' : 'Nuevo partido'}</p>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-lt-white font-condensed text-xs mb-1">Local <span className="text-lt-red">*</span></label>
@@ -274,7 +368,7 @@ function AddMatchForm({
       {error && <p className="text-lt-red text-xs font-condensed">{error}</p>}
       <div className="flex gap-2">
         <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 disabled:opacity-40">
-          {saving ? 'Creando...' : 'Crear partido'}
+          {saving ? (editMatch ? 'Guardando...' : 'Creando...') : (editMatch ? 'Guardar cambios' : 'Crear partido')}
         </button>
         <button type="button" onClick={onCancel} className="px-4 py-2.5 rounded-btn border border-lt-muted text-lt-muted2 font-condensed text-sm">
           Cancelar
@@ -285,12 +379,41 @@ function AddMatchForm({
 }
 
 // ── Match Detail (Questions) ──────────────────────────────────
-function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: MatchData; onBack: () => void }) {
+function MatchDetail({ leagueId, match, onBack, onMatchUpdated }: { leagueId: string; match: MatchData; onBack: () => void; onMatchUpdated: (m: MatchData) => void }) {
   const [questions, setQuestions] = useState<QuestionData[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<QuestionData | null>(null)
+  const [homeScore, setHomeScore] = useState(match.homeScore ?? 0)
+  const [awayScore, setAwayScore] = useState(match.awayScore ?? 0)
+  const [savingScore, setSavingScore] = useState(false)
+  const isFinished = match.status === 'FINISHED'
+
+  async function handleSaveScore(markFinished: boolean) {
+    setSavingScore(true)
+    try {
+      const res = await fetch(`/api/leagues/${leagueId}/admin/matches/${match.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          homeScore,
+          awayScore,
+          ...(markFinished ? { status: 'FINISHED' } : {}),
+        }),
+      })
+      if (res.ok) {
+        onMatchUpdated({
+          ...match,
+          homeScore,
+          awayScore,
+          ...(markFinished ? { status: 'FINISHED' } : {}),
+        })
+      }
+    } finally {
+      setSavingScore(false)
+    }
+  }
 
   const fetchQuestions = useCallback(async () => {
     const res = await fetch(`/api/leagues/${leagueId}/admin/questions?matchId=${match.id}`)
@@ -348,6 +471,66 @@ function MatchDetail({ leagueId, match, onBack }: { leagueId: string; match: Mat
               weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota',
             })}
           </p>
+        </div>
+      </div>
+
+      {/* Score input */}
+      <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4">
+        <p className="font-condensed text-xs text-lt-muted2 uppercase tracking-wide mb-3">
+          Marcador {isFinished && <span className="text-lt-green ml-1">· Finalizado</span>}
+        </p>
+        <div className="flex items-center gap-3 justify-center">
+          <span className="font-condensed text-sm font-700 text-lt-white text-right flex-1 truncate">
+            {match.homeTeam}
+          </span>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={homeScore}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, '')
+              setHomeScore(v === '' ? 0 : Math.min(99, Number(v)))
+            }}
+            className="w-14 text-center font-bebas text-2xl text-lt-white bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn py-1 focus:border-lt-amber outline-none [appearance:textfield]"
+          />
+          <span className="font-bebas text-xl text-lt-muted2">-</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={awayScore}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, '')
+              setAwayScore(v === '' ? 0 : Math.min(99, Number(v)))
+            }}
+            className="w-14 text-center font-bebas text-2xl text-lt-white bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn py-1 focus:border-lt-amber outline-none [appearance:textfield]"
+          />
+          <span className="font-condensed text-sm font-700 text-lt-white flex-1 truncate">
+            {match.awayTeam}
+          </span>
+        </div>
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={() => handleSaveScore(false)}
+            disabled={savingScore}
+            className="flex-1 py-2 rounded-btn bg-lt-card2 border border-[rgba(255,255,255,0.07)] text-lt-white font-condensed text-sm font-700 hover:border-lt-amber/30 transition-colors disabled:opacity-50"
+          >
+            {savingScore ? 'Guardando...' : 'Guardar marcador'}
+          </button>
+          {!isFinished && (
+            <button
+              onClick={() => {
+                if (confirm(`¿Finalizar ${match.homeTeam} ${homeScore} - ${awayScore} ${match.awayTeam}?`)) {
+                  handleSaveScore(true)
+                }
+              }}
+              disabled={savingScore}
+              className="flex-1 py-2 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 active:scale-95 transition-all disabled:opacity-50"
+            >
+              Finalizar partido
+            </button>
+          )}
         </div>
       </div>
 
@@ -655,13 +838,30 @@ function QuestionCard({
       )}
 
       {q.status === 'OPEN' && (
-        <button
-          onClick={() => patchQuestion({ action: 'close' })}
-          disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm hover:bg-lt-amber/25 transition-colors disabled:opacity-50"
-        >
-          ⏹ Cerrar ahora
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => patchQuestion({ action: 'close' })}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm hover:bg-lt-amber/25 transition-colors disabled:opacity-50"
+          >
+            ⏹ Cerrar ahora
+          </button>
+          {onEdit && (
+            <button
+              onClick={() => onEdit(q)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-card2 border border-[rgba(255,255,255,0.07)] text-lt-muted2 font-condensed text-sm hover:text-lt-white transition-colors"
+            >
+              ✏️ Editar
+            </button>
+          )}
+          <button
+            onClick={deleteQuestion}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-red/10 border border-lt-red/30 text-lt-red font-condensed text-sm hover:bg-lt-red/20 transition-colors disabled:opacity-50"
+          >
+            🗑 Borrar
+          </button>
+        </div>
       )}
 
       {q.status === 'CLOSED' && (
