@@ -145,7 +145,7 @@ export default async function LigaDetailPage({
     <div className="flex flex-col min-h-full animate-fade-in">
       {/* ── Banner ─────────────────────────────────────── */}
       {league.bannerUrl && (
-        <div className="relative w-full h-36 overflow-hidden">
+        <div className="relative w-full h-36 sm:h-48 md:h-56 overflow-hidden">
           <Image
             src={league.bannerUrl}
             alt={`Banner ${league.name}`}
