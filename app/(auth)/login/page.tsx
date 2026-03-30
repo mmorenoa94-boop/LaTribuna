@@ -3,6 +3,7 @@ import { useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 
 export default function LoginPage() {
   return (
@@ -47,8 +48,18 @@ function LoginContent() {
           ← Volver
         </button>
 
-        <h1 className="font-bebas text-4xl text-lt-white mb-1">Iniciar sesión</h1>
-        <p className="text-lt-muted2 font-condensed text-sm mb-6">Bienvenido de vuelta, hincha</p>
+        <div className="flex flex-col items-center mb-6">
+          <Image
+            src="/logo.png"
+            alt="La Tribuna"
+            width={160}
+            height={160}
+            className="drop-shadow-[0_0_30px_rgba(255,193,7,0.25)]"
+            priority
+          />
+          <h1 className="font-bebas text-4xl text-lt-white mt-2">Iniciar sesión</h1>
+          <p className="text-lt-muted2 font-condensed text-sm mt-0.5">Bienvenido de vuelta, hincha</p>
+        </div>
 
         {/* Tabs */}
         <div className="flex bg-lt-card rounded-btn p-1 mb-6 border border-lt-muted">

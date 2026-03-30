@@ -2,6 +2,7 @@
 import { Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 
 export default function OnboardingPage() {
   return (
@@ -21,14 +22,23 @@ function OnboardingContent() {
     <div className="flex flex-col min-h-screen items-center justify-center px-6 gap-8">
       {/* Logo */}
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
         className="text-center"
       >
-        <h1 className="font-bebas text-6xl text-lt-white tracking-wider leading-none">
-          LA TRIBUNA
-        </h1>
-        <p className="text-lt-muted2 font-condensed text-base mt-1 tracking-widest uppercase">
+        <div className="w-44 h-44 mx-auto relative">
+          <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,193,7,0.12)_0%,transparent_70%)] rounded-full scale-125" />
+          <Image
+            src="/logo.png"
+            alt="La Tribuna"
+            width={176}
+            height={176}
+            className="relative z-10 drop-shadow-[0_0_30px_rgba(255,193,7,0.25)]"
+            priority
+          />
+        </div>
+        <p className="text-lt-muted2 font-condensed text-sm mt-3 tracking-widest uppercase">
           El juego de los que sí saben
         </p>
       </motion.div>
