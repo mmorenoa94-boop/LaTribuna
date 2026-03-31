@@ -118,10 +118,10 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
 
-      {/* Modal */}
-      <div className="relative bg-lt-card border border-[rgba(255,255,255,0.1)] rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden animate-slide-up">
+      {/* Modal — bottom sheet on mobile, centered on desktop */}
+      <div className="relative bg-lt-card border border-[rgba(255,255,255,0.1)] rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[70vh] sm:max-h-[80vh] flex flex-col overflow-hidden animate-slide-up mb-0 sm:mb-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.07)]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.07)] flex-shrink-0">
           <div className="min-w-0">
             <h3 className="font-bebas text-xl text-lt-white tracking-wide">Notificaciones</h3>
             <p className="font-condensed text-xs text-lt-muted2 truncate">{matchLabel}</p>
@@ -134,7 +134,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-[rgba(255,255,255,0.07)]">
+        <div className="flex border-b border-[rgba(255,255,255,0.07)] flex-shrink-0">
           {([
             { key: 'participation' as Tab, label: 'Participación', icon: '📊' },
             { key: 'reminder' as Tab, label: 'Recordatorio', icon: '⏰' },
@@ -156,9 +156,9 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
           ))}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {/* ── Result message ───────────────────────────── */}
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-4 pb-2">
+          {/* Result message */}
           {result && (
             <div className={cn(
               'mb-4 px-3 py-2 rounded-btn border font-condensed text-sm',
@@ -269,7 +269,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
               <div className="bg-lt-amber/10 border border-lt-amber/30 rounded-card p-3">
                 <p className="font-condensed text-sm text-lt-amber font-700">⏰ Recordatorio para no-respondedores</p>
                 <p className="font-condensed text-xs text-lt-muted2 mt-1">
-                  Se enviará push + notificación in-app a los miembros que no hayan respondido todas las preguntas de este partido.
+                  Se enviará push + notificación in-app a quienes no hayan respondido todas las preguntas de este partido.
                 </p>
                 {data && data.missingCount > 0 && (
                   <p className="font-condensed text-xs text-lt-amber mt-1.5">
@@ -297,14 +297,6 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
                 />
                 <p className="font-condensed text-xs text-lt-muted text-right mt-1">{message.length}/280</p>
               </div>
-
-              <button
-                onClick={handleSendReminder}
-                disabled={sending || !message.trim() || (data?.missingCount === 0)}
-                className="w-full py-3 rounded-btn bg-lt-amber text-lt-black font-condensed text-base font-700 disabled:opacity-50 active:scale-[0.98] transition-all"
-              >
-                {sending ? 'Enviando...' : `Enviar recordatorio${data?.missingCount ? ` (${data.missingCount})` : ''}`}
-              </button>
             </div>
           )}
 
@@ -340,22 +332,39 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
                   onChange={(e) => setMassMessage(e.target.value)}
                   placeholder="Escribe tu mensaje para todos los miembros..."
                   className="w-full bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn px-3 py-2.5 font-barlow text-sm text-lt-white placeholder:text-lt-muted resize-none focus:border-lt-blue outline-none"
-                  rows={4}
+                  rows={3}
                   maxLength={500}
                 />
                 <p className="font-condensed text-xs text-lt-muted text-right mt-1">{massMessage.length}/500</p>
               </div>
-
-              <button
-                onClick={handleSendMass}
-                disabled={sending || !massMessage.trim()}
-                className="w-full py-3 rounded-btn bg-lt-blue text-white font-condensed text-base font-700 disabled:opacity-50 active:scale-[0.98] transition-all"
-              >
-                {sending ? 'Enviando...' : 'Enviar a todos'}
-              </button>
             </div>
           )}
         </div>
+
+        {/* ── Sticky action button at bottom ──────────────── */}
+        {activeTab === 'reminder' && (
+          <div className="flex-shrink-0 px-4 py-3 border-t border-[rgba(255,255,255,0.07)] bg-lt-card">
+            <button
+              onClick={handleSendReminder}
+              disabled={sending || !message.trim() || (data?.missingCount === 0)}
+              className="w-full py-3 rounded-btn bg-lt-amber text-lt-black font-condensed text-base font-700 disabled:opacity-50 active:scale-[0.98] transition-all"
+            >
+              {sending ? 'Enviando...' : `Enviar recordatorio${data?.missingCount ? ` (${data.missingCount})` : ''}`}
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'mass' && (
+          <div className="flex-shrink-0 px-4 py-3 border-t border-[rgba(255,255,255,0.07)] bg-lt-card">
+            <button
+              onClick={handleSendMass}
+              disabled={sending || !massMessage.trim()}
+              className="w-full py-3 rounded-btn bg-lt-blue text-white font-condensed text-base font-700 disabled:opacity-50 active:scale-[0.98] transition-all"
+            >
+              {sending ? 'Enviando...' : 'Enviar a todos'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

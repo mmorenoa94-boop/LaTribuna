@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Pregunta cerrada' }, { status: 400 })
     }
 
-    if (question.league.creatorId === session.user.id) {
+    if (question.league.creatorId === session.user.id && session.user.role === 'NEGOCIO') {
       return NextResponse.json({ error: 'El administrador no puede responder preguntas' }, { status: 403 })
     }
 

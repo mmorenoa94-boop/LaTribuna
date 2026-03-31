@@ -38,7 +38,7 @@ export async function POST(
   if (!member) {
     return NextResponse.json({ error: 'No eres miembro de esta liga' }, { status: 403 })
   }
-  if (league?.creatorId === session.user.id) {
+  if (league?.creatorId === session.user.id && session.user.role === 'NEGOCIO') {
     return NextResponse.json({ error: 'El administrador no puede hacer predicciones' }, { status: 403 })
   }
   // If league requires minimum consumption, verify before allowing predictions
