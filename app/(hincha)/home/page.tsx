@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { XPBar } from '@/components/hincha/XPBar'
 import { LeagueCard } from '@/components/hincha/LeagueCard'
 import { PromoBanner } from '@/components/hincha/PromoBanner'
+import { PushPrompt } from '@/components/hincha/PushPrompt'
 import type { LeagueWithDetails } from '@/types'
 import Link from 'next/link'
 
@@ -51,6 +52,9 @@ export default async function HomePage() {
 
       {/* XP Bar */}
       {user && <XPBar xp={user.xp} level={user.level} />}
+
+      {/* Push notification prompt */}
+      <PushPrompt />
 
       {/* Promotion banners */}
       <PromoBanner />

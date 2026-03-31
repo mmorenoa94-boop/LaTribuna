@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { ImportMatchesModal } from '@/app/(hincha)/ligas/[id]/admin/_components/ImportMatchesModal'
 import { GenerateQuestionsModal } from '@/app/(hincha)/ligas/[id]/admin/_components/GenerateQuestionsModal'
+import { NotifyModal } from '@/app/(hincha)/ligas/[id]/admin/_components/NotifyModal'
 import type { QuestionRow } from '@/app/(hincha)/ligas/[id]/admin/_components/AddQuestionModal'
 
 interface MatchData {
@@ -384,6 +385,7 @@ function MatchDetail({ leagueId, match, onBack, onMatchUpdated }: { leagueId: st
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
+  const [showNotify, setShowNotify] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState<QuestionData | null>(null)
   const [homeScore, setHomeScore] = useState(match.homeScore ?? 0)
   const [awayScore, setAwayScore] = useState(match.awayScore ?? 0)
@@ -473,6 +475,26 @@ function MatchDetail({ leagueId, match, onBack, onMatchUpdated }: { leagueId: st
           </p>
         </div>
       </div>
+
+      {/* Notify button */}
+      <button
+        onClick={() => setShowNotify(true)}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-blue/15 border border-lt-blue/40 text-lt-blue font-condensed text-sm font-700 hover:bg-lt-blue/25 active:scale-[0.98] transition-all"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+        Participación y notificaciones
+      </button>
+
+      <NotifyModal
+        leagueId={leagueId}
+        matchId={match.id}
+        matchLabel={`${match.homeTeam} vs ${match.awayTeam}`}
+        open={showNotify}
+        onClose={() => setShowNotify(false)}
+      />
 
       {/* Score input */}
       <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-4">

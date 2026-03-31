@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -12,6 +12,31 @@ interface Props {
   predictions: SPrediction[]
 }
 
+/** Convert a date to Colombia timezone YYYY-MM-DD key */
+function toDateKey(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+}
+
+/** Today's date key in Colombia timezone */
+function todayKey(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+}
+
+/** Format date for the strip tab label */
+function formatDateTab(dateKey: string, today: string): { label: string; sub: string } {
+  const d = new Date(dateKey + 'T12:00:00')
+  const diff = (new Date(dateKey).getTime() - new Date(today).getTime()) / 86_400_000
+
+  if (diff === 0) return { label: 'Hoy', sub: d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) }
+  if (diff === -1) return { label: 'Ayer', sub: d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) }
+  if (diff === 1) return { label: 'Mañana', sub: d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) }
+
+  return {
+    label: d.toLocaleDateString('es-CO', { weekday: 'short' }).replace('.', ''),
+    sub: d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }),
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function TabPartidos({ league, userId, predictions: initialPredictions }: Props) {
   const scoringLabel = league.scoringMode === 'POOL' ? 'Sistema pozo' : 'Puntaje fijo'
@@ -20,45 +45,203 @@ export function TabPartidos({ league, userId, predictions: initialPredictions }:
   )
 
   if (league.matches.length === 0) {
-    return (
-      <EmptyPartidos />
-    )
+    return <EmptyPartidos />
   }
 
-  // Determine which matches should be expanded by default:
-  // - Live/halftime matches always open
-  // - Matches with OPEN questions always open
-  // - If none of the above, open the most recent (first) match
-  const hasActivMatch = league.matches.some(({ match }) => {
+  return (
+    <MatchesWithDateFilter
+      league={league}
+      scoringLabel={scoringLabel}
+      preds={preds}
+      onPrediction={(questionId, pred) =>
+        setPreds((prev) => ({ ...prev, [questionId]: pred }))
+      }
+    />
+  )
+}
+
+/** Separated to allow hooks after early return */
+function MatchesWithDateFilter({
+  league, scoringLabel, preds, onPrediction,
+}: {
+  league: SLeague
+  scoringLabel: string
+  preds: Record<string, SPrediction>
+  onPrediction: (questionId: string, pred: SPrediction) => void
+}) {
+  const today = useMemo(() => todayKey(), [])
+
+  // Group matches by date (Colombia timezone)
+  const { dateKeys, matchesByDate, dateMeta } = useMemo(() => {
+    const map = new Map<string, typeof league.matches>()
+
+    for (const lm of league.matches) {
+      const key = toDateKey(lm.match.kickoffAt)
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(lm)
+    }
+
+    // Sort dates chronologically
+    const sorted = Array.from(map.keys()).sort()
+
+    // Build metadata per date
+    const meta = new Map<string, { matchCount: number; openQuestions: number; hasLive: boolean; allAnswered: boolean }>()
+    sorted.forEach((key) => {
+      const matches = map.get(key)!
+      const matchIds = new Set(matches.map((m) => m.match.id))
+      const dateQuestions = league.questions.filter((q) => matchIds.has(q.matchId))
+      const openQuestions = dateQuestions.filter((q) => q.status === 'OPEN').length
+      const hasLive = matches.some((m) => m.match.status === 'LIVE' || m.match.status === 'HALFTIME')
+      const answerableQs = dateQuestions.filter((q) => q.status === 'OPEN' || q.status === 'CLOSED' || q.status === 'RESOLVED')
+      const answeredCount = answerableQs.filter((q) => preds[q.id]).length
+      const allAnswered = answerableQs.length > 0 && answeredCount === answerableQs.length
+
+      meta.set(key, { matchCount: matches.length, openQuestions, hasLive, allAnswered })
+    })
+
+    return { dateKeys: sorted, matchesByDate: map, dateMeta: meta }
+  }, [league.matches, league.questions, preds])
+
+  // Determine initial selected date: prefer today, then nearest date with open questions, then nearest future date
+  const initialDate = useMemo(() => {
+    // If today has matches, use it
+    if (dateKeys.includes(today)) return today
+
+    // Find nearest date with open questions
+    const withOpen = dateKeys.find((k) => dateMeta.get(k)!.openQuestions > 0)
+    if (withOpen) return withOpen
+
+    // Find nearest date with live matches
+    const withLive = dateKeys.find((k) => dateMeta.get(k)!.hasLive)
+    if (withLive) return withLive
+
+    // Find nearest future date
+    const future = dateKeys.find((k) => k >= today)
+    if (future) return future
+
+    // Fall back to last date (most recent past)
+    return dateKeys[dateKeys.length - 1]
+  }, [dateKeys, today, dateMeta])
+
+  const [selectedDate, setSelectedDate] = useState(initialDate)
+
+  // Scroll active tab into view
+  const stripRef = useRef<HTMLDivElement>(null)
+  const activeTabRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (activeTabRef.current && stripRef.current) {
+      activeTabRef.current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    }
+  }, [selectedDate])
+
+  // Get matches for selected date
+  const dayMatches = matchesByDate.get(selectedDate) ?? []
+
+  // Determine which matches should be expanded by default
+  const hasActiveMatch = dayMatches.some(({ match }) => {
     const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
     const hasOpen = league.questions.some((q) => q.matchId === match.id && q.status === 'OPEN')
     return isLive || hasOpen
   })
 
   return (
-    <div className="space-y-5">
-      {league.matches.map(({ match }, index) => {
-        const matchQuestions = league.questions.filter((q) => q.matchId === match.id)
-        const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
-        const hasOpen = matchQuestions.some((q) => q.status === 'OPEN')
-        // Open if live, has open questions, or (no active match and it's the first one)
-        const defaultOpen = isLive || hasOpen || (!hasActivMatch && index === 0)
+    <div className="space-y-4">
+      {/* ── Date strip ─────────────────────────────────── */}
+      <div className="-mx-4">
+        <div
+          ref={stripRef}
+          className="flex gap-1 overflow-x-auto no-scrollbar px-4 pb-1"
+        >
+          {dateKeys.map((dateKey) => {
+            const { label, sub } = formatDateTab(dateKey, today)
+            const meta = dateMeta.get(dateKey)!
+            const isSelected = dateKey === selectedDate
+            const isToday = dateKey === today
 
-        return (
-          <MatchCard
-            key={match.id}
-            match={match}
-            questions={matchQuestions}
-            leagueId={league.id}
-            scoringLabel={scoringLabel}
-            predictions={preds}
-            defaultOpen={defaultOpen}
-            onPrediction={(questionId, pred) =>
-              setPreds((prev) => ({ ...prev, [questionId]: pred }))
-            }
-          />
-        )
-      })}
+            return (
+              <button
+                key={dateKey}
+                ref={isSelected ? activeTabRef : undefined}
+                onClick={() => setSelectedDate(dateKey)}
+                className={cn(
+                  'flex flex-col items-center px-3 py-2 rounded-card min-w-[64px] flex-shrink-0 transition-all border',
+                  isSelected
+                    ? 'bg-lt-green/15 border-lt-green/40 text-lt-green'
+                    : 'bg-lt-card border-[rgba(255,255,255,0.07)] text-lt-muted2 hover:border-lt-green/20'
+                )}
+              >
+                <span className={cn(
+                  'font-condensed text-xs font-700 uppercase tracking-wide',
+                  isToday && !isSelected && 'text-lt-white'
+                )}>
+                  {label}
+                </span>
+                <span className="font-condensed text-[10px] mt-0.5 opacity-70">
+                  {sub}
+                </span>
+                {/* Indicators */}
+                <div className="flex items-center gap-1 mt-1 h-3">
+                  {meta.hasLive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-lt-red animate-pulse-dot" />
+                  )}
+                  {meta.openQuestions > 0 && !meta.hasLive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-lt-green" />
+                  )}
+                  {meta.allAnswered && !meta.hasLive && meta.openQuestions === 0 && (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-lt-green/60">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Match count for selected day ───────────────── */}
+      <div className="flex items-center justify-between">
+        <p className="text-lt-muted2 font-condensed text-xs uppercase tracking-wide">
+          {dayMatches.length} partido{dayMatches.length !== 1 ? 's' : ''}
+        </p>
+        {(dateMeta.get(selectedDate)?.openQuestions ?? 0) > 0 && (
+          <p className="text-lt-green font-condensed text-xs font-700">
+            {dateMeta.get(selectedDate)!.openQuestions} pregunta{dateMeta.get(selectedDate)!.openQuestions !== 1 ? 's' : ''} abierta{dateMeta.get(selectedDate)!.openQuestions !== 1 ? 's' : ''}
+          </p>
+        )}
+      </div>
+
+      {/* ── Match cards ────────────────────────────────── */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={selectedDate}
+          initial={{ opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -12 }}
+          transition={{ duration: 0.18 }}
+          className="space-y-5"
+        >
+          {dayMatches.map(({ match }, index) => {
+            const matchQuestions = league.questions.filter((q) => q.matchId === match.id)
+            const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
+            const hasOpen = matchQuestions.some((q) => q.status === 'OPEN')
+            const defaultOpen = isLive || hasOpen || (!hasActiveMatch && index === 0)
+
+            return (
+              <MatchCard
+                key={match.id}
+                match={match}
+                questions={matchQuestions}
+                leagueId={league.id}
+                scoringLabel={scoringLabel}
+                predictions={preds}
+                defaultOpen={defaultOpen}
+                onPrediction={(questionId, pred) => onPrediction(questionId, pred)}
+              />
+            )
+          })}
+        </motion.div>
+      </AnimatePresence>
     </div>
   )
 }
