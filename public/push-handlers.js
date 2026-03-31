@@ -1,5 +1,4 @@
-// Custom Push Notification Service Worker
-// This runs alongside the next-pwa generated service worker
+// Push notification handlers — loaded into sw.js via importScripts
 
 self.addEventListener('push', (event) => {
   if (!event.data) return
@@ -7,7 +6,7 @@ self.addEventListener('push', (event) => {
   let data
   try {
     data = event.data.json()
-  } catch {
+  } catch (e) {
     data = { title: 'La Tribuna', body: event.data.text() }
   }
 
@@ -21,7 +20,6 @@ self.addEventListener('push', (event) => {
     vibrate: [100, 50, 100],
     tag: data.tag || 'lt-notification',
     renotify: true,
-    actions: data.actions || [],
   }
 
   event.waitUntil(self.registration.showNotification(title, options))
@@ -33,7 +31,6 @@ self.addEventListener('notificationclick', (event) => {
   const data = event.notification.data || {}
   let url = '/'
 
-  // Route based on notification type
   switch (data.type) {
     case 'promotion':
       url = '/notificaciones'
@@ -41,29 +38,28 @@ self.addEventListener('notificationclick', (event) => {
     case 'question_open':
     case 'question_reminder':
       url = data.leagueId && data.matchId
-        ? `/ligas/${data.leagueId}/trivia?matchId=${data.matchId}`
+        ? '/ligas/' + data.leagueId + '/trivia?matchId=' + data.matchId
         : '/ligas'
       break
     case 'league_invite':
-      url = data.inviteCode ? `/invite/${data.inviteCode}` : '/explorar'
+      url = data.inviteCode ? '/invite/' + data.inviteCode : '/explorar'
       break
     case 'admin_message':
-      url = data.leagueId ? `/ligas/${data.leagueId}` : '/ligas'
+      url = data.leagueId ? '/ligas/' + data.leagueId : '/ligas'
       break
     default:
       url = '/home'
   }
 
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Focus existing tab if found
-      for (const client of windowClients) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windowClients) {
+      for (var i = 0; i < windowClients.length; i++) {
+        var client = windowClients[i]
+        if (client.url.indexOf(self.location.origin) !== -1 && 'focus' in client) {
           client.navigate(url)
           return client.focus()
         }
       }
-      // Open new window
       return clients.openWindow(url)
     })
   )

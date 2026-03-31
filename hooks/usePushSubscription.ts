@@ -19,7 +19,7 @@ export function usePushSubscription() {
       return
     }
 
-    // Check if already subscribed
+    // Check if already subscribed via the existing next-pwa service worker
     navigator.serviceWorker.ready.then((reg) => {
       reg.pushManager.getSubscription().then((sub) => {
         setState(sub ? 'subscribed' : permission === 'granted' ? 'unsubscribed' : 'prompt')
@@ -32,16 +32,15 @@ export function usePushSubscription() {
     setSubscribing(true)
 
     try {
-      // Register push service worker
-      const pushReg = await navigator.serviceWorker.register('/push-sw.js', { scope: '/' })
-      await navigator.serviceWorker.ready
+      // Use the existing service worker (next-pwa's sw.js which includes our push handlers)
+      const reg = await navigator.serviceWorker.ready
 
-      // Get VAPID key
+      // Get VAPID key from server
       const keyRes = await fetch('/api/push/vapid-key')
       if (!keyRes.ok) { setSubscribing(false); return false }
       const { publicKey } = await keyRes.json()
 
-      // Request permission if needed
+      // Request notification permission
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
         setState('denied')
@@ -49,13 +48,13 @@ export function usePushSubscription() {
         return false
       }
 
-      // Subscribe to push
-      const subscription = await pushReg.pushManager.subscribe({
+      // Subscribe to push on the existing SW registration
+      const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey).buffer as ArrayBuffer,
       })
 
-      // Send to server
+      // Send subscription to our server
       const subJson = subscription.toJSON()
       const res = await fetch('/api/push/subscribe', {
         method: 'POST',

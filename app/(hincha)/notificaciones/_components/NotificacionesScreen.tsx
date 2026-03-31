@@ -8,7 +8,7 @@ interface Notification {
   type: string
   title: string
   body: string
-  read: boolean
+  readAt: string | null
   data: Record<string, unknown> | null
   createdAt: string
 }
@@ -19,6 +19,8 @@ const TYPE_ICONS: Record<string, string> = {
   LEAGUE_INVITE: '\uD83C\uDFC6',
   QUESTION_OPEN: '\u2753',
   QUESTION_RESOLVED: '\u2705',
+  QUESTION_REMINDER: '\u23F0',
+  ADMIN_MESSAGE: '\uD83D\uDCE3',
   WALLET_CREDIT: '\uD83D\uDCB0',
   ACHIEVEMENT: '\uD83C\uDF1F',
 }
@@ -116,7 +118,7 @@ export function NotificacionesScreen() {
                 <div
                   key={n.id}
                   className={`p-3 rounded-card bg-lt-card border border-[rgba(255,255,255,0.06)] transition-colors ${
-                    !n.read ? 'border-l-2 border-l-lt-green' : ''
+                    !n.readAt ? 'border-l-2 border-l-lt-green' : ''
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -139,7 +141,7 @@ export function NotificacionesScreen() {
                     </div>
 
                     {/* Unread dot */}
-                    {!n.read && (
+                    {!n.readAt && (
                       <span className="w-2 h-2 rounded-full bg-lt-green flex-shrink-0 mt-2" />
                     )}
                   </div>
