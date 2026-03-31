@@ -137,12 +137,7 @@ function MatchesWithDateFilter({
   // Get matches for selected date
   const dayMatches = matchesByDate.get(selectedDate) ?? []
 
-  // Determine which matches should be expanded by default
-  const hasActiveMatch = dayMatches.some(({ match }) => {
-    const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
-    const hasOpen = league.questions.some((q) => q.matchId === match.id && q.status === 'OPEN')
-    return isLive || hasOpen
-  })
+  // No need to track hasActiveMatch — matches default to collapsed
 
   return (
     <div className="space-y-4">
@@ -221,11 +216,11 @@ function MatchesWithDateFilter({
           transition={{ duration: 0.18 }}
           className="space-y-5"
         >
-          {dayMatches.map(({ match }, index) => {
+          {dayMatches.map(({ match }) => {
             const matchQuestions = league.questions.filter((q) => q.matchId === match.id)
             const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
             const hasOpen = matchQuestions.some((q) => q.status === 'OPEN')
-            const defaultOpen = isLive || hasOpen || (!hasActiveMatch && index === 0)
+            const defaultOpen = isLive || hasOpen
 
             return (
               <MatchCard
