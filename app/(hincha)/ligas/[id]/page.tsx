@@ -156,6 +156,11 @@ export default async function LigaDetailPage({
         </div>
       )}
 
+      {/* ── Theme color accent bar ─────────────────────── */}
+      {league.themeColor && league.themeColor !== '#00E676' && (
+        <div className="h-1" style={{ background: `linear-gradient(to right, ${league.themeColor}, transparent)` }} />
+      )}
+
       {/* ── Header ─────────────────────────────────────── */}
       <div className={`relative px-4 ${league.bannerUrl ? 'pt-2' : 'pt-4'} pb-5 bg-glow-green`}>
         <Link
@@ -170,10 +175,19 @@ export default async function LigaDetailPage({
 
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            {/* Tipo badge */}
-            <span className={`inline-block text-[10px] font-condensed font-600 px-2 py-0.5 rounded-full border uppercase tracking-wider mb-2 ${typeColor}`}>
-              {TYPE_LABELS[league.type] ?? league.type}
-            </span>
+            {/* Tipo badge — uses themeColor if custom, otherwise default type color */}
+            {league.themeColor && league.themeColor !== '#00E676' ? (
+              <span
+                className="inline-block text-[10px] font-condensed font-600 px-2 py-0.5 rounded-full border uppercase tracking-wider mb-2"
+                style={{ color: league.themeColor, borderColor: `${league.themeColor}40`, backgroundColor: `${league.themeColor}15` }}
+              >
+                {TYPE_LABELS[league.type] ?? league.type}
+              </span>
+            ) : (
+              <span className={`inline-block text-[10px] font-condensed font-600 px-2 py-0.5 rounded-full border uppercase tracking-wider mb-2 ${typeColor}`}>
+                {TYPE_LABELS[league.type] ?? league.type}
+              </span>
+            )}
 
             <div className="flex items-center gap-3">
               {league.business?.logoUrl && (
@@ -189,9 +203,6 @@ export default async function LigaDetailPage({
                 {league.name}
               </h1>
             </div>
-            {league.themeColor && league.themeColor !== '#00E676' && (
-              <div className="w-12 h-1 rounded-full mt-1" style={{ backgroundColor: league.themeColor }} />
-            )}
             {league.description && (
               <p className="text-lt-muted2 font-barlow text-sm mt-1 leading-snug">
                 {league.description}
@@ -200,8 +211,11 @@ export default async function LigaDetailPage({
           </div>
 
           {/* Puntos del usuario */}
-          <div className="flex-shrink-0 bg-lt-card2 border border-lt-green/30 rounded-card px-3 py-2 text-center min-w-[64px]">
-            <p className="text-lt-green font-bebas text-3xl leading-none">{userMember.totalPoints}</p>
+          <div
+            className="flex-shrink-0 bg-lt-card2 border rounded-card px-3 py-2 text-center min-w-[64px]"
+            style={{ borderColor: league.themeColor ? `${league.themeColor}50` : 'rgba(0,230,118,0.3)' }}
+          >
+            <p className="font-bebas text-3xl leading-none" style={{ color: league.themeColor || '#00E676' }}>{userMember.totalPoints}</p>
             <p className="text-lt-muted2 text-[10px] font-condensed uppercase tracking-wide">pts</p>
           </div>
         </div>

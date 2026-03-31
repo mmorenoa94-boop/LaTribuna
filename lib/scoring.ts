@@ -338,7 +338,11 @@
         if (question.type === 'WINNER') {
           isCorrect = pred.answer.trim().toUpperCase() === winner.toUpperCase()
         } else if (question.type === 'SCORE') {
-          isCorrect = pred.answer.trim() === scoreString
+          // Match against "X-Y" format, including answers like "Team 1-0 Team" or plain "1-0"
+          const scoreMatch = pred.answer.trim().match(/(\d+)\s*-\s*(\d+)/)
+          if (scoreMatch) {
+            isCorrect = `${scoreMatch[1]}-${scoreMatch[2]}` === scoreString
+          }
         }
         return { ...pred, isCorrect }
       })
