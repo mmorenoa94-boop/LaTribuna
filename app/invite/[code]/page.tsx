@@ -125,8 +125,15 @@ export default function InvitePage() {
       >
         {/* Brand */}
         <div className="text-center mb-8">
-          <h1 className="font-bebas text-4xl text-lt-green tracking-wider">La Tribuna</h1>
-          <p className="font-condensed text-xs text-lt-muted2 uppercase tracking-widest mt-1">
+          <Image
+            src="/logo.png"
+            alt="La Tribuna"
+            width={120}
+            height={120}
+            className="mx-auto drop-shadow-[0_0_24px_rgba(255,193,7,0.25)]"
+            priority
+          />
+          <p className="font-condensed text-xs text-lt-muted2 uppercase tracking-widest mt-2">
             Te han invitado a una liga
           </p>
         </div>

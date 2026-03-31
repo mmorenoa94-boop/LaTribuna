@@ -56,7 +56,7 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${bebasNeue.variable} ${barlow.variable} ${barlowCondensed.variable}`}>
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
       </head>
       <body className="pitch-bg antialiased min-h-screen">
         {children}

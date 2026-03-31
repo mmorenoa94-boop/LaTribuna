@@ -31,10 +31,16 @@ export function Sidebar({ businessName, businessLogo }: Props) {
       {/* ── Desktop Sidebar ─────────────────────────────────── */}
       <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-60 bg-lt-dark border-r border-[rgba(255,255,255,0.07)] flex-col z-40">
         {/* Brand */}
-        <div className="px-5 pt-5 pb-4 border-b border-[rgba(255,255,255,0.07)]">
-          <Link href="/dashboard" className="block">
-            <p className="font-bebas text-2xl text-lt-amber tracking-wider leading-none">La Tribuna</p>
-            <p className="font-condensed text-[10px] text-lt-muted2 uppercase tracking-widest mt-0.5">Negocio</p>
+        <div className="px-5 pt-4 pb-3 border-b border-[rgba(255,255,255,0.07)]">
+          <Link href="/dashboard" className="flex flex-col items-center">
+            <Image
+              src="/logo.png"
+              alt="La Tribuna"
+              width={100}
+              height={100}
+              className="drop-shadow-[0_0_16px_rgba(255,193,7,0.2)]"
+            />
+            <p className="font-condensed text-[10px] text-lt-muted2 uppercase tracking-widest -mt-1">Negocio</p>
           </Link>
         </div>
 

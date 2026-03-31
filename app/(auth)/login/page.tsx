@@ -3,6 +3,7 @@ import { useState, Suspense } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 
 export default function LoginPage() {
   return (
@@ -47,8 +48,18 @@ function LoginContent() {
           ← Volver
         </button>
 
-        <h1 className="font-bebas text-4xl text-lt-white mb-1">Iniciar sesión</h1>
-        <p className="text-lt-muted2 font-condensed text-sm mb-6">Bienvenido de vuelta, hincha</p>
+        <div className="flex flex-col items-center mb-6">
+          <Image
+            src="/logo.png"
+            alt="La Tribuna"
+            width={160}
+            height={160}
+            className="drop-shadow-[0_0_30px_rgba(255,193,7,0.25)]"
+            priority
+          />
+          <h1 className="font-bebas text-4xl text-lt-white mt-2">Iniciar sesión</h1>
+          <p className="text-lt-muted2 font-condensed text-sm mt-0.5">Bienvenido de vuelta, hincha</p>
+        </div>
 
         {/* Tabs */}
         <div className="flex bg-lt-card rounded-btn p-1 mb-6 border border-lt-muted">
@@ -98,7 +109,14 @@ function LoginContent() {
                 </button>
               </div>
             </div>
-            {error && <p className="text-lt-red text-sm font-condensed">{error}</p>}
+            {error && (
+              <div className="bg-lt-red/10 border border-lt-red/30 rounded-btn px-4 py-3 flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-lt-red flex-shrink-0">
+                  <circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+                <p className="text-lt-red text-sm font-condensed font-600">{error}</p>
+              </div>
+            )}
             <button
               type="submit"
               disabled={loading}

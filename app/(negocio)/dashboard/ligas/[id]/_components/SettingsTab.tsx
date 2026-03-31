@@ -78,8 +78,60 @@ export function SettingsTab({ league, onUpdate }: { league: LeagueData; onUpdate
     await saveSettings({ minConsumptionAmount: league.minConsumptionAmount })
   }
 
+  const [name, setName] = useState(league.name)
+  const [description, setDescription] = useState(league.description ?? '')
+
+  const inputCls = 'w-full bg-lt-card2 border border-lt-muted rounded-btn px-4 py-3 text-lt-white font-barlow text-sm focus:outline-none focus:border-lt-amber transition-colors placeholder:text-lt-muted2'
+
   return (
     <div className="space-y-4">
+      {/* League Name */}
+      <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] px-4 py-4">
+        <label className="block text-lt-white font-condensed text-sm mb-2">Nombre de la liga</label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nombre de tu liga"
+            className={inputCls}
+          />
+          <button
+            onClick={() => {
+              if (!name.trim()) return
+              onUpdate({ ...league, name: name.trim() })
+              saveSettings({ name: name.trim() })
+            }}
+            disabled={saving || name.trim() === league.name}
+            className="px-4 py-3 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 disabled:opacity-40 flex-shrink-0"
+          >
+            {saving ? '...' : 'Guardar'}
+          </button>
+        </div>
+      </div>
+
+      {/* League Description */}
+      <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] px-4 py-4">
+        <label className="block text-lt-white font-condensed text-sm mb-2">Descripción</label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe tu liga..."
+          rows={3}
+          className={`${inputCls} resize-none`}
+        />
+        <button
+          onClick={() => {
+            onUpdate({ ...league, description: description.trim() })
+            saveSettings({ description: description.trim() })
+          }}
+          disabled={saving || description.trim() === (league.description ?? '')}
+          className="mt-2 px-4 py-2 rounded-btn bg-lt-amber text-lt-black font-condensed text-sm font-700 disabled:opacity-40"
+        >
+          {saving ? '...' : 'Guardar descripción'}
+        </button>
+      </div>
+
       {/* League Type */}
       <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] px-4 py-4">
         <label className="block text-lt-white font-condensed text-sm mb-2">Tipo de liga</label>
