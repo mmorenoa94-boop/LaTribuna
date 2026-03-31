@@ -37,7 +37,7 @@ const PRE_MATCH_CORE: QuestionTemplate[] = [
   {
     text: '¿Cuál será el marcador final?',
     type: 'SCORE',
-    options: ['1-0', '0-1', '2-1', '1-2', '1-1', '0-0'],
+    options: ['{local} 1-0 {visitante}', '{local} 0-1 {visitante}', '{local} 2-1 {visitante}', '{local} 1-2 {visitante}', '{local} 1-1 {visitante}', '{local} 0-0 {visitante}', 'Otro marcador'],
     points: 30,
     timing: 'PRE_MATCH',
   },

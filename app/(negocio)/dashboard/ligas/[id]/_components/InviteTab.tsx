@@ -1,47 +1,19 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import type { LeagueData } from './LeagueAdminPanel'
 
-function QRCode({ url, size = 200 }: { url: string; size?: number }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    async function render() {
-      try {
-        const QRCodeLib = (await import('qrcode')).default
-        if (cancelled || !canvasRef.current) return
-        await QRCodeLib.toCanvas(canvasRef.current, url, {
-          width: size,
-          margin: 2,
-          color: { dark: '#FFB300', light: '#0A0C0F' },
-        })
-        setLoaded(true)
-      } catch {
-        // qrcode lib not installed — show fallback
-      }
-    }
-    render()
-    return () => { cancelled = true }
-  }, [url, size])
-
-  if (!loaded) {
-    return (
-      <div className="flex flex-col items-center gap-2 py-4">
-        <div className="w-[200px] h-[200px] bg-lt-card2 rounded-card flex items-center justify-center">
-          <span className="text-lt-muted2 font-condensed text-xs text-center px-4">
-            Instala qrcode para ver el QR:<br />
-            <code className="text-lt-amber text-[10px]">pnpm add qrcode @types/qrcode</code>
-          </span>
-        </div>
-      </div>
-    )
-  }
+function QRCode({ url, size = 220 }: { url: string; size?: number }) {
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&bgcolor=0A0C0F&color=FFB300&margin=8`
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <canvas ref={canvasRef} className="rounded-card" />
+      <img
+        src={qrSrc}
+        alt="Código QR de invitación"
+        width={size}
+        height={size}
+        className="rounded-card"
+      />
       <p className="font-condensed text-xs text-lt-muted2">
         Escanea para unirte a la liga
       </p>

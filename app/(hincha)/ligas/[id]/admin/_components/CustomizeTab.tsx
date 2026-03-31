@@ -192,7 +192,7 @@ export function CustomizeTab({ leagueId, initialBannerUrl, initialThemeColor }: 
           Color de la liga
         </label>
         <p className="font-condensed text-xs text-lt-muted mb-3">
-          Se usa como acento en el encabezado y elementos destacados de la liga.
+          Se aplica al badge de tipo, barra de acento, puntos y elementos destacados de la liga.
         </p>
 
         <div className="flex flex-wrap gap-3">
