@@ -108,12 +108,25 @@ export async function POST(
         .map((m) => m.userId)
     }
   } else if (type === 'mass') {
-    // Send to all league members (except admin)
-    const members = await prisma.leagueMember.findMany({
-      where: { leagueId: params.id, status: 'APPROVED' },
-      select: { userId: true },
-    })
-    userIds = members.map((m) => m.userId).filter((id) => id !== session.user.id)
+    if (targetUserIds && targetUserIds.length > 0) {
+      // Send to specific members
+      const validMembers = await prisma.leagueMember.findMany({
+        where: {
+          leagueId: params.id,
+          userId: { in: targetUserIds },
+          status: 'APPROVED',
+        },
+        select: { userId: true },
+      })
+      userIds = validMembers.map((m) => m.userId).filter((id) => id !== session.user.id)
+    } else {
+      // Send to all league members (except admin)
+      const members = await prisma.leagueMember.findMany({
+        where: { leagueId: params.id, status: 'APPROVED' },
+        select: { userId: true },
+      })
+      userIds = members.map((m) => m.userId).filter((id) => id !== session.user.id)
+    }
   } else {
     return NextResponse.json({ error: 'type debe ser reminder o mass' }, { status: 400 })
   }
