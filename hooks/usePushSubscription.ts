@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 
-type PushState = 'loading' | 'unsupported' | 'denied' | 'prompt' | 'subscribed' | 'unsubscribed'
+type PushState = 'loading' | 'unsupported' | 'ios-needs-install' | 'denied' | 'prompt' | 'subscribed' | 'unsubscribed'
 
 export function usePushSubscription() {
   const [state, setState] = useState<PushState>('loading')
@@ -19,7 +19,16 @@ export function usePushSubscription() {
     const hasNotification = 'Notification' in window
 
     if (!hasServiceWorker || !hasPushManager || !hasNotification) {
-      setState('unsupported')
+      // iOS Safari only supports push for installed PWAs (Home Screen)
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.userAgent.includes('Mac') && 'ontouchend' in document)
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+        (navigator as unknown as { standalone?: boolean }).standalone === true
+      if (isIOS && !isStandalone) {
+        setState('ios-needs-install')
+      } else {
+        setState('unsupported')
+      }
       return
     }
 
@@ -60,21 +69,30 @@ export function usePushSubscription() {
     setSubscribing(true)
 
     try {
-      // Wait for the service worker to be ready
-      const reg = await navigator.serviceWorker.ready
-
-      // Get VAPID key from server
-      const keyRes = await fetch('/api/push/vapid-key')
-      if (!keyRes.ok) { setSubscribing(false); return false }
-      const { publicKey } = await keyRes.json()
-
-      // Request notification permission
+      // Request notification permission FIRST (doesn't need SW)
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
         setState('denied')
         setSubscribing(false)
         return false
       }
+
+      // Wait for the service worker with a timeout
+      const reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('SW timeout')), 8000)
+        ),
+      ])
+
+      // Get VAPID key from server
+      const keyRes = await fetch('/api/push/vapid-key')
+      if (!keyRes.ok) {
+        console.error('[push] VAPID key fetch failed:', keyRes.status)
+        setSubscribing(false)
+        return false
+      }
+      const { publicKey } = await keyRes.json()
 
       // Subscribe to push on the existing SW registration
       const subscription = await reg.pushManager.subscribe({
@@ -97,6 +115,8 @@ export function usePushSubscription() {
         setState('subscribed')
         setSubscribing(false)
         return true
+      } else {
+        console.error('[push] subscribe API failed:', res.status, await res.text())
       }
     } catch (err) {
       console.error('[push] subscription error:', err)
