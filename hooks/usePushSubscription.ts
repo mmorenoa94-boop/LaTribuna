@@ -4,33 +4,71 @@ import { useState, useEffect, useCallback } from 'react'
 type PushState = 'loading' | 'unsupported' | 'ios-needs-install' | 'denied' | 'prompt' | 'subscribed' | 'unsubscribed'
 
 /**
- * Ensure a service worker is registered and activated.
- * If one already exists, return it. Otherwise register /sw.js and wait.
+ * Get a service worker registration that has an active worker.
+ * Strategy:
+ * 1. Check if any existing registration already has an active worker
+ * 2. If a registration exists with installing/waiting worker, wait for it
+ * 3. Only register /sw.js as last resort if no registration exists at all
  */
 async function ensureSWRegistration(): Promise<ServiceWorkerRegistration> {
+  // Step 1: Check all existing registrations
   const registrations = await navigator.serviceWorker.getRegistrations()
-  const existing = registrations.find((r) => r.active)
-  if (existing) return existing
 
-  // No active SW — register manually
-  console.log('[push] No active SW found, registering /sw.js…')
+  for (const reg of registrations) {
+    if (reg.active) return reg
+  }
+
+  // Step 2: Check if any registration has a worker that's still installing/waiting
+  for (const reg of registrations) {
+    const pending = reg.installing || reg.waiting
+    if (pending) {
+      console.log('[push] Found pending SW in state:', pending.state, '— waiting…')
+      return waitForActivation(reg, pending)
+    }
+  }
+
+  // Step 3: No registration at all — register manually
+  console.log('[push] No SW registration found, registering /sw.js…')
   const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
-
-  // Wait for activation
   if (reg.active) return reg
 
-  const installing = reg.installing || reg.waiting
-  if (!installing) throw new Error('SW: no installing worker after register')
+  const pending = reg.installing || reg.waiting
+  if (!pending) throw new Error('SW: no worker after register')
+  return waitForActivation(reg, pending)
+}
 
+function waitForActivation(
+  reg: ServiceWorkerRegistration,
+  worker: ServiceWorker
+): Promise<ServiceWorkerRegistration> {
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('SW: activation timeout 15s')), 15000)
-    installing.addEventListener('statechange', () => {
-      if (installing.state === 'activated') {
+    // If it's already activated by the time we check
+    if (worker.state === 'activated') {
+      resolve(reg)
+      return
+    }
+
+    const timeout = setTimeout(() => {
+      reject(new Error(`SW: timeout waiting (state: ${worker.state})`))
+    }, 20000)
+
+    worker.addEventListener('statechange', () => {
+      if (worker.state === 'activated') {
         clearTimeout(timeout)
         resolve(reg)
-      } else if (installing.state === 'redundant') {
+      } else if (worker.state === 'redundant') {
+        // A redundant worker means another SW took over — check if THAT one is active now
         clearTimeout(timeout)
-        reject(new Error('SW: worker became redundant'))
+        if (reg.active) {
+          resolve(reg)
+        } else {
+          // Try one more time to find any active registration
+          navigator.serviceWorker.getRegistrations().then((regs) => {
+            const active = regs.find((r) => r.active)
+            if (active) resolve(active)
+            else reject(new Error('SW: all workers redundant'))
+          }).catch(() => reject(new Error('SW: redundant + getRegistrations failed')))
+        }
       }
     })
   })
