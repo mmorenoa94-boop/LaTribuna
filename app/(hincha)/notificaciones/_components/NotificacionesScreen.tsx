@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 
@@ -14,15 +14,15 @@ interface Notification {
 }
 
 const TYPE_ICONS: Record<string, string> = {
-  PROMOTION: '\uD83D\uDCE2',
-  POWERUP_ANSWER: '\u26A1',
-  LEAGUE_INVITE: '\uD83C\uDFC6',
-  QUESTION_OPEN: '\u2753',
-  QUESTION_RESOLVED: '\u2705',
-  QUESTION_REMINDER: '\u23F0',
-  ADMIN_MESSAGE: '\uD83D\uDCE3',
-  WALLET_CREDIT: '\uD83D\uDCB0',
-  ACHIEVEMENT: '\uD83C\uDF1F',
+  PROMOTION: '📢',
+  POWERUP_ANSWER: '⚡',
+  LEAGUE_INVITE: '🏆',
+  QUESTION_OPEN: '❓',
+  QUESTION_RESOLVED: '✅',
+  QUESTION_REMINDER: '⏰',
+  ADMIN_MESSAGE: '📣',
+  WALLET_CREDIT: '💰',
+  ACHIEVEMENT: '🌟',
 }
 
 function timeAgo(dateStr: string): string {
@@ -44,6 +44,7 @@ function timeAgo(dateStr: string): string {
 export function NotificacionesScreen() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -67,6 +68,30 @@ export function NotificacionesScreen() {
     load()
   }, [])
 
+  const deleteOne = useCallback(async (id: string) => {
+    setDeleting(id)
+    setNotifications((prev) => prev.filter((n) => n.id !== id))
+    try {
+      await fetch('/api/notifications', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id] }),
+      })
+    } catch { /* ignore */ }
+    setDeleting(null)
+  }, [])
+
+  const deleteAll = useCallback(async () => {
+    setNotifications([])
+    try {
+      await fetch('/api/notifications', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      })
+    } catch { /* ignore */ }
+  }, [])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -88,9 +113,19 @@ export function NotificacionesScreen() {
           </svg>
           Inicio
         </Link>
-        <h1 className="text-lt-white font-bebas text-3xl tracking-wide">
-          Notificaciones
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-lt-white font-bebas text-3xl tracking-wide">
+            Notificaciones
+          </h1>
+          {notifications.length > 0 && (
+            <button
+              onClick={deleteAll}
+              className="text-red-400 text-xs font-condensed hover:text-red-300 transition-colors"
+            >
+              Eliminar todas
+            </button>
+          )}
+        </div>
       </div>
 
       {/* List */}
@@ -117,14 +152,14 @@ export function NotificacionesScreen() {
               return (
                 <div
                   key={n.id}
-                  className={`p-3 rounded-card bg-lt-card border border-[rgba(255,255,255,0.06)] transition-colors ${
+                  className={`p-3 rounded-card bg-lt-card border border-[rgba(255,255,255,0.06)] transition-all ${
                     !n.readAt ? 'border-l-2 border-l-lt-green' : ''
-                  }`}
+                  } ${deleting === n.id ? 'opacity-50 scale-95' : ''}`}
                 >
                   <div className="flex items-start gap-3">
                     {/* Icon */}
                     <span className="text-xl flex-shrink-0 mt-0.5">
-                      {TYPE_ICONS[n.type] ?? '\uD83D\uDD14'}
+                      {TYPE_ICONS[n.type] ?? '🔔'}
                     </span>
 
                     {/* Content */}
@@ -140,10 +175,16 @@ export function NotificacionesScreen() {
                       </p>
                     </div>
 
-                    {/* Unread dot */}
-                    {!n.readAt && (
-                      <span className="w-2 h-2 rounded-full bg-lt-green flex-shrink-0 mt-2" />
-                    )}
+                    {/* Delete button */}
+                    <button
+                      onClick={() => deleteOne(n.id)}
+                      className="text-lt-muted2 hover:text-red-400 transition-colors flex-shrink-0 p-1"
+                      title="Eliminar"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14" />
+                      </svg>
+                    </button>
                   </div>
 
                   {/* Promotion image */}

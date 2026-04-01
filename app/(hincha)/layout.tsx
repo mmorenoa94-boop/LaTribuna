@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { BottomNav } from '@/components/layout/BottomNav'
+import { InAppNotifToast } from '@/components/hincha/InAppNotifToast'
 import Providers from '@/app/providers'
 
 export default async function HinchaLayout({ children }: { children: React.ReactNode }) {
@@ -11,6 +12,7 @@ export default async function HinchaLayout({ children }: { children: React.React
   return (
     <Providers session={session}>
       <div className="flex flex-col min-h-screen bg-glow-green">
+        <InAppNotifToast />
         <main className="flex-1 pb-20">
           {children}
         </main>
