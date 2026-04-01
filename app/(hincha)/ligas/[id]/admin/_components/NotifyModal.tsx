@@ -39,6 +39,8 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
   const [message, setMessage] = useState('')
   const [massTitle, setMassTitle] = useState('')
   const [massMessage, setMassMessage] = useState('')
+  const [massTarget, setMassTarget] = useState<'all' | 'select'>('all')
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set())
   const [result, setResult] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
@@ -93,6 +95,9 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
           type: 'mass',
           title: massTitle.trim() || undefined,
           message: massMessage.trim(),
+          ...(massTarget === 'select' && selectedUserIds.size > 0
+            ? { targetUserIds: Array.from(selectedUserIds) }
+            : {}),
         }),
       })
       const json = await res.json()
@@ -113,7 +118,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col">
+    <div className="fixed inset-0 z-[60] flex flex-col">
       {/* Backdrop — only visible on desktop behind the centered modal */}
       <div className="absolute inset-0 bg-black/70 sm:block hidden" onClick={onClose} />
 
@@ -298,12 +303,87 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
           {/* ── TAB: Mass message ─────────────────────────── */}
           {activeTab === 'mass' && (
             <div className="flex flex-col gap-4">
-              <div className="bg-lt-blue/10 border border-lt-blue/30 rounded-card p-3">
-                <p className="font-condensed text-sm text-lt-blue font-700">📢 Mensaje masivo</p>
-                <p className="font-condensed text-xs text-lt-muted2 mt-1">
-                  Se enviará a todos los miembros de la liga (excepto tú). Lo verán en su pantalla de inicio y en notificaciones.
-                </p>
+              {/* Target selector */}
+              <div>
+                <label className="block font-condensed text-xs text-lt-muted2 uppercase tracking-wide mb-2">
+                  Destinatarios
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setMassTarget('all'); setSelectedUserIds(new Set()) }}
+                    className={cn(
+                      'flex-1 py-2 rounded-btn font-condensed text-sm font-700 border transition-all',
+                      massTarget === 'all'
+                        ? 'bg-lt-green/15 border-lt-green text-lt-green'
+                        : 'bg-lt-card border-[rgba(255,255,255,0.15)] text-lt-muted2'
+                    )}
+                  >
+                    📢 Todos
+                  </button>
+                  <button
+                    onClick={() => setMassTarget('select')}
+                    className={cn(
+                      'flex-1 py-2 rounded-btn font-condensed text-sm font-700 border transition-all',
+                      massTarget === 'select'
+                        ? 'bg-lt-green/15 border-lt-green text-lt-green'
+                        : 'bg-lt-card border-[rgba(255,255,255,0.15)] text-lt-muted2'
+                    )}
+                  >
+                    👤 Seleccionar
+                  </button>
+                </div>
               </div>
+
+              {/* Member selection list */}
+              {massTarget === 'select' && data && (
+                <div>
+                  <p className="font-condensed text-xs text-lt-muted2 mb-2">
+                    {selectedUserIds.size > 0 ? `${selectedUserIds.size} seleccionado${selectedUserIds.size !== 1 ? 's' : ''}` : 'Selecciona destinatarios'}
+                  </p>
+                  <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
+                    {[...data.responded, ...data.missing].map((m) => (
+                      <button
+                        key={m.userId}
+                        onClick={() => {
+                          setSelectedUserIds((prev) => {
+                            const next = new Set(prev)
+                            if (next.has(m.userId)) next.delete(m.userId)
+                            else next.add(m.userId)
+                            return next
+                          })
+                        }}
+                        className={cn(
+                          'flex items-center gap-3 rounded-card p-2.5 border transition-all text-left',
+                          selectedUserIds.has(m.userId)
+                            ? 'bg-lt-green/10 border-lt-green/40'
+                            : 'bg-lt-card border-[rgba(255,255,255,0.07)] hover:border-[rgba(255,255,255,0.15)]'
+                        )}
+                      >
+                        {m.userImage ? (
+                          <Image src={m.userImage} alt="" width={28} height={28} className="w-7 h-7 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-lt-green/15 flex items-center justify-center text-lt-green font-condensed text-xs font-700">
+                            {(m.userName?.[0] ?? '?').toUpperCase()}
+                          </div>
+                        )}
+                        <span className="font-condensed text-sm text-lt-white truncate flex-1">{m.userName ?? 'Sin nombre'}</span>
+                        {selectedUserIds.has(m.userId) && (
+                          <span className="text-lt-green text-xs">✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {massTarget === 'all' && (
+                <div className="bg-lt-blue/10 border border-lt-blue/30 rounded-card p-3">
+                  <p className="font-condensed text-sm text-lt-blue font-700">📢 Mensaje masivo</p>
+                  <p className="font-condensed text-xs text-lt-muted2 mt-1">
+                    Se enviará a todos los miembros de la liga (excepto tú). Lo verán en su pantalla de inicio y en notificaciones.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block font-condensed text-xs text-lt-muted2 uppercase tracking-wide mb-1.5">
@@ -353,10 +433,14 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
           <div className="flex-shrink-0 px-4 py-3 border-t border-[rgba(255,255,255,0.07)] bg-lt-card safe-bottom">
             <button
               onClick={handleSendMass}
-              disabled={sending || !massMessage.trim()}
+              disabled={sending || !massMessage.trim() || (massTarget === 'select' && selectedUserIds.size === 0)}
               className="w-full py-3 rounded-btn bg-lt-blue text-white font-condensed text-base font-700 disabled:opacity-50 active:scale-[0.98] transition-all"
             >
-              {sending ? 'Enviando...' : 'Enviar a todos'}
+              {sending
+                ? 'Enviando...'
+                : massTarget === 'select'
+                  ? `Enviar a ${selectedUserIds.size} seleccionado${selectedUserIds.size !== 1 ? 's' : ''}`
+                  : 'Enviar a todos'}
             </button>
           </div>
         )}

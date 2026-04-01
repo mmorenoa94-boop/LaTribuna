@@ -4,7 +4,8 @@ import { XPBar } from '@/components/hincha/XPBar'
 import { LeagueCard } from '@/components/hincha/LeagueCard'
 import { PromoBanner } from '@/components/hincha/PromoBanner'
 import { NotifBanner } from '@/components/hincha/NotifBanner'
-import { PushPrompt } from '@/components/hincha/PushPrompt'
+// PushPrompt disabled — SW registration issues on production, using in-app toasts instead
+// import { PushPrompt } from '@/components/hincha/PushPrompt'
 import type { LeagueWithDetails } from '@/types'
 import Link from 'next/link'
 
@@ -53,9 +54,6 @@ export default async function HomePage() {
 
       {/* XP Bar */}
       {user && <XPBar xp={user.xp} level={user.level} />}
-
-      {/* Push notification prompt */}
-      <PushPrompt />
 
       {/* Admin notifications (reminders, messages) */}
       <NotifBanner />
