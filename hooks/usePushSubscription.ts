@@ -4,74 +4,75 @@ import { useState, useEffect, useCallback } from 'react'
 type PushState = 'loading' | 'unsupported' | 'ios-needs-install' | 'denied' | 'prompt' | 'subscribed' | 'unsubscribed'
 
 /**
- * Get a service worker registration that has an active worker.
- * Strategy:
- * 1. Check if any existing registration already has an active worker
- * 2. If a registration exists with installing/waiting worker, wait for it
- * 3. Only register /sw.js as last resort if no registration exists at all
+ * Get a SW registration with an active worker.
+ *
+ * Strategy (handles stale cached SWs from before push-handlers update):
+ * 1. Try navigator.serviceWorker.ready (resolves when ANY SW is active)
+ * 2. If that times out, check existing registrations for active worker
+ * 3. If all workers are stale/redundant, UNREGISTER everything and register fresh
  */
-async function ensureSWRegistration(): Promise<ServiceWorkerRegistration> {
-  // Step 1: Check all existing registrations
-  const registrations = await navigator.serviceWorker.getRegistrations()
-
-  for (const reg of registrations) {
+async function getActiveSW(): Promise<ServiceWorkerRegistration> {
+  // Attempt 1: The standard way — just wait for ready
+  try {
+    const reg = await withTimeout(navigator.serviceWorker.ready, 6000)
     if (reg.active) return reg
+  } catch {
+    console.log('[push] SW ready timed out, checking registrations…')
   }
 
-  // Step 2: Check if any registration has a worker that's still installing/waiting
-  for (const reg of registrations) {
-    const pending = reg.installing || reg.waiting
-    if (pending) {
-      console.log('[push] Found pending SW in state:', pending.state, '— waiting…')
-      return waitForActivation(reg, pending)
-    }
+  // Attempt 2: Maybe there's a registration with an active worker that ready didn't return
+  const regs = await navigator.serviceWorker.getRegistrations()
+  const activeReg = regs.find((r) => r.active)
+  if (activeReg) return activeReg
+
+  // Attempt 3: Nuclear — unregister everything and start clean
+  console.log('[push] No active SW found. Unregistering all and re-registering…')
+  for (const r of regs) {
+    await r.unregister()
   }
 
-  // Step 3: No registration at all — register manually
-  console.log('[push] No SW registration found, registering /sw.js…')
-  const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
-  if (reg.active) return reg
+  // Small delay to let the browser clean up
+  await new Promise((r) => setTimeout(r, 500))
 
-  const pending = reg.installing || reg.waiting
-  if (!pending) throw new Error('SW: no worker after register')
-  return waitForActivation(reg, pending)
-}
+  // Register fresh
+  const freshReg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
 
-function waitForActivation(
-  reg: ServiceWorkerRegistration,
-  worker: ServiceWorker
-): Promise<ServiceWorkerRegistration> {
-  return new Promise((resolve, reject) => {
-    // If it's already activated by the time we check
-    if (worker.state === 'activated') {
-      resolve(reg)
-      return
-    }
+  // Wait for the fresh registration to activate
+  if (freshReg.active) return freshReg
 
+  const worker = freshReg.installing || freshReg.waiting
+  if (!worker) throw new Error('SW: no worker after fresh register')
+
+  return new Promise<ServiceWorkerRegistration>((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error(`SW: timeout waiting (state: ${worker.state})`))
-    }, 20000)
+      reject(new Error(`SW: fresh install stuck (${worker.state})`))
+    }, 15000)
 
     worker.addEventListener('statechange', () => {
       if (worker.state === 'activated') {
         clearTimeout(timeout)
-        resolve(reg)
+        resolve(freshReg)
       } else if (worker.state === 'redundant') {
-        // A redundant worker means another SW took over — check if THAT one is active now
         clearTimeout(timeout)
-        if (reg.active) {
-          resolve(reg)
-        } else {
-          // Try one more time to find any active registration
-          navigator.serviceWorker.getRegistrations().then((regs) => {
-            const active = regs.find((r) => r.active)
-            if (active) resolve(active)
-            else reject(new Error('SW: all workers redundant'))
-          }).catch(() => reject(new Error('SW: redundant + getRegistrations failed')))
-        }
+        reject(new Error('SW: fresh worker also redundant — check sw.js'))
       }
     })
+
+    // In case it activated between register and addEventListener
+    if (freshReg.active) {
+      clearTimeout(timeout)
+      resolve(freshReg)
+    }
   })
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('timeout')), ms)
+    ),
+  ])
 }
 
 export function usePushSubscription() {
@@ -85,13 +86,11 @@ export function usePushSubscription() {
       return
     }
 
-    // Check basic support
     const hasServiceWorker = 'serviceWorker' in navigator
     const hasPushManager = 'PushManager' in window
     const hasNotification = 'Notification' in window
 
     if (!hasServiceWorker || !hasPushManager || !hasNotification) {
-      // iOS Safari only supports push for installed PWAs (Home Screen)
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
         (navigator.userAgent.includes('Mac') && 'ontouchend' in document)
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
@@ -110,15 +109,15 @@ export function usePushSubscription() {
       return
     }
 
-    // Try to find existing SW and subscription
+    // Quick check: just see if ready resolves fast, otherwise show prompt
     let cancelled = false
     const timeout = setTimeout(() => {
       if (!cancelled) {
         setState(permission === 'granted' ? 'unsubscribed' : 'prompt')
       }
-    }, 5000)
+    }, 3000)
 
-    ensureSWRegistration()
+    navigator.serviceWorker.ready
       .then((reg) => {
         if (cancelled) return
         clearTimeout(timeout)
@@ -127,8 +126,7 @@ export function usePushSubscription() {
           setState(sub ? 'subscribed' : permission === 'granted' ? 'unsubscribed' : 'prompt')
         })
       })
-      .catch((err) => {
-        console.warn('[push] SW init:', err?.message)
+      .catch(() => {
         if (!cancelled) {
           clearTimeout(timeout)
           setState('prompt')
@@ -144,31 +142,31 @@ export function usePushSubscription() {
     setLastError(null)
 
     try {
-      // Step 1: Request notification permission
+      // Step 1: Permission
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
         setState('denied')
         setSubscribing(false)
-        return { ok: false, error: `Permiso denegado: ${permission}` }
+        return { ok: false, error: `Permiso: ${permission}` }
       }
 
-      // Step 2: Ensure SW is registered and active
+      // Step 2: Get active SW (with nuclear fallback)
       let reg: ServiceWorkerRegistration
       try {
-        reg = await ensureSWRegistration()
+        reg = await getActiveSW()
       } catch (swErr) {
-        const msg = swErr instanceof Error ? swErr.message : 'SW desconocido'
+        const msg = swErr instanceof Error ? swErr.message : 'SW error'
         setSubscribing(false)
         setLastError(msg)
         return { ok: false, error: msg }
       }
 
-      // Step 3: Get VAPID key from server
+      // Step 3: VAPID key
       let publicKey: string
       try {
         const keyRes = await fetch('/api/push/vapid-key')
         if (!keyRes.ok) {
-          const msg = `VAPID fetch error: ${keyRes.status}`
+          const msg = `VAPID: HTTP ${keyRes.status}`
           setSubscribing(false)
           setLastError(msg)
           return { ok: false, error: msg }
@@ -176,18 +174,19 @@ export function usePushSubscription() {
         const data = await keyRes.json()
         publicKey = data.publicKey
         if (!publicKey) {
+          const msg = 'VAPID: key vacía'
           setSubscribing(false)
-          setLastError('VAPID key vacía')
-          return { ok: false, error: 'VAPID key vacía' }
+          setLastError(msg)
+          return { ok: false, error: msg }
         }
       } catch (fetchErr) {
-        const msg = `VAPID fetch: ${fetchErr instanceof Error ? fetchErr.message : 'error'}`
+        const msg = `VAPID: ${fetchErr instanceof Error ? fetchErr.message : 'error'}`
         setSubscribing(false)
         setLastError(msg)
         return { ok: false, error: msg }
       }
 
-      // Step 4: Subscribe to push manager
+      // Step 4: Push subscription
       let subscription: PushSubscription
       try {
         subscription = await reg.pushManager.subscribe({
@@ -195,13 +194,13 @@ export function usePushSubscription() {
           applicationServerKey: urlBase64ToUint8Array(publicKey).buffer as ArrayBuffer,
         })
       } catch (subErr) {
-        const msg = `PushManager: ${subErr instanceof Error ? subErr.message : 'error'}`
+        const msg = `Push: ${subErr instanceof Error ? subErr.message : 'error'}`
         setSubscribing(false)
         setLastError(msg)
         return { ok: false, error: msg }
       }
 
-      // Step 5: Send subscription to our server
+      // Step 5: Save to server
       const subJson = subscription.toJSON()
       try {
         const res = await fetch('/api/push/subscribe', {
@@ -212,28 +211,25 @@ export function usePushSubscription() {
             keys: subJson.keys,
           }),
         })
-
         if (res.ok) {
           setState('subscribed')
           setSubscribing(false)
           setLastError(null)
           return { ok: true }
-        } else {
-          const text = await res.text().catch(() => '')
-          const msg = `API save: ${res.status} ${text.slice(0, 100)}`
-          setSubscribing(false)
-          setLastError(msg)
-          return { ok: false, error: msg }
         }
+        const text = await res.text().catch(() => '')
+        const msg = `API: ${res.status} ${text.slice(0, 80)}`
+        setSubscribing(false)
+        setLastError(msg)
+        return { ok: false, error: msg }
       } catch (apiErr) {
-        const msg = `API save: ${apiErr instanceof Error ? apiErr.message : 'error'}`
+        const msg = `API: ${apiErr instanceof Error ? apiErr.message : 'error'}`
         setSubscribing(false)
         setLastError(msg)
         return { ok: false, error: msg }
       }
     } catch (err) {
-      const msg = `Inesperado: ${err instanceof Error ? err.message : String(err)}`
-      console.error('[push]', msg)
+      const msg = `Error: ${err instanceof Error ? err.message : String(err)}`
       setSubscribing(false)
       setLastError(msg)
       return { ok: false, error: msg }
