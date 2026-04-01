@@ -3,6 +3,39 @@ import { useState, useEffect, useCallback } from 'react'
 
 type PushState = 'loading' | 'unsupported' | 'ios-needs-install' | 'denied' | 'prompt' | 'subscribed' | 'unsubscribed'
 
+/**
+ * Ensure a service worker is registered and activated.
+ * If one already exists, return it. Otherwise register /sw.js and wait.
+ */
+async function ensureSWRegistration(): Promise<ServiceWorkerRegistration> {
+  const registrations = await navigator.serviceWorker.getRegistrations()
+  const existing = registrations.find((r) => r.active)
+  if (existing) return existing
+
+  // No active SW — register manually
+  console.log('[push] No active SW found, registering /sw.js…')
+  const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+
+  // Wait for activation
+  if (reg.active) return reg
+
+  const installing = reg.installing || reg.waiting
+  if (!installing) throw new Error('SW registration failed — no installing worker')
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('SW activation timeout')), 15000)
+    installing.addEventListener('statechange', () => {
+      if (installing.state === 'activated') {
+        clearTimeout(timeout)
+        resolve(reg)
+      } else if (installing.state === 'redundant') {
+        clearTimeout(timeout)
+        reject(new Error('SW became redundant'))
+      }
+    })
+  })
+}
+
 export function usePushSubscription() {
   const [state, setState] = useState<PushState>('loading')
   const [subscribing, setSubscribing] = useState(false)
@@ -38,28 +71,30 @@ export function usePushSubscription() {
       return
     }
 
-    // Wait for SW ready with a timeout — don't hang forever
+    // Try to find existing SW and subscription
     let cancelled = false
     const timeout = setTimeout(() => {
       if (!cancelled) {
-        // SW not ready after 5s — still show prompt, subscribe will register on demand
         setState(permission === 'granted' ? 'unsubscribed' : 'prompt')
       }
     }, 5000)
 
-    navigator.serviceWorker.ready.then((reg) => {
-      if (cancelled) return
-      clearTimeout(timeout)
-      reg.pushManager.getSubscription().then((sub) => {
+    ensureSWRegistration()
+      .then((reg) => {
         if (cancelled) return
-        setState(sub ? 'subscribed' : permission === 'granted' ? 'unsubscribed' : 'prompt')
-      })
-    }).catch(() => {
-      if (!cancelled) {
         clearTimeout(timeout)
-        setState('prompt')
-      }
-    })
+        return reg.pushManager.getSubscription().then((sub) => {
+          if (cancelled) return
+          setState(sub ? 'subscribed' : permission === 'granted' ? 'unsubscribed' : 'prompt')
+        })
+      })
+      .catch((err) => {
+        console.warn('[push] SW init:', err?.message)
+        if (!cancelled) {
+          clearTimeout(timeout)
+          setState('prompt')
+        }
+      })
 
     return () => { cancelled = true; clearTimeout(timeout) }
   }, [])
@@ -77,13 +112,8 @@ export function usePushSubscription() {
         return false
       }
 
-      // Wait for the service worker with a timeout
-      const reg = await Promise.race([
-        navigator.serviceWorker.ready,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('SW timeout')), 8000)
-        ),
-      ])
+      // Ensure SW is registered and active
+      const reg = await ensureSWRegistration()
 
       // Get VAPID key from server
       const keyRes = await fetch('/api/push/vapid-key')
@@ -94,7 +124,7 @@ export function usePushSubscription() {
       }
       const { publicKey } = await keyRes.json()
 
-      // Subscribe to push on the existing SW registration
+      // Subscribe to push on the SW registration
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(publicKey).buffer as ArrayBuffer,
