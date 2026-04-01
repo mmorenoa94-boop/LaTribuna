@@ -8,7 +8,17 @@ export function usePushSubscription() {
   const [subscribing, setSubscribing] = useState(false)
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (typeof window === 'undefined') {
+      setState('unsupported')
+      return
+    }
+
+    // Check basic support
+    const hasServiceWorker = 'serviceWorker' in navigator
+    const hasPushManager = 'PushManager' in window
+    const hasNotification = 'Notification' in window
+
+    if (!hasServiceWorker || !hasPushManager || !hasNotification) {
       setState('unsupported')
       return
     }
@@ -19,12 +29,30 @@ export function usePushSubscription() {
       return
     }
 
-    // Check if already subscribed via the existing next-pwa service worker
+    // Wait for SW ready with a timeout — don't hang forever
+    let cancelled = false
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        // SW not ready after 5s — still show prompt, subscribe will register on demand
+        setState(permission === 'granted' ? 'unsubscribed' : 'prompt')
+      }
+    }, 5000)
+
     navigator.serviceWorker.ready.then((reg) => {
+      if (cancelled) return
+      clearTimeout(timeout)
       reg.pushManager.getSubscription().then((sub) => {
+        if (cancelled) return
         setState(sub ? 'subscribed' : permission === 'granted' ? 'unsubscribed' : 'prompt')
       })
+    }).catch(() => {
+      if (!cancelled) {
+        clearTimeout(timeout)
+        setState('prompt')
+      }
     })
+
+    return () => { cancelled = true; clearTimeout(timeout) }
   }, [])
 
   const subscribe = useCallback(async (): Promise<boolean> => {
@@ -32,7 +60,7 @@ export function usePushSubscription() {
     setSubscribing(true)
 
     try {
-      // Use the existing service worker (next-pwa's sw.js which includes our push handlers)
+      // Wait for the service worker to be ready
       const reg = await navigator.serviceWorker.ready
 
       // Get VAPID key from server
@@ -54,7 +82,7 @@ export function usePushSubscription() {
         applicationServerKey: urlBase64ToUint8Array(publicKey).buffer as ArrayBuffer,
       })
 
-      // Send subscription to our server
+      // Send subscription to server
       const subJson = subscription.toJSON()
       const res = await fetch('/api/push/subscribe', {
         method: 'POST',
