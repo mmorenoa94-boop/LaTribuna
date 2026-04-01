@@ -110,6 +110,13 @@ The `.env` file points to **development** by default. Vercel has its own env var
 - Merge into `develop` first, verify, then create a PR to `main`
 - Never push directly to `main` — always create a PR from `develop`
 
+### PR Discipline
+- **Only create the PR to `main` when the feature/fix is fully tested and complete** — not mid-iteration
+- **Before creating a PR**, always `git pull origin main` and check `gh pr list --base main` to see if there's already an open PR from `develop`
+- **If an open PR already exists**, push to `develop` and tell the user the new commits are included in the existing PR — do NOT try to create a duplicate
+- **One PR at a time** from `develop` → `main`. Wait for the current PR to be merged before creating another
+- **After a PR is merged to `main`**, sync develop: `git checkout develop && git pull origin develop && git pull origin main`
+
 ## Important Notes
 - Cron jobs are defined in `app/api/cron/` but **not registered in `vercel.json`** (Hobby plan limit) — must be triggered manually or externally
 - PWA service worker is disabled in dev (`next.config.js`)
