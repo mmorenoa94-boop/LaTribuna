@@ -25,3 +25,31 @@ export async function GET(req: NextRequest) {
     nextCursor: notifications.length === limit ? notifications[notifications.length - 1]?.id : null,
   })
 }
+
+// DELETE — Delete notifications (individual or all)
+export async function DELETE(req: NextRequest) {
+  const session = await auth()
+  if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+
+  const body = await req.json()
+  const { ids, all } = body as { ids?: string[]; all?: boolean }
+
+  if (all) {
+    const result = await prisma.notification.deleteMany({
+      where: { userId: session.user.id },
+    })
+    return NextResponse.json({ deleted: result.count })
+  }
+
+  if (ids && ids.length > 0) {
+    const result = await prisma.notification.deleteMany({
+      where: {
+        id: { in: ids },
+        userId: session.user.id,
+      },
+    })
+    return NextResponse.json({ deleted: result.count })
+  }
+
+  return NextResponse.json({ error: 'Provide ids array or all: true' }, { status: 400 })
+}
