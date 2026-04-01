@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { XPBar } from '@/components/hincha/XPBar'
 import { LeagueCard } from '@/components/hincha/LeagueCard'
 import { PromoBanner } from '@/components/hincha/PromoBanner'
+import { NotifBanner } from '@/components/hincha/NotifBanner'
 import { PushPrompt } from '@/components/hincha/PushPrompt'
 import type { LeagueWithDetails } from '@/types'
 import Link from 'next/link'
@@ -55,6 +56,9 @@ export default async function HomePage() {
 
       {/* Push notification prompt */}
       <PushPrompt />
+
+      {/* Admin notifications (reminders, messages) */}
+      <NotifBanner />
 
       {/* Promotion banners */}
       <PromoBanner />

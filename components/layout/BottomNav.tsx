@@ -5,11 +5,11 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
-  { href: '/home',    label: 'Inicio',   icon: HomeIcon },
-  { href: '/ligas',   label: 'Ligas',    icon: TrophyIcon },
-  { href: '/explorar',label: 'Explorar', icon: CompassIcon },
-  { href: '/wallet',  label: 'Wallet',   icon: WalletIcon },
-  { href: '/perfil',  label: 'Perfil',   icon: UserIcon },
+  { href: '/home',            label: 'Inicio',   icon: HomeIcon },
+  { href: '/ligas',           label: 'Ligas',    icon: TrophyIcon },
+  { href: '/notificaciones',  label: 'Alertas',  icon: BellIcon },
+  { href: '/wallet',          label: 'Wallet',   icon: WalletIcon },
+  { href: '/perfil',          label: 'Perfil',   icon: UserIcon },
 ]
 
 export function BottomNav() {
@@ -37,7 +37,7 @@ export function BottomNav() {
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href)
-          const showBadge = href === '/home' && unreadCount > 0
+          const showBadge = href === '/notificaciones' && unreadCount > 0
           return (
             <Link
               key={href}
@@ -80,11 +80,11 @@ function TrophyIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-function CompassIcon({ className }: { className?: string }) {
+function BellIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-      <circle cx="12" cy="12" r="10" />
-      <polygon strokeLinecap="round" strokeLinejoin="round" points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13.73 21a2 2 0 0 1-3.46 0" />
     </svg>
   )
 }

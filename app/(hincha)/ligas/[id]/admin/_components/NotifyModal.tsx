@@ -41,7 +41,6 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
   const [massMessage, setMassMessage] = useState('')
   const [result, setResult] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  // Load participation data when modal opens
   useEffect(() => {
     if (!open || !matchId) return
     setLoading(true)
@@ -70,7 +69,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
       })
       const json = await res.json()
       if (res.ok) {
-        setResult({ type: 'success', text: json.message || `Recordatorio enviado a ${json.sent} miembros` })
+        setResult({ type: 'success', text: json.message || `Recordatorio enviado a ${json.sent} miembros (${json.pushDelivered ?? 0} push)` })
         setMessage('')
       } else {
         setResult({ type: 'error', text: json.error || 'Error al enviar' })
@@ -98,7 +97,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
       })
       const json = await res.json()
       if (res.ok) {
-        setResult({ type: 'success', text: json.message || `Notificación enviada a ${json.sent} miembros` })
+        setResult({ type: 'success', text: json.message || `Notificación enviada a ${json.sent} miembros (${json.pushDelivered ?? 0} push)` })
         setMassTitle('')
         setMassMessage('')
       } else {
@@ -114,19 +113,19 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex flex-col">
+      {/* Backdrop — only visible on desktop behind the centered modal */}
+      <div className="absolute inset-0 bg-black/70 sm:block hidden" onClick={onClose} />
 
-      {/* Modal — bottom sheet on mobile, centered on desktop */}
-      <div className="relative bg-lt-card border border-[rgba(255,255,255,0.1)] rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[70vh] sm:max-h-[80vh] flex flex-col overflow-hidden animate-slide-up mb-0 sm:mb-auto">
+      {/* Full-screen on mobile, centered modal on desktop */}
+      <div className="relative flex flex-col w-full h-full sm:h-auto sm:max-h-[80vh] sm:max-w-lg sm:m-auto sm:rounded-2xl bg-lt-dark sm:bg-lt-card sm:border sm:border-[rgba(255,255,255,0.1)] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.07)] flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(255,255,255,0.07)] flex-shrink-0 bg-lt-card">
           <div className="min-w-0">
             <h3 className="font-bebas text-xl text-lt-white tracking-wide">Notificaciones</h3>
             <p className="font-condensed text-xs text-lt-muted2 truncate">{matchLabel}</p>
           </div>
-          <button onClick={onClose} className="p-1 text-lt-muted2 hover:text-lt-white transition-colors">
+          <button onClick={onClose} className="p-2 -mr-1 text-lt-muted2 hover:text-lt-white transition-colors">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -134,7 +133,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-[rgba(255,255,255,0.07)] flex-shrink-0">
+        <div className="flex border-b border-[rgba(255,255,255,0.07)] flex-shrink-0 bg-lt-card">
           {([
             { key: 'participation' as Tab, label: 'Participación', icon: '📊' },
             { key: 'reminder' as Tab, label: 'Recordatorio', icon: '⏰' },
@@ -157,7 +156,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto p-4 pb-2">
+        <div className="flex-1 overflow-y-auto p-4">
           {/* Result message */}
           {result && (
             <div className={cn(
@@ -178,23 +177,21 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
               </div>
             ) : data ? (
               <div className="flex flex-col gap-4">
-                {/* Stats */}
                 <div className="flex gap-3">
-                  <div className="flex-1 bg-lt-card2 rounded-card p-3 text-center border border-[rgba(255,255,255,0.07)]">
+                  <div className="flex-1 bg-lt-card rounded-card p-3 text-center border border-[rgba(255,255,255,0.07)]">
                     <p className="font-bebas text-2xl text-lt-white">{data.totalMembers}</p>
                     <p className="font-condensed text-xs text-lt-muted2">Miembros</p>
                   </div>
-                  <div className="flex-1 bg-lt-card2 rounded-card p-3 text-center border border-lt-green/20">
+                  <div className="flex-1 bg-lt-card rounded-card p-3 text-center border border-lt-green/20">
                     <p className="font-bebas text-2xl text-lt-green">{data.respondedCount}</p>
                     <p className="font-condensed text-xs text-lt-muted2">Respondieron</p>
                   </div>
-                  <div className="flex-1 bg-lt-card2 rounded-card p-3 text-center border border-lt-amber/20">
+                  <div className="flex-1 bg-lt-card rounded-card p-3 text-center border border-lt-amber/20">
                     <p className="font-bebas text-2xl text-lt-amber">{data.missingCount}</p>
                     <p className="font-condensed text-xs text-lt-muted2">Faltan</p>
                   </div>
                 </div>
 
-                {/* Progress bar */}
                 {data.totalMembers > 0 && (
                   <div className="w-full bg-lt-card2 rounded-full h-2 overflow-hidden">
                     <div
@@ -204,7 +201,6 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
                   </div>
                 )}
 
-                {/* Missing members */}
                 {data.missing.length > 0 && (
                   <div>
                     <p className="font-condensed text-xs text-lt-amber uppercase tracking-wide mb-2">
@@ -212,7 +208,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
                     </p>
                     <div className="flex flex-col gap-2">
                       {data.missing.map((m) => (
-                        <div key={m.userId} className="flex items-center gap-3 bg-lt-card2 rounded-card p-3 border border-lt-amber/15">
+                        <div key={m.userId} className="flex items-center gap-3 bg-lt-card rounded-card p-3 border border-lt-amber/15">
                           {m.userImage ? (
                             <Image src={m.userImage} alt="" width={32} height={32} className="w-8 h-8 rounded-full object-cover" />
                           ) : (
@@ -232,7 +228,6 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
                   </div>
                 )}
 
-                {/* Responded members */}
                 {data.responded.length > 0 && (
                   <div>
                     <p className="font-condensed text-xs text-lt-green uppercase tracking-wide mb-2">
@@ -240,7 +235,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
                     </p>
                     <div className="flex flex-col gap-1.5">
                       {data.responded.map((m) => (
-                        <div key={m.userId} className="flex items-center gap-3 bg-lt-card2/50 rounded-card p-2.5 border border-lt-green/10">
+                        <div key={m.userId} className="flex items-center gap-3 bg-lt-card/50 rounded-card p-2.5 border border-lt-green/10">
                           {m.userImage ? (
                             <Image src={m.userImage} alt="" width={28} height={28} className="w-7 h-7 rounded-full object-cover" />
                           ) : (
@@ -269,7 +264,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
               <div className="bg-lt-amber/10 border border-lt-amber/30 rounded-card p-3">
                 <p className="font-condensed text-sm text-lt-amber font-700">⏰ Recordatorio para no-respondedores</p>
                 <p className="font-condensed text-xs text-lt-muted2 mt-1">
-                  Se enviará push + notificación in-app a quienes no hayan respondido todas las preguntas de este partido.
+                  Se enviará notificación in-app a quienes no hayan respondido todas las preguntas de este partido. La verán en su pantalla de inicio y en notificaciones.
                 </p>
                 {data && data.missingCount > 0 && (
                   <p className="font-condensed text-xs text-lt-amber mt-1.5">
@@ -291,7 +286,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="¡Faltan pocas horas para el cierre! Responde las preguntas antes de que sea tarde."
-                  className="w-full bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn px-3 py-2.5 font-barlow text-sm text-lt-white placeholder:text-lt-muted resize-none focus:border-lt-amber outline-none"
+                  className="w-full bg-lt-card border border-[rgba(255,255,255,0.15)] rounded-btn px-3 py-2.5 font-barlow text-sm text-lt-white placeholder:text-lt-muted resize-none focus:border-lt-amber outline-none"
                   rows={3}
                   maxLength={280}
                 />
@@ -306,7 +301,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
               <div className="bg-lt-blue/10 border border-lt-blue/30 rounded-card p-3">
                 <p className="font-condensed text-sm text-lt-blue font-700">📢 Mensaje masivo</p>
                 <p className="font-condensed text-xs text-lt-muted2 mt-1">
-                  Se enviará a todos los miembros de la liga (excepto tú). Ideal para instrucciones, avisos o motivación.
+                  Se enviará a todos los miembros de la liga (excepto tú). Lo verán en su pantalla de inicio y en notificaciones.
                 </p>
               </div>
 
@@ -318,7 +313,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
                   value={massTitle}
                   onChange={(e) => setMassTitle(e.target.value)}
                   placeholder="Ejemplo: Instrucciones para la jornada"
-                  className="w-full bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn px-3 py-2.5 font-barlow text-sm text-lt-white placeholder:text-lt-muted focus:border-lt-blue outline-none"
+                  className="w-full bg-lt-card border border-[rgba(255,255,255,0.15)] rounded-btn px-3 py-2.5 font-barlow text-sm text-lt-white placeholder:text-lt-muted focus:border-lt-blue outline-none"
                   maxLength={100}
                 />
               </div>
@@ -331,7 +326,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
                   value={massMessage}
                   onChange={(e) => setMassMessage(e.target.value)}
                   placeholder="Escribe tu mensaje para todos los miembros..."
-                  className="w-full bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn px-3 py-2.5 font-barlow text-sm text-lt-white placeholder:text-lt-muted resize-none focus:border-lt-blue outline-none"
+                  className="w-full bg-lt-card border border-[rgba(255,255,255,0.15)] rounded-btn px-3 py-2.5 font-barlow text-sm text-lt-white placeholder:text-lt-muted resize-none focus:border-lt-blue outline-none"
                   rows={3}
                   maxLength={500}
                 />
@@ -343,7 +338,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
 
         {/* ── Sticky action button at bottom ──────────────── */}
         {activeTab === 'reminder' && (
-          <div className="flex-shrink-0 px-4 py-3 border-t border-[rgba(255,255,255,0.07)] bg-lt-card">
+          <div className="flex-shrink-0 px-4 py-3 border-t border-[rgba(255,255,255,0.07)] bg-lt-card safe-bottom">
             <button
               onClick={handleSendReminder}
               disabled={sending || !message.trim() || (data?.missingCount === 0)}
@@ -355,7 +350,7 @@ export function NotifyModal({ leagueId, matchId, matchLabel, open, onClose }: Pr
         )}
 
         {activeTab === 'mass' && (
-          <div className="flex-shrink-0 px-4 py-3 border-t border-[rgba(255,255,255,0.07)] bg-lt-card">
+          <div className="flex-shrink-0 px-4 py-3 border-t border-[rgba(255,255,255,0.07)] bg-lt-card safe-bottom">
             <button
               onClick={handleSendMass}
               disabled={sending || !massMessage.trim()}
