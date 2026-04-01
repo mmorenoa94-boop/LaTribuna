@@ -3,9 +3,8 @@ import { useState } from 'react'
 import { usePushSubscription } from '@/hooks/usePushSubscription'
 
 export function PushPrompt() {
-  const { state, subscribe, subscribing } = usePushSubscription()
+  const { state, subscribe, subscribing, lastError } = usePushSubscription()
   const [dismissed, setDismissed] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   // Only show for users who haven't decided yet
   if (state !== 'prompt' && state !== 'unsubscribed' && state !== 'ios-needs-install') return null
@@ -48,22 +47,20 @@ export function PushPrompt() {
           <p className="text-lt-muted2 font-barlow text-xs mt-0.5 leading-snug">
             Recibe alertas cuando abran preguntas, promociones y resultados de tus ligas.
           </p>
-          {error && (
-            <p className="text-red-400 font-barlow text-xs mt-1">{error}</p>
+          {lastError && (
+            <p className="text-red-400 font-barlow text-xs mt-1 break-words">
+              Error: {lastError}
+            </p>
           )}
           <div className="flex gap-2 mt-3">
             <button
               onClick={async () => {
-                setError(null)
-                const ok = await subscribe()
-                if (!ok && !subscribing) {
-                  setError('No se pudo activar. Intenta de nuevo o verifica que tu navegador soporte notificaciones.')
-                }
+                await subscribe()
               }}
               disabled={subscribing}
               className="px-4 py-2 rounded-btn bg-lt-green text-lt-black font-condensed text-sm font-700 active:scale-95 transition-all disabled:opacity-50"
             >
-              {subscribing ? 'Activando...' : 'Activar'}
+              {subscribing ? 'Activando...' : lastError ? 'Reintentar' : 'Activar'}
             </button>
             <button
               onClick={() => setDismissed(true)}
