@@ -26,7 +26,7 @@ export async function GET(
   const questions = await prisma.leagueQuestion.findMany({
     where: { leagueId: params.id, matchId },
     orderBy: { orderIndex: 'asc' },
-    include: { _count: { select: { answers: true } } },
+    include: { _count: { select: { answers: true, predictions: true } } },
   })
 
   return NextResponse.json(questions)
@@ -77,7 +77,7 @@ export async function POST(
       orderIndex: count,
       status: 'PENDING',
     },
-    include: { _count: { select: { answers: true } } },
+    include: { _count: { select: { answers: true, predictions: true } } },
   })
 
   return NextResponse.json(question, { status: 201 })
@@ -116,7 +116,7 @@ export async function PATCH(
     const updated = await prisma.leagueQuestion.findMany({
       where: { leagueId: params.id, matchId },
       orderBy: { orderIndex: 'asc' },
-      include: { _count: { select: { answers: true } } },
+      include: { _count: { select: { answers: true, predictions: true } } },
     })
 
     return NextResponse.json(updated)
@@ -147,7 +147,7 @@ export async function PATCH(
     const updated = await prisma.leagueQuestion.findMany({
       where: { leagueId: params.id, matchId },
       orderBy: { orderIndex: 'asc' },
-      include: { _count: { select: { answers: true } } },
+      include: { _count: { select: { answers: true, predictions: true } } },
     })
 
     return NextResponse.json(updated)

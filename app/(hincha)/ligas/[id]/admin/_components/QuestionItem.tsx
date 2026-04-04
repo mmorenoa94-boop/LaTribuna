@@ -101,11 +101,11 @@ export function QuestionItem({ question: q, leagueId, onUpdated, onDeleted, onEd
             </span>
             <span className="text-lt-muted2 font-condensed text-xs">·</span>
             <span className="text-lt-green font-condensed text-xs font-700">+{q.pointsValue} pts</span>
-            {q._count.answers > 0 && (
+            {(q._count.answers + q._count.predictions) > 0 && (
               <>
                 <span className="text-lt-muted2 font-condensed text-xs">·</span>
                 <span className="text-lt-muted2 font-condensed text-xs">
-                  {q._count.answers} resp.
+                  {q._count.answers + q._count.predictions} resp.
                 </span>
               </>
             )}
@@ -291,9 +291,57 @@ export function QuestionItem({ question: q, leagueId, onUpdated, onDeleted, onEd
 
       {/* Resolved state */}
       {q.status === 'RESOLVED' && q.correctAnswer && (
-        <p className="font-condensed text-xs text-lt-green mt-2">
-          ✅ Respuesta: <strong>{q.correctAnswer}</strong> · {q._count.answers} respuestas
-        </p>
+        <div className="mt-3 space-y-2">
+          <p className="font-condensed text-xs text-lt-green">
+            ✅ Respuesta: <strong>{q.correctAnswer}</strong> · {q.winnersCount ?? 0} de {q._count.answers + q._count.predictions} acertaron
+          </p>
+          <button
+            onClick={() => setShowResolvePicker(true)}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-amber/15 border border-lt-amber/40 text-lt-amber font-condensed text-sm hover:bg-lt-amber/25 transition-colors disabled:opacity-50"
+          >
+            🔄 Cambiar respuesta correcta
+          </button>
+          <AnimatePresence>
+            {showResolvePicker && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                className="bg-lt-card2 rounded-card p-3 border border-[rgba(255,255,255,0.07)]"
+              >
+                <p className="font-condensed text-xs text-lt-muted2 mb-2 uppercase tracking-wide">
+                  Selecciona la nueva respuesta correcta:
+                </p>
+                <div className="flex flex-col gap-2">
+                  {(q.options as string[]).map((opt, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { patchQuestion({ action: 're-resolve', correctAnswer: opt }); setShowResolvePicker(false) }}
+                      disabled={loading}
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-2.5 rounded-btn font-condensed text-sm transition-all text-left',
+                        q.correctAnswer === opt
+                          ? 'bg-lt-green/20 border border-lt-green/40 text-lt-green'
+                          : 'bg-lt-card border border-[rgba(255,255,255,0.07)] text-lt-white hover:border-lt-amber/40 hover:bg-lt-amber/10'
+                      )}
+                    >
+                      <span className="w-6 h-6 rounded-full bg-lt-card2 flex items-center justify-center font-bebas text-xs text-lt-muted2 flex-shrink-0">
+                        {String.fromCharCode(65 + i)}
+                      </span>
+                      {opt}
+                      {q.correctAnswer === opt && ' (actual)'}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowResolvePicker(false)}
+                  className="mt-2 text-lt-muted2 font-condensed text-xs hover:text-lt-white"
+                >
+                  Cancelar
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       )}
     </motion.div>
   )

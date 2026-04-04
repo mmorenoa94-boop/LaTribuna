@@ -61,7 +61,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
     const qs = await prisma.leagueQuestion.findMany({
       where: { leagueId: params.id, matchId },
       orderBy: { orderIndex: 'asc' },
-      include: { _count: { select: { answers: true } } },
+      include: { _count: { select: { answers: true, predictions: true } } },
     })
     initialQuestions = qs.map((q) => ({
       ...q,

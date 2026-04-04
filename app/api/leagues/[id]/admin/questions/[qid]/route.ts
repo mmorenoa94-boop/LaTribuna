@@ -4,6 +4,53 @@ import { prisma } from '@/lib/prisma'
 import { scoreQuestionAnswers } from '@/lib/scoring'
 import { emitQuestionOpen, emitQuestionClose, emitQuestionResolve, emitLeaderboardUpdate } from '@/lib/socket-emit'
 
+/**
+ * Reverse all scoring effects of a previously resolved question.
+ * - Reverts LeagueMember.totalPoints
+ * - Deletes wallet transactions
+ * - Resets isCorrect/pointsEarned on answers and predictions
+ */
+async function reverseQuestionScoring(questionId: string, leagueId: string) {
+  // Find all correct answers and predictions with points
+  const [scoredAnswers, scoredPredictions] = await Promise.all([
+    prisma.answer.findMany({
+      where: { questionId, isCorrect: true, pointsEarned: { gt: 0 } },
+      select: { id: true, userId: true, pointsEarned: true },
+    }),
+    prisma.prediction.findMany({
+      where: { questionId, isCorrect: true, pointsEarned: { gt: 0 } },
+      select: { id: true, userId: true, pointsEarned: true },
+    }),
+  ])
+
+  const allScored = [...scoredAnswers, ...scoredPredictions]
+
+  await prisma.$transaction(async (tx) => {
+    // Reverse league points for each winner
+    for (const entry of allScored) {
+      await tx.leagueMember.updateMany({
+        where: { leagueId, userId: entry.userId, status: 'APPROVED' },
+        data: { totalPoints: { decrement: entry.pointsEarned } },
+      })
+    }
+
+    // Delete wallet transactions created by this question's scoring
+    await tx.walletTransaction.deleteMany({
+      where: { referenceId: questionId },
+    })
+
+    // Reset all answers and predictions for this question
+    await tx.answer.updateMany({
+      where: { questionId },
+      data: { isCorrect: null, pointsEarned: 0 },
+    })
+    await tx.prediction.updateMany({
+      where: { questionId },
+      data: { isCorrect: null, pointsEarned: 0 },
+    })
+  })
+}
+
 async function verifyCreator(leagueId: string, userId: string) {
   const league = await prisma.league.findUnique({ where: { id: leagueId } })
   return league?.creatorId === userId ? league : null
@@ -53,7 +100,7 @@ export async function PATCH(
     const updated = await prisma.leagueQuestion.update({
       where: { id: params.qid },
       data: { status: 'OPEN', openAt: now, closedAt },
-      include: { _count: { select: { answers: true } } },
+      include: { _count: { select: { answers: true, predictions: true } } },
     })
 
     await emitQuestionOpen(params.id, question.matchId, {
@@ -76,7 +123,7 @@ export async function PATCH(
     const updated = await prisma.leagueQuestion.update({
       where: { id: params.qid },
       data: { status: 'CLOSED', closedAt: new Date() },
-      include: { _count: { select: { answers: true } } },
+      include: { _count: { select: { answers: true, predictions: true } } },
     })
 
     await emitQuestionClose(params.id, question.matchId, {
@@ -87,12 +134,20 @@ export async function PATCH(
   }
 
   // ── Resolver ───────────────────────────────────────────────────────────────
-  if (action === 'resolve') {
-    if (question.status === 'PENDING') {
+  if (action === 'resolve' || action === 're-resolve') {
+    if (action === 'resolve' && question.status === 'PENDING') {
       return NextResponse.json({ error: 'La pregunta debe estar abierta o cerrada para resolverla' }, { status: 400 })
+    }
+    if (action === 're-resolve' && question.status !== 'RESOLVED') {
+      return NextResponse.json({ error: 'Solo se puede re-resolver una pregunta ya resuelta' }, { status: 400 })
     }
     if (!correctAnswer) {
       return NextResponse.json({ error: 'correctAnswer es requerido' }, { status: 400 })
+    }
+
+    // If re-resolving, first reverse previous scoring
+    if (action === 're-resolve') {
+      await reverseQuestionScoring(params.qid, question.leagueId)
     }
 
     const now = new Date()
@@ -103,6 +158,8 @@ export async function PATCH(
         correctAnswer,
         resolvedAt: now,
         closedAt: question.closedAt ?? now,
+        winnersCount: null,
+        totalPot: null,
       },
     })
 
@@ -137,7 +194,7 @@ export async function PATCH(
 
     const updated = await prisma.leagueQuestion.findUnique({
       where: { id: params.qid },
-      include: { _count: { select: { answers: true } } },
+      include: { _count: { select: { answers: true, predictions: true } } },
     })
     return NextResponse.json(updated)
   }
@@ -157,7 +214,7 @@ export async function PATCH(
         ...(pointsValue && { pointsValue: Number(pointsValue) }),
         ...(timing && { timing }),
       },
-      include: { _count: { select: { answers: true } } },
+      include: { _count: { select: { answers: true, predictions: true } } },
     })
     return NextResponse.json(updated)
   }
