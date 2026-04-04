@@ -92,7 +92,7 @@ export async function POST(
   const created = await prisma.leagueQuestion.findMany({
     where: { leagueId: params.id, matchId },
     orderBy: { orderIndex: 'asc' },
-    include: { _count: { select: { answers: true } } },
+    include: { _count: { select: { answers: true, predictions: true } } },
   })
 
   return NextResponse.json({ questions: created, count: createData.length })

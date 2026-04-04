@@ -30,7 +30,9 @@ interface QuestionData {
   status: string
   correctAnswer: string | null
   closedAt: string | null
-  _count: { answers: number }
+  winnersCount: number | null
+  totalPot: number | null
+  _count: { answers: number; predictions: number }
 }
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
@@ -639,6 +641,8 @@ function MatchDetail({ leagueId, match, onBack, onMatchUpdated }: { leagueId: st
             status: q.status,
             correctAnswer: q.correctAnswer,
             closedAt: q.closedAt,
+            winnersCount: q.winnersCount ?? null,
+            totalPot: q.totalPot ?? null,
             _count: q._count,
           })))
           setShowGenerate(false)
@@ -764,8 +768,8 @@ function QuestionCard({
             {q.timing === 'LIVE' ? '🔴 En vivo' : '⏱️ Pre-partido'}
           </span>
           <span className="text-lt-amber font-condensed text-xs font-700">+{q.pointsValue} pts</span>
-          {q._count.answers > 0 && (
-            <span className="text-lt-muted2 font-condensed text-xs">{q._count.answers} resp.</span>
+          {(q._count.answers + q._count.predictions) > 0 && (
+            <span className="text-lt-muted2 font-condensed text-xs">{q._count.answers + q._count.predictions} resp.</span>
           )}
           {q.status === 'OPEN' && timeLeftLabel() && (
             <span className="text-lt-green font-condensed text-xs animate-pulse">⏱ {timeLeftLabel()}</span>
@@ -944,12 +948,12 @@ function QuestionCard({
 
       {q.status === 'RESOLVED' && q.correctAnswer && (
         <p className="font-condensed text-xs text-lt-green">
-          ✅ Respuesta: <strong>{q.correctAnswer}</strong> · {q._count.answers} respuestas
+          ✅ Respuesta: <strong>{q.correctAnswer}</strong> · {q.winnersCount ?? 0} de {q._count.answers + q._count.predictions} acertaron
         </p>
       )}
 
       {/* Participation viewer */}
-      {q._count.answers > 0 && (
+      {(q._count.answers + q._count.predictions) > 0 && (
         <div className="mt-2">
           <button
             onClick={async () => {
@@ -966,7 +970,7 @@ function QuestionCard({
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
-            {showAnswers ? 'Ocultar respuestas' : `Ver ${q._count.answers} respuestas`}
+            {showAnswers ? 'Ocultar respuestas' : `Ver ${q._count.answers + q._count.predictions} respuestas`}
           </button>
           <AnimatePresence>
             {showAnswers && (

@@ -30,7 +30,9 @@ export interface QuestionRow {
   closedAt: string | null
   resolvedAt: string | null
   correctAnswer: string | null
-  _count: { answers: number }
+  winnersCount: number | null
+  totalPot: number | null
+  _count: { answers: number; predictions: number }
 }
 
 const TYPE_LABELS: Record<QuestionType, string> = {
