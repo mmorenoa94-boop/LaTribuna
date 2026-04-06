@@ -83,10 +83,10 @@ export function TriviaScreen({ leagueId, leagueName, matchId, initialMatch }: Pr
       if (!res.ok) throw new Error('Error al cargar')
       return res.json()
     },
-    // Polling disabled — rely on socket events via useTriviaSocket.
-    // Only refetch every 30s as a safety net in case socket disconnects.
-    refetchInterval: 30_000,
-    staleTime: 10_000,
+    // Aggressive polling to catch live questions quickly.
+    // Socket events trigger immediate refetch, but polling ensures we never miss one.
+    refetchInterval: 5_000,
+    staleTime: 3_000,
   })
 
   const handleRefetch = useCallback(() => { refetch() }, [refetch])

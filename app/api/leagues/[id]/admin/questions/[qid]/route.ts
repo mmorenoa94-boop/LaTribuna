@@ -112,6 +112,30 @@ export async function PATCH(
       closedAt: updated.closedAt?.toISOString() ?? null,
     })
 
+    // Create in-app notifications for all league members (non-blocking)
+    if (question.timing === 'LIVE') {
+      const leagueName = league.name
+      prisma.leagueMember.findMany({
+        where: { leagueId: params.id, status: 'APPROVED', userId: { not: session.user.id } },
+        select: { userId: true },
+      }).then(async (members) => {
+        if (members.length === 0) return
+        await prisma.notification.createMany({
+          data: members.map((m) => ({
+            userId: m.userId,
+            type: 'QUESTION_REMINDER' as const,
+            title: `${leagueName}`,
+            body: `${updated.text}`,
+            data: {
+              leagueId: params.id,
+              matchId: question.matchId,
+              questionId: updated.id,
+            },
+          })),
+        })
+      }).catch(() => {})
+    }
+
     return NextResponse.json(updated)
   }
 
