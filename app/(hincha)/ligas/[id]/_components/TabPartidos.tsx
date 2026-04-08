@@ -244,7 +244,7 @@ function MatchesWithDateFilter({
 // ── MatchCard ─────────────────────────────────────────────
 
 function MatchCard({
-  match, questions, leagueId, scoringLabel, predictions, onPrediction, defaultOpen,
+  match, questions, leagueId, scoringLabel, predictions, onPrediction,
 }: {
   match: SMatch
   questions: SQuestion[]
@@ -252,7 +252,7 @@ function MatchCard({
   scoringLabel: string
   predictions: Record<string, SPrediction>
   onPrediction: (questionId: string, pred: SPrediction) => void
-  defaultOpen: boolean
+  defaultOpen?: boolean
 }) {
   const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
   const isFinished = match.status === 'FINISHED'
