@@ -32,6 +32,10 @@ export function QuestionItem({ question: q, leagueId, onUpdated, onDeleted, onEd
   const [showOpenPicker, setShowOpenPicker] = useState(false)
   const [showResolvePicker, setShowResolvePicker] = useState(false)
   const [windowSecs, setWindowSecs] = useState(30)
+  const [resolveHome, setResolveHome] = useState('')
+  const [resolveAway, setResolveAway] = useState('')
+
+  const isScoreType = q.type === 'SCORE'
 
   const cfg = STATUS_CONFIG[q.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.PENDING
 
@@ -120,20 +124,26 @@ export function QuestionItem({ question: q, leagueId, onUpdated, onDeleted, onEd
           </div>
           <p className="font-condensed text-sm text-lt-white leading-snug">{q.text}</p>
           <div className="flex gap-1.5 mt-1.5 flex-wrap">
-            {(q.options as string[]).map((opt, i) => (
-              <span
-                key={i}
-                className={cn(
-                  'font-condensed text-xs px-2 py-0.5 rounded-full',
-                  q.correctAnswer === opt
-                    ? 'bg-lt-green/20 text-lt-green'
-                    : 'bg-lt-card2 text-lt-muted2'
-                )}
-              >
-                {String.fromCharCode(65 + i)}. {opt}
-                {q.correctAnswer === opt && ' ✓'}
+            {isScoreType ? (
+              <span className="font-condensed text-xs px-2 py-0.5 rounded-full bg-lt-card2 text-lt-muted2">
+                ⚽ Marcador abierto
               </span>
-            ))}
+            ) : (
+              (q.options as string[]).map((opt, i) => (
+                <span
+                  key={i}
+                  className={cn(
+                    'font-condensed text-xs px-2 py-0.5 rounded-full',
+                    q.correctAnswer === opt
+                      ? 'bg-lt-green/20 text-lt-green'
+                      : 'bg-lt-card2 text-lt-muted2'
+                  )}
+                >
+                  {String.fromCharCode(65 + i)}. {opt}
+                  {q.correctAnswer === opt && ' ✓'}
+                </span>
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -251,8 +261,56 @@ export function QuestionItem({ question: q, leagueId, onUpdated, onDeleted, onEd
                   onClick={() => setShowResolvePicker(true)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-btn bg-lt-green/15 border border-lt-green/40 text-lt-green font-condensed text-sm hover:bg-lt-green/25 transition-colors"
                 >
-                  ✅ Seleccionar respuesta correcta
+                  ✅ {isScoreType ? 'Ingresar marcador final' : 'Seleccionar respuesta correcta'}
                 </button>
+              ) : isScoreType ? (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                  className="bg-lt-card2 rounded-card p-3 border border-[rgba(255,255,255,0.07)]"
+                >
+                  <p className="font-condensed text-xs text-lt-muted2 mb-3 uppercase tracking-wide">
+                    ¿Cuál fue el marcador final?
+                  </p>
+                  <div className="flex items-center justify-center gap-3 mb-3">
+                    <div className="text-center">
+                      <p className="font-condensed text-xs text-lt-muted2 mb-1">Local</p>
+                      <input
+                        type="number" min="0" max="99" value={resolveHome}
+                        onChange={(e) => setResolveHome(e.target.value)}
+                        className="w-16 h-12 bg-lt-card border border-[rgba(255,255,255,0.15)] rounded-btn text-center font-bebas text-2xl text-lt-white focus:border-lt-green focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="0"
+                      />
+                    </div>
+                    <span className="font-bebas text-xl text-lt-muted2 mt-4">—</span>
+                    <div className="text-center">
+                      <p className="font-condensed text-xs text-lt-muted2 mb-1">Visitante</p>
+                      <input
+                        type="number" min="0" max="99" value={resolveAway}
+                        onChange={(e) => setResolveAway(e.target.value)}
+                        className="w-16 h-12 bg-lt-card border border-[rgba(255,255,255,0.15)] rounded-btn text-center font-bebas text-2xl text-lt-white focus:border-lt-green focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                  {resolveHome !== '' && resolveAway !== '' && (
+                    <button
+                      onClick={() => {
+                        patchQuestion({ action: 'resolve', correctAnswer: `${resolveHome}-${resolveAway}` })
+                        setShowResolvePicker(false)
+                      }}
+                      disabled={loading}
+                      className="w-full py-2.5 bg-lt-green text-lt-black rounded-btn font-condensed text-sm font-700 disabled:opacity-50"
+                    >
+                      Resolver con {resolveHome}-{resolveAway}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowResolvePicker(false)}
+                    className="mt-2 text-lt-muted2 font-condensed text-xs hover:text-lt-white block mx-auto"
+                  >
+                    Cancelar
+                  </button>
+                </motion.div>
               ) : (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
@@ -308,30 +366,73 @@ export function QuestionItem({ question: q, leagueId, onUpdated, onDeleted, onEd
                 initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                 className="bg-lt-card2 rounded-card p-3 border border-[rgba(255,255,255,0.07)]"
               >
-                <p className="font-condensed text-xs text-lt-muted2 mb-2 uppercase tracking-wide">
-                  Selecciona la nueva respuesta correcta:
-                </p>
-                <div className="flex flex-col gap-2">
-                  {(q.options as string[]).map((opt, i) => (
-                    <button
-                      key={i}
-                      onClick={() => { patchQuestion({ action: 're-resolve', correctAnswer: opt }); setShowResolvePicker(false) }}
-                      disabled={loading}
-                      className={cn(
-                        'flex items-center gap-2 px-3 py-2.5 rounded-btn font-condensed text-sm transition-all text-left',
-                        q.correctAnswer === opt
-                          ? 'bg-lt-green/20 border border-lt-green/40 text-lt-green'
-                          : 'bg-lt-card border border-[rgba(255,255,255,0.07)] text-lt-white hover:border-lt-amber/40 hover:bg-lt-amber/10'
-                      )}
-                    >
-                      <span className="w-6 h-6 rounded-full bg-lt-card2 flex items-center justify-center font-bebas text-xs text-lt-muted2 flex-shrink-0">
-                        {String.fromCharCode(65 + i)}
-                      </span>
-                      {opt}
-                      {q.correctAnswer === opt && ' (actual)'}
-                    </button>
-                  ))}
-                </div>
+                {isScoreType ? (
+                  <>
+                    <p className="font-condensed text-xs text-lt-muted2 mb-3 uppercase tracking-wide">
+                      Nuevo marcador correcto:
+                    </p>
+                    <div className="flex items-center justify-center gap-3 mb-3">
+                      <div className="text-center">
+                        <p className="font-condensed text-xs text-lt-muted2 mb-1">Local</p>
+                        <input
+                          type="number" min="0" max="99" value={resolveHome}
+                          onChange={(e) => setResolveHome(e.target.value)}
+                          className="w-16 h-12 bg-lt-card border border-[rgba(255,255,255,0.15)] rounded-btn text-center font-bebas text-2xl text-lt-white focus:border-lt-green focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          placeholder="0"
+                        />
+                      </div>
+                      <span className="font-bebas text-xl text-lt-muted2 mt-4">—</span>
+                      <div className="text-center">
+                        <p className="font-condensed text-xs text-lt-muted2 mb-1">Visitante</p>
+                        <input
+                          type="number" min="0" max="99" value={resolveAway}
+                          onChange={(e) => setResolveAway(e.target.value)}
+                          className="w-16 h-12 bg-lt-card border border-[rgba(255,255,255,0.15)] rounded-btn text-center font-bebas text-2xl text-lt-white focus:border-lt-green focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                    {resolveHome !== '' && resolveAway !== '' && (
+                      <button
+                        onClick={() => {
+                          patchQuestion({ action: 're-resolve', correctAnswer: `${resolveHome}-${resolveAway}` })
+                          setShowResolvePicker(false)
+                        }}
+                        disabled={loading}
+                        className="w-full py-2.5 bg-lt-amber text-lt-black rounded-btn font-condensed text-sm font-700 disabled:opacity-50"
+                      >
+                        Re-resolver con {resolveHome}-{resolveAway}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="font-condensed text-xs text-lt-muted2 mb-2 uppercase tracking-wide">
+                      Selecciona la nueva respuesta correcta:
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {(q.options as string[]).map((opt, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { patchQuestion({ action: 're-resolve', correctAnswer: opt }); setShowResolvePicker(false) }}
+                          disabled={loading}
+                          className={cn(
+                            'flex items-center gap-2 px-3 py-2.5 rounded-btn font-condensed text-sm transition-all text-left',
+                            q.correctAnswer === opt
+                              ? 'bg-lt-green/20 border border-lt-green/40 text-lt-green'
+                              : 'bg-lt-card border border-[rgba(255,255,255,0.07)] text-lt-white hover:border-lt-amber/40 hover:bg-lt-amber/10'
+                          )}
+                        >
+                          <span className="w-6 h-6 rounded-full bg-lt-card2 flex items-center justify-center font-bebas text-xs text-lt-muted2 flex-shrink-0">
+                            {String.fromCharCode(65 + i)}
+                          </span>
+                          {opt}
+                          {q.correctAnswer === opt && ' (actual)'}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
                 <button
                   onClick={() => setShowResolvePicker(false)}
                   className="mt-2 text-lt-muted2 font-condensed text-xs hover:text-lt-white"

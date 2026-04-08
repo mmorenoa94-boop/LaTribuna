@@ -26,6 +26,7 @@ export async function GET() {
     where: {
       leagueId: { in: leagueIds },
       status: 'OPEN',
+      timing: 'LIVE',
     },
     select: {
       id: true,

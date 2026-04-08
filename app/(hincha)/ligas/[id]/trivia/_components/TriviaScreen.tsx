@@ -26,6 +26,7 @@ export interface MatchInfo {
 interface TQuestion {
   id: string
   text: string
+  type: string
   options: unknown   // Json from Prisma — cast to string[]
   pointsValue: number
   orderIndex: number
@@ -198,6 +199,8 @@ export function TriviaScreen({ leagueId, leagueName, matchId, initialMatch }: Pr
               questionIndex={questions.indexOf(openQuestion) + 1}
               totalQuestions={totalQs}
               scoringLabel={data?.league.scoringMode === 'POOL' ? 'Sistema pozo' : 'Puntaje fijo'}
+              homeTeam={match.homeTeam}
+              awayTeam={match.awayTeam}
               onAnswer={(ans) => handleAnswer(openQuestion.id, ans)}
             />
           ) : (

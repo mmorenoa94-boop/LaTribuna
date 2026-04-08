@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 interface TQuestion {
   id: string
   text: string
+  type?: string
   options: string[]
   pointsValue: number
   orderIndex: number
@@ -24,15 +25,28 @@ interface Props {
   questionIndex: number
   totalQuestions: number
   scoringLabel?: string
+  homeTeam?: string
+  awayTeam?: string
   onAnswer: (answer: string) => void
 }
 
-export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions, scoringLabel = 'Puntaje fijo', onAnswer }: Props) {
+export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions, scoringLabel = 'Puntaje fijo', homeTeam, awayTeam, onAnswer }: Props) {
   const hasAnswered = myAnswer !== null
   const [submitting, setSubmitting] = useState(false)
   const [optimistic, setOptimistic] = useState<string | null>(myAnswer?.answer ?? null)
   const [pendingSelection, setPendingSelection] = useState<string | null>(null)
   const [locked, setLocked] = useState(hasAnswered)
+  const [homeScore, setHomeScore] = useState<string>('')
+  const [awayScore, setAwayScore] = useState<string>('')
+  const isScoreType = question.type === 'SCORE'
+
+  // Parse existing score answer
+  useEffect(() => {
+    if (myAnswer?.answer && isScoreType) {
+      const m = myAnswer.answer.match(/(\d+)\s*-\s*(\d+)/)
+      if (m) { setHomeScore(m[1]); setAwayScore(m[2]) }
+    }
+  }, [myAnswer?.answer, isScoreType])
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     if (!question.closedAt) return 30
     return Math.max(0, Math.floor((new Date(question.closedAt).getTime() - Date.now()) / 1000))
@@ -141,55 +155,121 @@ export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions
         </p>
       </div>
 
-      {/* Options */}
-      <div className="grid gap-3">
-        <AnimatePresence>
-          {(question.options as string[]).map((option, i) => {
-            const isSelected = selected === option
-            const isDisabled = expired
+      {/* Options / Score Input */}
+      {isScoreType ? (
+        /* ── SCORE: numeric inputs ── */
+        <div className="space-y-4">
+          <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] p-5">
+            <p className="text-center text-lt-muted2 font-condensed text-xs uppercase tracking-wider mb-4">
+              Escribe tu marcador
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <div className="flex-1 text-center">
+                <p className="font-condensed text-sm text-lt-white font-700 mb-2 truncate">{homeTeam ?? 'Local'}</p>
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={homeScore}
+                  onChange={(e) => { setHomeScore(e.target.value); setLocked(false) }}
+                  disabled={expired || (locked && hasAnswered)}
+                  className="w-20 h-16 mx-auto bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-card text-center font-bebas text-4xl text-lt-white focus:border-lt-green focus:outline-none disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="0"
+                />
+              </div>
+              <span className="font-bebas text-3xl text-lt-muted2 mt-6">—</span>
+              <div className="flex-1 text-center">
+                <p className="font-condensed text-sm text-lt-white font-700 mb-2 truncate">{awayTeam ?? 'Visitante'}</p>
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={awayScore}
+                  onChange={(e) => { setAwayScore(e.target.value); setLocked(false) }}
+                  disabled={expired || (locked && hasAnswered)}
+                  className="w-20 h-16 mx-auto bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-card text-center font-bebas text-4xl text-lt-white focus:border-lt-green focus:outline-none disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          </div>
 
-            return (
-              <motion.button
-                key={option}
-                onClick={() => handleSelect(option)}
-                disabled={isDisabled || submitting}
-                whileTap={isDisabled ? {} : { scale: 0.97 }}
-                className={cn(
-                  'w-full text-left px-4 py-4 rounded-btn border font-condensed text-base font-600',
-                  'flex items-center gap-3 transition-all duration-200',
-                  isSelected
-                    ? 'bg-lt-green/15 border-lt-green text-lt-white shadow-[0_0_16px_rgba(0,230,118,0.2)]'
-                    : isDisabled
-                    ? 'bg-lt-card border-[rgba(255,255,255,0.05)] text-lt-muted2 cursor-default'
-                    : 'bg-lt-card border-[rgba(255,255,255,0.07)] text-lt-white hover:border-lt-green/40 hover:bg-lt-card2 active:scale-[0.98]'
-                )}
-              >
-                <span className={cn(
-                  'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bebas flex-shrink-0 transition-colors',
-                  isSelected
-                    ? 'bg-lt-green text-lt-black'
-                    : isDisabled
-                    ? 'bg-lt-card2 text-lt-muted2'
-                    : 'bg-lt-card2 text-lt-muted2'
-                )}>
-                  {String.fromCharCode(65 + i)}
-                </span>
-                <span className="leading-snug">{option}</span>
-                {isSelected && (
-                  <span className="ml-auto">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-lt-green">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
+          {/* Lock-in for score */}
+          {!locked && homeScore !== '' && awayScore !== '' && !expired && (
+            <motion.button
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              onClick={async () => {
+                if (submitting || expired || locked) return
+                setSubmitting(true)
+                const answer = `${homeScore}-${awayScore}`
+                setOptimistic(answer)
+                setLocked(true)
+                await onAnswer(answer)
+                setSubmitting(false)
+              }}
+              disabled={submitting}
+              className={cn(
+                'w-full py-4 rounded-btn font-condensed text-base font-700 transition-all active:scale-[0.97]',
+                'bg-lt-green text-lt-black shadow-[0_0_24px_rgba(0,230,118,0.3)]',
+                submitting && 'opacity-60'
+              )}
+            >
+              {submitting ? 'Enviando...' : '🔒 Envío definitivo'}
+            </motion.button>
+          )}
+        </div>
+      ) : (
+        /* ── Regular: multiple choice ── */
+        <div className="grid gap-3">
+          <AnimatePresence>
+            {(question.options as string[]).map((option, i) => {
+              const isSelected = selected === option
+              const isDisabled = expired
+
+              return (
+                <motion.button
+                  key={option}
+                  onClick={() => handleSelect(option)}
+                  disabled={isDisabled || submitting}
+                  whileTap={isDisabled ? {} : { scale: 0.97 }}
+                  className={cn(
+                    'w-full text-left px-4 py-4 rounded-btn border font-condensed text-base font-600',
+                    'flex items-center gap-3 transition-all duration-200',
+                    isSelected
+                      ? 'bg-lt-green/15 border-lt-green text-lt-white shadow-[0_0_16px_rgba(0,230,118,0.2)]'
+                      : isDisabled
+                      ? 'bg-lt-card border-[rgba(255,255,255,0.05)] text-lt-muted2 cursor-default'
+                      : 'bg-lt-card border-[rgba(255,255,255,0.07)] text-lt-white hover:border-lt-green/40 hover:bg-lt-card2 active:scale-[0.98]'
+                  )}
+                >
+                  <span className={cn(
+                    'w-8 h-8 rounded-full flex items-center justify-center text-sm font-bebas flex-shrink-0 transition-colors',
+                    isSelected
+                      ? 'bg-lt-green text-lt-black'
+                      : isDisabled
+                      ? 'bg-lt-card2 text-lt-muted2'
+                      : 'bg-lt-card2 text-lt-muted2'
+                  )}>
+                    {String.fromCharCode(65 + i)}
                   </span>
-                )}
-              </motion.button>
-            )
-          })}
-        </AnimatePresence>
-      </div>
+                  <span className="leading-snug">{option}</span>
+                  {isSelected && (
+                    <span className="ml-auto">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-lt-green">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                  )}
+                </motion.button>
+              )
+            })}
+          </AnimatePresence>
+        </div>
+      )}
 
-      {/* Lock-in button */}
-      {!locked && pendingSelection && !expired && (
+      {/* Lock-in button (for non-score types) */}
+      {!isScoreType && !locked && pendingSelection && !expired && (
         <motion.button
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -218,7 +298,7 @@ export function QuestionCard({ question, myAnswer, questionIndex, totalQuestions
           Esperando que se resuelva la pregunta…
         </p>
       )}
-      {!locked && !pendingSelection && !expired && (
+      {!locked && !pendingSelection && !expired && !isScoreType && (
         <p className="text-center text-lt-muted2 font-condensed text-sm">
           Selecciona una opción y confirma tu respuesta
         </p>

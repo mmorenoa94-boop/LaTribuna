@@ -46,12 +46,23 @@ export async function POST(
   const body = await req.json()
   const { matchId, text, type, options, pointsValue, timing } = body
 
-  if (!matchId || !text?.trim() || !type || !Array.isArray(options) || options.length < 2 || !pointsValue || !timing) {
+  // SCORE type doesn't need predefined options — users type their score
+  const isScoreType = type === 'SCORE'
+  if (!matchId || !text?.trim() || !type || !pointsValue || !timing) {
     return NextResponse.json(
-      { error: 'matchId, text, type, options (min 2), pointsValue y timing son requeridos' },
+      { error: 'matchId, text, type, pointsValue y timing son requeridos' },
       { status: 400 }
     )
   }
+  if (!isScoreType && (!Array.isArray(options) || options.length < 2)) {
+    return NextResponse.json(
+      { error: 'options (min 2) son requeridas para este tipo de pregunta' },
+      { status: 400 }
+    )
+  }
+
+  // For SCORE type, store a marker option
+  const finalOptions = isScoreType ? ['SCORE_INPUT'] : options
 
   // Verificar que el partido pertenece a esta liga
   const leagueMatch = await prisma.leagueMatch.findUnique({
@@ -71,7 +82,7 @@ export async function POST(
       matchId,
       text: text.trim(),
       type,
-      options,
+      options: finalOptions,
       pointsValue: Number(pointsValue),
       timing,
       orderIndex: count,
