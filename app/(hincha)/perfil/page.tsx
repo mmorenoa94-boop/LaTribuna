@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { getBalance } from '@/lib/wallet'
 import { formatCOP } from '@/lib/utils'
 import { XPBar } from '@/components/hincha/XPBar'
+import { XPExplainer } from '@/components/hincha/XPExplainer'
 import { SignOutButton } from './_components/SignOutButton'
 import { AccuracyStatCard } from './_components/AccuracyStatCard'
 
@@ -164,6 +165,7 @@ export default async function PerfilPage() {
         {/* XP bar */}
         <div className="mt-4">
           <XPBar xp={user.xp} level={user.level} />
+          <XPExplainer />
         </div>
       </div>
 

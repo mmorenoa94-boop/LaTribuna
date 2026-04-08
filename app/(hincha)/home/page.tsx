@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { XPBar } from '@/components/hincha/XPBar'
+import { XPExplainer } from '@/components/hincha/XPExplainer'
 import { LeagueCard } from '@/components/hincha/LeagueCard'
 import { PromoBanner } from '@/components/hincha/PromoBanner'
 import { NotifBanner } from '@/components/hincha/NotifBanner'
@@ -53,7 +54,12 @@ export default async function HomePage() {
       </div>
 
       {/* XP Bar */}
-      {user && <XPBar xp={user.xp} level={user.level} />}
+      {user && (
+        <>
+          <XPBar xp={user.xp} level={user.level} />
+          <XPExplainer />
+        </>
+      )}
 
       {/* Admin notifications (reminders, messages) */}
       <NotifBanner />
