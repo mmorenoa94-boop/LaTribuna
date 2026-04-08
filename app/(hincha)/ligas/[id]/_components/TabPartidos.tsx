@@ -465,14 +465,31 @@ function PredictionQuestion({
   const [selected, setSelected] = useState<string | null>(prediction?.answer ?? null)
   const [saved, setSaved] = useState(false)
   const isOpen = question.status === 'OPEN'
+  const isScoreType = question.type === 'SCORE'
+
+  // Score input state
+  const [homeScore, setHomeScore] = useState<string>(() => {
+    if (!prediction?.answer) return ''
+    const m = prediction.answer.match(/(\d+)\s*-\s*(\d+)/)
+    return m ? m[1] : ''
+  })
+  const [awayScore, setAwayScore] = useState<string>(() => {
+    if (!prediction?.answer) return ''
+    const m = prediction.answer.match(/(\d+)\s*-\s*(\d+)/)
+    return m ? m[2] : ''
+  })
+
+  // For SCORE type, build the answer from inputs
+  const scoreAnswer = isScoreType && homeScore !== '' && awayScore !== '' ? `${homeScore}-${awayScore}` : null
+  const effectiveSelected = isScoreType ? scoreAnswer : selected
 
   // The selection differs from what's saved on the server
-  const hasUnsavedChange = isOpen && selected !== null && selected !== (prediction?.answer ?? null)
+  const hasUnsavedChange = isOpen && effectiveSelected !== null && effectiveSelected !== (prediction?.answer ?? null)
   // Already saved and no new change
-  const isSaved = prediction !== null && selected === prediction.answer
+  const isSaved = prediction !== null && effectiveSelected === prediction.answer
 
   async function save() {
-    if (!selected || loading || !hasUnsavedChange) return
+    if (!effectiveSelected || loading || !hasUnsavedChange) return
     setLoading(true)
     setError('')
     setSaved(false)
@@ -480,14 +497,14 @@ function PredictionQuestion({
       const res = await fetch(`/api/leagues/${leagueId}/predictions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questionId: question.id, answer: selected }),
+        body: JSON.stringify({ questionId: question.id, answer: effectiveSelected }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Error al guardar')
       onSave({
         id: data.id,
         questionId: question.id,
-        answer: selected,
+        answer: effectiveSelected,
         isCorrect: null,
         pointsEarned: 0,
       })
@@ -532,33 +549,69 @@ function PredictionQuestion({
         {/* Options — selectable while question is open */}
         {isOpen ? (
           <div className="space-y-2">
-            <div className="grid gap-2">
-              {question.options.map((opt) => {
-                const isSelected = selected === opt
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => setSelected(opt)}
-                    disabled={loading}
-                    className={cn(
-                      'w-full text-left px-3 py-2.5 rounded-btn border font-condensed text-sm transition-all active:scale-[0.98] disabled:opacity-50',
-                      isSelected
-                        ? 'border-lt-green bg-lt-green/10 text-lt-white'
-                        : 'border-lt-muted text-lt-white hover:border-lt-green/50 hover:bg-lt-green/5'
-                    )}
-                  >
-                    <span className="flex items-center justify-between">
-                      {opt}
-                      {isSelected && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-lt-green flex-shrink-0">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+            {isScoreType ? (
+              /* ── SCORE: numeric inputs ── */
+              <div className="bg-lt-card rounded-btn border border-[rgba(255,255,255,0.07)] p-3">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="flex-1 text-center">
+                    <p className="font-condensed text-[10px] text-lt-muted2 uppercase tracking-wider mb-1">{match.homeTeam}</p>
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      value={homeScore}
+                      onChange={(e) => setHomeScore(e.target.value)}
+                      disabled={loading}
+                      className="w-14 h-12 mx-auto bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn text-center font-bebas text-2xl text-lt-white focus:border-lt-green focus:outline-none disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      placeholder="0"
+                    />
+                  </div>
+                  <span className="font-bebas text-xl text-lt-muted2 mt-4">—</span>
+                  <div className="flex-1 text-center">
+                    <p className="font-condensed text-[10px] text-lt-muted2 uppercase tracking-wider mb-1">{match.awayTeam}</p>
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      value={awayScore}
+                      onChange={(e) => setAwayScore(e.target.value)}
+                      disabled={loading}
+                      className="w-14 h-12 mx-auto bg-lt-card2 border border-[rgba(255,255,255,0.15)] rounded-btn text-center font-bebas text-2xl text-lt-white focus:border-lt-green focus:outline-none disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ── Regular: multiple choice ── */
+              <div className="grid gap-2">
+                {question.options.map((opt) => {
+                  const isSelected = selected === opt
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => setSelected(opt)}
+                      disabled={loading}
+                      className={cn(
+                        'w-full text-left px-3 py-2.5 rounded-btn border font-condensed text-sm transition-all active:scale-[0.98] disabled:opacity-50',
+                        isSelected
+                          ? 'border-lt-green bg-lt-green/10 text-lt-white'
+                          : 'border-lt-muted text-lt-white hover:border-lt-green/50 hover:bg-lt-green/5'
                       )}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+                    >
+                      <span className="flex items-center justify-between">
+                        {opt}
+                        {isSelected && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-lt-green flex-shrink-0">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
 
             {/* Save button */}
             {hasUnsavedChange && (

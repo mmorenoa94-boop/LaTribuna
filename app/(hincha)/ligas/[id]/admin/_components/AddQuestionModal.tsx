@@ -98,6 +98,7 @@ export function AddQuestionModal({
 
   const yesNo = type === 'YES_NO'
   const winner = type === 'WINNER'
+  const isScore = type === 'SCORE'
 
   function setOption(i: number, val: string) {
     setOptions((prev) => { const n = [...prev]; n[i] = val; return n })
@@ -111,8 +112,8 @@ export function AddQuestionModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!text.trim()) { setError('La pregunta no puede estar vacía'); return }
-    const validOptions = options.map((o) => o.trim()).filter(Boolean)
-    if (validOptions.length < 2) { setError('Agrega al menos 2 opciones'); return }
+    const validOptions = isScore ? ['SCORE_INPUT'] : options.map((o) => o.trim()).filter(Boolean)
+    if (!isScore && validOptions.length < 2) { setError('Agrega al menos 2 opciones'); return }
 
     setLoading(true)
     setError('')
@@ -221,52 +222,62 @@ export function AddQuestionModal({
                 />
               </div>
 
-              {/* Options */}
-              <div>
-                <label className="block font-condensed text-xs text-lt-muted2 uppercase tracking-wide mb-2">
-                  Opciones de respuesta
-                </label>
-                <div className="flex flex-col gap-2">
-                  {options.map((opt, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="w-7 h-7 rounded-full bg-lt-card2 flex items-center justify-center font-bebas text-sm text-lt-muted2 flex-shrink-0">
-                        {String.fromCharCode(65 + i)}
-                      </span>
-                      <input
-                        value={opt}
-                        onChange={(e) => setOption(i, e.target.value)}
-                        disabled={yesNo}
-                        placeholder={`Opción ${String.fromCharCode(65 + i)}`}
-                        className="flex-1 bg-lt-card2 border border-[rgba(255,255,255,0.07)] rounded-btn px-3 py-2.5 text-lt-white font-condensed text-sm placeholder:text-lt-muted focus:outline-none focus:border-lt-green/50 disabled:opacity-40 disabled:cursor-default"
-                      />
-                      {!yesNo && !winner && options.length > 2 && (
-                        <button
-                          type="button"
-                          onClick={() => removeOption(i)}
-                          className="text-lt-muted2 hover:text-lt-red transition-colors p-1"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  ))}
+              {/* Options (hidden for SCORE — users type their score) */}
+              {isScore ? (
+                <div className="bg-lt-card2 rounded-card border border-[rgba(255,255,255,0.07)] p-4">
+                  <p className="font-condensed text-sm text-lt-white font-700 mb-1">⚽ Marcador abierto</p>
+                  <p className="font-condensed text-xs text-lt-muted2 leading-relaxed">
+                    Los usuarios escribirán su predicción de marcador (ej: 2-1). No necesitas definir opciones.
+                    Al resolver, ingresarás el marcador final.
+                  </p>
                 </div>
+              ) : (
+                <div>
+                  <label className="block font-condensed text-xs text-lt-muted2 uppercase tracking-wide mb-2">
+                    Opciones de respuesta
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    {options.map((opt, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="w-7 h-7 rounded-full bg-lt-card2 flex items-center justify-center font-bebas text-sm text-lt-muted2 flex-shrink-0">
+                          {String.fromCharCode(65 + i)}
+                        </span>
+                        <input
+                          value={opt}
+                          onChange={(e) => setOption(i, e.target.value)}
+                          disabled={yesNo}
+                          placeholder={`Opción ${String.fromCharCode(65 + i)}`}
+                          className="flex-1 bg-lt-card2 border border-[rgba(255,255,255,0.07)] rounded-btn px-3 py-2.5 text-lt-white font-condensed text-sm placeholder:text-lt-muted focus:outline-none focus:border-lt-green/50 disabled:opacity-40 disabled:cursor-default"
+                        />
+                        {!yesNo && !winner && options.length > 2 && (
+                          <button
+                            type="button"
+                            onClick={() => removeOption(i)}
+                            className="text-lt-muted2 hover:text-lt-red transition-colors p-1"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
 
-                {!yesNo && !winner && options.length < 6 && (
-                  <button
-                    type="button"
-                    onClick={addOption}
-                    className="mt-2 text-lt-green font-condensed text-sm flex items-center gap-1.5 hover:text-lt-white transition-colors"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    Agregar opción
-                  </button>
-                )}
-              </div>
+                  {!yesNo && !winner && options.length < 6 && (
+                    <button
+                      type="button"
+                      onClick={addOption}
+                      className="mt-2 text-lt-green font-condensed text-sm flex items-center gap-1.5 hover:text-lt-white transition-colors"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      Agregar opción
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Points */}
               <div>
