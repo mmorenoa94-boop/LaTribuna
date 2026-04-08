@@ -244,7 +244,7 @@ function MatchesWithDateFilter({
 // ── MatchCard ─────────────────────────────────────────────
 
 function MatchCard({
-  match, questions, leagueId, scoringLabel, predictions, onPrediction, defaultOpen,
+  match, questions, leagueId, scoringLabel, predictions, onPrediction,
 }: {
   match: SMatch
   questions: SQuestion[]
@@ -252,12 +252,13 @@ function MatchCard({
   scoringLabel: string
   predictions: Record<string, SPrediction>
   onPrediction: (questionId: string, pred: SPrediction) => void
-  defaultOpen: boolean
+  defaultOpen?: boolean
 }) {
   const isLive = match.status === 'LIVE' || match.status === 'HALFTIME'
   const isFinished = match.status === 'FINISHED'
-  // Finished matches collapse by default to show compact summary
-  const [isExpanded, setIsExpanded] = useState(isFinished ? false : defaultOpen)
+  const hasOpen = questions.some(q => q.status === 'OPEN')
+  // Only auto-expand if match is LIVE and has open questions — everything else starts collapsed
+  const [isExpanded, setIsExpanded] = useState(isLive && hasOpen)
   const kickoff = new Date(match.kickoffAt)
   const answeredCount = questions.filter(q => predictions[q.id]).length
   const openQuestions = questions.filter(q => q.status === 'OPEN').length
@@ -286,12 +287,26 @@ function MatchCard({
           <div className="flex items-center gap-2">
             {/* Badges resumen cuando está colapsado */}
             {!isExpanded && questions.length > 0 && (
-              <span className="text-lt-muted2 font-condensed text-[10px]">
-                {answeredCount}/{questions.length}
-                {openQuestions > 0 && (
-                  <span className="text-lt-green ml-1">· {openQuestions} abiertas</span>
+              <div className="flex items-center gap-1.5">
+                {openQuestions > 0 ? (
+                  <span className="flex items-center gap-1 bg-lt-green/15 border border-lt-green/30 text-lt-green font-condensed text-[10px] font-700 px-2 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-lt-green animate-pulse-dot" />
+                    {openQuestions} abiertas
+                  </span>
+                ) : answeredCount === questions.length ? (
+                  <span className="flex items-center gap-1 bg-lt-green/10 text-lt-green font-condensed text-[10px] px-2 py-0.5 rounded-full">
+                    ✅ {answeredCount}/{questions.length}
+                  </span>
+                ) : answeredCount > 0 ? (
+                  <span className="flex items-center gap-1 bg-lt-amber/10 border border-lt-amber/20 text-lt-amber font-condensed text-[10px] px-2 py-0.5 rounded-full">
+                    ⚠️ {answeredCount}/{questions.length}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 bg-lt-red/10 border border-lt-red/20 text-lt-red font-condensed text-[10px] px-2 py-0.5 rounded-full">
+                    0/{questions.length} sin responder
+                  </span>
                 )}
-              </span>
+              </div>
             )}
             <MatchStatusBadge match={match} />
             <svg

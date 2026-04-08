@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { scoreQuestionAnswers } from '@/lib/scoring'
 import { emitQuestionOpen, emitQuestionClose, emitQuestionResolve, emitLeaderboardUpdate } from '@/lib/socket-emit'
+import { sendEmail, emailLiveQuestion } from '@/lib/email'
 
 /**
  * Reverse all scoring effects of a previously resolved question.
@@ -112,14 +113,19 @@ export async function PATCH(
       closedAt: updated.closedAt?.toISOString() ?? null,
     })
 
-    // Create in-app notifications for all league members (non-blocking)
+    // Create in-app notifications + send emails for all league members (non-blocking)
     if (question.timing === 'LIVE') {
       const leagueName = league.name
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://latribuna.app'
+      const triviaUrl = `${appUrl}/ligas/${params.id}/trivia?matchId=${question.matchId}`
+
       prisma.leagueMember.findMany({
         where: { leagueId: params.id, status: 'APPROVED', userId: { not: session.user.id } },
-        select: { userId: true },
+        select: { userId: true, user: { select: { email: true } } },
       }).then(async (members) => {
         if (members.length === 0) return
+
+        // In-app notifications
         await prisma.notification.createMany({
           data: members.map((m) => ({
             userId: m.userId,
@@ -133,6 +139,13 @@ export async function PATCH(
             },
           })),
         })
+
+        // Email notifications
+        const emails = members.map((m) => m.user.email).filter(Boolean)
+        if (emails.length > 0) {
+          const emailData = emailLiveQuestion(leagueName, updated.text, updated.pointsValue, triviaUrl)
+          await sendEmail({ to: emails, ...emailData })
+        }
       }).catch(() => {})
     }
 
