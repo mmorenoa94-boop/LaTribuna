@@ -294,9 +294,22 @@ export function AdminPanel({
             <p className="font-condensed text-xs text-lt-muted2 uppercase tracking-wide">{leagueName}</p>
             <h1 className="font-bebas text-2xl text-lt-white leading-none tracking-wide">Panel Admin</h1>
           </div>
-          <span className="ml-auto bg-lt-green/15 border border-lt-green/30 text-lt-green font-condensed text-xs px-2.5 py-1 rounded-full">
-            Admin
-          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <Link
+              href={`/ligas/${leagueId}/tv`}
+              target="_blank"
+              className="flex items-center gap-1.5 bg-lt-card2 border border-[rgba(255,255,255,0.12)] text-lt-muted2 hover:text-lt-green hover:border-lt-green/30 font-condensed text-xs px-2.5 py-1.5 rounded-full transition-colors"
+              title="Modo TV — proyectar en pantalla"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+              TV
+            </Link>
+            <span className="bg-lt-green/15 border border-lt-green/30 text-lt-green font-condensed text-xs px-2.5 py-1 rounded-full">
+              Admin
+            </span>
+          </div>
         </div>
 
         {/* ── Tab bar (only when not in question detail) ─────────────────── */}

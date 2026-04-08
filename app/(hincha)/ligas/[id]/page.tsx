@@ -257,16 +257,29 @@ export default async function LigaDetailPage({
         {/* Botones de acción */}
         <div className={`flex gap-2 mt-4 ${isCreator ? '' : 'flex-col'}`}>
           {isCreator && (
-            <Link
-              href={`/ligas/${league.id}/admin`}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-card2 border border-lt-green/30 text-lt-green font-condensed text-sm font-700 hover:bg-lt-green/10 active:scale-[0.98] transition-all"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-              </svg>
-              Panel Admin
-            </Link>
+            <>
+              <Link
+                href={`/ligas/${league.id}/admin`}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-btn bg-lt-card2 border border-lt-green/30 text-lt-green font-condensed text-sm font-700 hover:bg-lt-green/10 active:scale-[0.98] transition-all"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+                </svg>
+                Panel Admin
+              </Link>
+              <Link
+                href={`/ligas/${league.id}/tv`}
+                target="_blank"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-btn bg-lt-card2 border border-[rgba(255,255,255,0.12)] text-lt-muted font-condensed text-sm font-700 hover:border-lt-green/30 hover:text-lt-green active:scale-[0.98] transition-all"
+                title="Abrir modo TV para proyectar"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
+                TV
+              </Link>
+            </>
           )}
           <div className={isCreator ? 'flex-1' : ''}>
             <RulesButton scoringMode={sLeague.scoringMode} />
