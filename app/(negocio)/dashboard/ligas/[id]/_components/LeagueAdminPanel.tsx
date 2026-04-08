@@ -70,6 +70,17 @@ export function LeagueAdminPanel({ league, members }: { league: LeagueData; memb
           <p className="text-lt-muted2 text-sm font-condensed">Administrar liga</p>
           <h1 className="text-lt-white font-bebas text-3xl leading-tight truncate">{leagueState.name}</h1>
         </div>
+        <Link
+          href={`/ligas/${leagueState.id}/tv`}
+          target="_blank"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-btn bg-lt-card border border-[rgba(255,255,255,0.12)] text-lt-muted2 hover:text-lt-amber hover:border-lt-amber/30 font-condensed text-sm font-700 transition-colors flex-shrink-0"
+          title="Abrir modo TV para proyectar en pantalla"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+          </svg>
+          Modo TV
+        </Link>
       </div>
 
       {/* Tab bar — scrollable on mobile */}
