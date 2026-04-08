@@ -8,7 +8,7 @@ import {
   type QuestionTemplate,
   type QuestionProfile,
 } from '@/lib/question-templates'
-import type { QuestionRow } from './AddQuestionModal'
+import type { QuestionRow } from './types'
 
 interface Props {
   leagueId: string

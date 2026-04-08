@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { AdminPanel } from './_components/AdminPanel'
+import { AdminShell } from '@/components/league-admin'
+import type { MatchRow, QuestionRow } from '@/components/league-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,17 +15,31 @@ export default async function AdminPage({ params, searchParams }: Props) {
   const session = await auth()
   if (!session) redirect('/login')
 
-  // Solo el creador puede acceder
   const league = await prisma.league.findUnique({
     where: { id: params.id },
-    select: { id: true, name: true, description: true, type: true, maxMembers: true, allowRemote: true, allowMemberInvites: true, scoringMode: true, matchMode: true, creatorId: true, bannerUrl: true, themeColor: true, businessId: true },
+    select: {
+      id: true, name: true, description: true, type: true, maxMembers: true,
+      allowRemote: true, allowMemberInvites: true, requireApproval: true,
+      minConsumption: true, minConsumptionAmount: true,
+      scoringMode: true, matchMode: true, creatorId: true,
+      bannerUrl: true, themeColor: true, businessId: true,
+      inviteCode: true, status: true,
+      _count: { select: { members: true } },
+    },
   })
 
   if (!league || league.creatorId !== session.user.id) {
     redirect(`/ligas/${params.id}`)
   }
 
-  // Cargar partidos iniciales
+  // Load members
+  const members = await prisma.leagueMember.findMany({
+    where: { leagueId: league.id },
+    include: { user: { select: { id: true, name: true, image: true, email: true } } },
+    orderBy: [{ status: 'asc' }, { joinedAt: 'desc' }],
+  })
+
+  // Load matches
   const leagueMatches = await prisma.leagueMatch.findMany({
     where: { leagueId: params.id },
     include: { match: true },
@@ -41,7 +56,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
     : []
   const countMap = Object.fromEntries(qCounts.map((q) => [q.matchId, q._count.id]))
 
-  const initialMatches = leagueMatches.map((lm) => ({
+  const initialMatches: MatchRow[] = leagueMatches.map((lm) => ({
     id: lm.match.id,
     homeTeam: lm.match.homeTeam,
     awayTeam: lm.match.awayTeam,
@@ -54,9 +69,9 @@ export default async function AdminPage({ params, searchParams }: Props) {
     questionCount: countMap[lm.matchId] ?? 0,
   }))
 
-  // Cargar preguntas si viene matchId en la URL
+  // Load questions if matchId is in URL
   const matchId = searchParams.matchId ?? null
-  let initialQuestions: object[] = []
+  let initialQuestions: QuestionRow[] = []
   if (matchId) {
     const qs = await prisma.leagueQuestion.findMany({
       where: { leagueId: params.id, matchId },
@@ -64,33 +79,62 @@ export default async function AdminPage({ params, searchParams }: Props) {
       include: { _count: { select: { answers: true, predictions: true } } },
     })
     initialQuestions = qs.map((q) => ({
-      ...q,
+      id: q.id,
+      text: q.text,
+      type: q.type,
       options: q.options as string[],
+      pointsValue: q.pointsValue,
+      timing: q.timing,
+      status: q.status,
+      orderIndex: q.orderIndex,
+      correctAnswer: q.correctAnswer,
       openAt: q.openAt?.toISOString() ?? null,
       closedAt: q.closedAt?.toISOString() ?? null,
       resolvedAt: q.resolvedAt?.toISOString() ?? null,
+      winnersCount: q.winnersCount,
+      totalPot: q.totalPot,
+      _count: q._count,
     }))
   }
 
   return (
-    <AdminPanel
-      leagueId={params.id}
-      leagueName={league.name}
-      leagueDescription={league.description}
-      leagueMaxMembers={league.maxMembers}
-      leagueAllowRemote={league.allowRemote}
-      leagueAllowMemberInvites={league.allowMemberInvites}
-      creatorId={league.creatorId}
-      sessionUserId={session.user.id}
+    <AdminShell
+      league={{
+        id: league.id,
+        name: league.name,
+        description: league.description,
+        inviteCode: league.inviteCode,
+        allowRemote: league.allowRemote,
+        requireApproval: league.requireApproval,
+        allowMemberInvites: league.allowMemberInvites,
+        minConsumption: league.minConsumption,
+        minConsumptionAmount: league.minConsumptionAmount,
+        type: league.type,
+        matchMode: league.matchMode,
+        scoringMode: league.scoringMode,
+        maxMembers: league.maxMembers,
+        status: league.status,
+        memberCount: league._count.members,
+        bannerUrl: league.bannerUrl,
+        themeColor: league.themeColor ?? '#00E676',
+        hasLinkedBusiness: !!league.businessId,
+      }}
+      members={members.map((m) => ({
+        id: m.userId,
+        name: m.user.name ?? 'Sin nombre',
+        email: m.user.email ?? '',
+        image: m.user.image,
+        status: m.status,
+        points: m.totalPoints,
+        joinedAt: m.joinedAt.toISOString(),
+        isCreator: m.userId === league.creatorId,
+        consumptionVerified: m.consumptionVerified,
+      }))}
       initialMatches={initialMatches}
-      initialQuestions={initialQuestions as Parameters<typeof AdminPanel>[0]['initialQuestions']}
+      initialQuestions={initialQuestions}
       initialMatchId={matchId}
-      initialBannerUrl={league.bannerUrl ?? null}
-      initialThemeColor={league.themeColor ?? '#00E676'}
-      leagueScoringMode={league.scoringMode as 'FIXED' | 'POOL'}
-      leagueMatchMode={league.matchMode as 'PER_MATCH' | 'SEASON'}
-      leagueType={league.type as 'PRIVATE' | 'INVITE_ONLY' | 'PUBLIC' | 'BUSINESS'}
-      hasLinkedBusiness={!!league.businessId}
+      backHref={`/ligas/${params.id}`}
+      defaultTab={matchId ? 'matches' : 'invite'}
     />
   )
 }
