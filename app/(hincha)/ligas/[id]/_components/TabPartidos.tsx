@@ -286,7 +286,7 @@ function MatchCard({
         )}
       >
         {/* Top bar: competition + status + chevron */}
-        <div className="flex items-center justify-between px-4 pt-3 pb-0">
+        <div className="flex items-center justify-between px-4 pt-3">
           <span className="text-lt-muted2 font-condensed text-[10px] uppercase tracking-widest">
             {match.competition}
           </span>
@@ -304,37 +304,37 @@ function MatchCard({
           </div>
         </div>
 
-        {/* Teams + Score — centered with max-width for better proportions */}
+        {/* Teams + Score — horizontal layout like FotMob/Apple Sports */}
         <div className="px-4 py-3">
-          <div className="flex items-center justify-center max-w-[400px] mx-auto">
-            {/* Home team */}
-            <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
-              {match.homeLogo ? (
-                <Image src={match.homeLogo} alt={match.homeTeam} width={40} height={40} className="object-contain flex-shrink-0" />
-              ) : (
-                <TeamPlaceholder size={40} />
-              )}
-              <span className="text-lt-white font-condensed text-xs font-700 text-center leading-tight line-clamp-2">
+          <div className="flex items-center">
+            {/* Home team — name + logo */}
+            <div className="flex-1 flex items-center justify-end gap-2.5 min-w-0">
+              <span className="text-lt-white font-condensed text-sm font-700 text-right leading-tight truncate">
                 {match.homeTeam}
               </span>
+              {match.homeLogo ? (
+                <Image src={match.homeLogo} alt={match.homeTeam} width={32} height={32} className="object-contain flex-shrink-0" />
+              ) : (
+                <TeamPlaceholder />
+              )}
             </div>
 
-            {/* Score / Time — center column */}
-            <div className="flex flex-col items-center px-3 min-w-[72px]">
+            {/* Score / Time — center */}
+            <div className="flex flex-col items-center mx-4 min-w-[56px]">
               {isLive || isFinished ? (
                 <span className={cn(
-                  'font-bebas text-3xl leading-none tabular-nums tracking-wide',
+                  'font-bebas text-2xl leading-none tabular-nums',
                   isLive ? 'text-lt-green' : 'text-lt-white'
                 )}>
                   {match.homeScore ?? 0} - {match.awayScore ?? 0}
                 </span>
               ) : (
-                <span className="font-bebas text-2xl text-lt-white tabular-nums leading-none">
+                <span className="font-bebas text-xl text-lt-white tabular-nums leading-none">
                   {kickoff.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
               {isLive && match.minutePlayed && (
-                <span className="text-lt-red text-[10px] font-condensed font-700 mt-1 flex items-center gap-1">
+                <span className="text-lt-red text-[10px] font-condensed font-700 mt-0.5 flex items-center gap-1">
                   <span className="w-1 h-1 rounded-full bg-lt-red animate-pulse-dot" />
                   {formatMatchMinute(match.minutePlayed)}
                 </span>
@@ -346,14 +346,14 @@ function MatchCard({
               )}
             </div>
 
-            {/* Away team */}
-            <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+            {/* Away team — logo + name */}
+            <div className="flex-1 flex items-center gap-2.5 min-w-0">
               {match.awayLogo ? (
-                <Image src={match.awayLogo} alt={match.awayTeam} width={40} height={40} className="object-contain flex-shrink-0" />
+                <Image src={match.awayLogo} alt={match.awayTeam} width={32} height={32} className="object-contain flex-shrink-0" />
               ) : (
-                <TeamPlaceholder size={40} />
+                <TeamPlaceholder />
               )}
-              <span className="text-lt-white font-condensed text-xs font-700 text-center leading-tight line-clamp-2">
+              <span className="text-lt-white font-condensed text-sm font-700 leading-tight truncate">
                 {match.awayTeam}
               </span>
             </div>
@@ -366,7 +366,7 @@ function MatchCard({
             <div className="flex items-center justify-center gap-2 flex-wrap">
               {/* Open questions with pending answers */}
               {unansweredOpen > 0 && (
-                <span className="flex items-center gap-1 bg-lt-amber/10 border border-lt-amber/25 text-lt-amber font-condensed text-[10px] font-700 px-2.5 py-1 rounded-full">
+                <span className="flex items-center gap-1 bg-lt-amber/10 border border-lt-amber/25 text-lt-amber font-condensed text-xs font-700 px-2.5 py-1 rounded-full">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
@@ -375,7 +375,7 @@ function MatchCard({
               )}
               {/* Answered open questions */}
               {answeredOpen > 0 && (
-                <span className="flex items-center gap-1 bg-lt-green/10 border border-lt-green/25 text-lt-green font-condensed text-[10px] font-700 px-2.5 py-1 rounded-full">
+                <span className="flex items-center gap-1 bg-lt-green/10 border border-lt-green/25 text-lt-green font-condensed text-xs font-700 px-2.5 py-1 rounded-full">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
@@ -384,7 +384,7 @@ function MatchCard({
               )}
               {/* All answered, no more open — show completed */}
               {openQuestions === 0 && answeredCount === questions.length && questions.length > 0 && (
-                <span className="flex items-center gap-1 bg-lt-green/10 text-lt-green font-condensed text-[10px] font-700 px-2.5 py-1 rounded-full">
+                <span className="flex items-center gap-1 bg-lt-green/10 text-lt-green font-condensed text-xs font-700 px-2.5 py-1 rounded-full">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
@@ -393,27 +393,27 @@ function MatchCard({
               )}
               {/* Partially answered, none open */}
               {openQuestions === 0 && answeredCount > 0 && answeredCount < questions.length && (
-                <span className="flex items-center gap-1 bg-lt-card2 text-lt-muted2 font-condensed text-[10px] px-2.5 py-1 rounded-full">
+                <span className="flex items-center gap-1 bg-lt-card2 text-lt-muted2 font-condensed text-xs px-2.5 py-1 rounded-full">
                   {answeredCount}/{questions.length} respondidas
                 </span>
               )}
               {/* No open, never answered */}
               {openQuestions === 0 && answeredCount === 0 && !isFinished && (
-                <span className="text-lt-muted2 font-condensed text-[10px]">
+                <span className="text-lt-muted2 font-condensed text-xs">
                   {questions.length} pregunta{questions.length !== 1 ? 's' : ''} · Pendientes
                 </span>
               )}
               {/* Finished match summary when collapsed */}
               {isFinished && !isExpanded && (
                 <>
-                  <span className="text-lt-muted2 font-condensed text-[10px]">·</span>
-                  <span className="text-lt-muted2 font-condensed text-[10px]">
+                  <span className="text-lt-muted2 font-condensed text-xs">·</span>
+                  <span className="text-lt-muted2 font-condensed text-xs">
                     {correctCount} acierto{correctCount !== 1 ? 's' : ''}
                   </span>
                   {totalPointsEarned > 0 && (
                     <>
-                      <span className="text-lt-muted2 font-condensed text-[10px]">·</span>
-                      <span className="text-lt-green font-condensed text-[10px] font-700">
+                      <span className="text-lt-muted2 font-condensed text-xs">·</span>
+                      <span className="text-lt-green font-condensed text-xs font-700">
                         +{totalPointsEarned} pts
                       </span>
                     </>
@@ -752,8 +752,8 @@ function QuestionStatusPill({ status }: { status: string }) {
   )
 }
 
-function TeamPlaceholder({ size = 32 }: { size?: number }) {
-  return <div className="rounded-full bg-lt-card2 border border-[rgba(255,255,255,0.1)] flex-shrink-0" style={{ width: size, height: size }} />
+function TeamPlaceholder() {
+  return <div className="w-8 h-8 rounded-full bg-lt-card2 border border-[rgba(255,255,255,0.1)] flex-shrink-0" />
 }
 
 function EmptyPartidos() {
