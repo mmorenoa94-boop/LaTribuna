@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import type { MatchRow } from './AddMatchModal'
+import type { MatchRow } from './types'
 
 interface Props {
   leagueId: string

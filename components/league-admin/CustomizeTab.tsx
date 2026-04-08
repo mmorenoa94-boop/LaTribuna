@@ -115,16 +115,15 @@ export function CustomizeTab({ leagueId, initialBannerUrl, initialThemeColor }: 
         Personalizar liga
       </h2>
 
-      {/* ── Banner Upload ──────────────────────────────────────────── */}
+      {/* Banner Upload */}
       <div>
         <label className="block font-condensed text-xs text-lt-muted2 uppercase tracking-wide mb-2">
           Banner de la liga
         </label>
         <p className="font-condensed text-xs text-lt-muted mb-3">
-          Se muestra como encabezado en la vista de la liga. Ideal para promociones, logos o branding. Recomendado: 1200×400px.
+          Se muestra como encabezado en la vista de la liga. Ideal para promociones, logos o branding. Recomendado: 1200x400px.
         </p>
 
-        {/* Preview */}
         {bannerUrl && (
           <div className="relative mb-3 rounded-card overflow-hidden border border-[rgba(255,255,255,0.07)]">
             <Image
@@ -145,7 +144,6 @@ export function CustomizeTab({ leagueId, initialBannerUrl, initialThemeColor }: 
           </div>
         )}
 
-        {/* Drop zone */}
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
           onDragLeave={() => setDragOver(false)}
@@ -186,7 +184,7 @@ export function CustomizeTab({ leagueId, initialBannerUrl, initialThemeColor }: 
         />
       </div>
 
-      {/* ── Theme Color ──────────────────────────────────────────── */}
+      {/* Theme Color */}
       <div>
         <label className="block font-condensed text-xs text-lt-muted2 uppercase tracking-wide mb-2">
           Color de la liga
@@ -216,7 +214,6 @@ export function CustomizeTab({ leagueId, initialBannerUrl, initialThemeColor }: 
           ))}
         </div>
 
-        {/* Preview stripe */}
         <div className="mt-4 rounded-card overflow-hidden">
           <div className="h-2" style={{ backgroundColor: themeColor }} />
           <div className="bg-lt-card p-3 flex items-center gap-2">
@@ -228,7 +225,6 @@ export function CustomizeTab({ leagueId, initialBannerUrl, initialThemeColor }: 
         </div>
       </div>
 
-      {/* ── Message ──────────────────────────────────────────── */}
       {message && (
         <p className={cn(
           'font-condensed text-sm px-3 py-2 rounded-btn border',
@@ -240,7 +236,6 @@ export function CustomizeTab({ leagueId, initialBannerUrl, initialThemeColor }: 
         </p>
       )}
 
-      {/* ── Save Button ──────────────────────────────────────────── */}
       <button
         onClick={handleSave}
         disabled={saving}
