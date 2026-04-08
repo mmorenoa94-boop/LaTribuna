@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { checkAchievements } from '@/lib/achievements'
 
 export async function POST(req: Request) {
   try {
@@ -40,6 +41,11 @@ export async function POST(req: Request) {
         status: needsApproval ? 'PENDING' : 'APPROVED',
       },
     })
+
+    // Check league-related achievements
+    if (!needsApproval) {
+      checkAchievements(session.user.id, 'league').catch(() => {})
+    }
 
     return NextResponse.json({
       league,

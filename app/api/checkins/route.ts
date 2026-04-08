@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { haversineDistance } from '@/lib/geo'
 import { rateLimit } from '@/lib/rate-limit'
+import { checkAchievements } from '@/lib/achievements'
 
 // POST — Create check-in (validates geolocation server-side)
 export async function POST(req: NextRequest) {
@@ -80,6 +81,9 @@ export async function POST(req: NextRequest) {
         lng,
       },
     })
+
+    // Check checkin achievement
+    checkAchievements(session.user.id, 'checkin').catch(() => {})
 
     return NextResponse.json(checkin, { status: 201 })
   } catch (error) {

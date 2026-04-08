@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { XPBar } from '@/components/hincha/XPBar'
 import { XPExplainer } from '@/components/hincha/XPExplainer'
+import { AchievementsGrid } from '@/components/hincha/AchievementsGrid'
 import { LeagueCard } from '@/components/hincha/LeagueCard'
 import { PromoBanner } from '@/components/hincha/PromoBanner'
 import { NotifBanner } from '@/components/hincha/NotifBanner'
@@ -60,6 +61,9 @@ export default async function HomePage() {
           <XPExplainer />
         </>
       )}
+
+      {/* Achievements */}
+      <AchievementsGrid compact />
 
       {/* Admin notifications (reminders, messages) */}
       <NotifBanner />
