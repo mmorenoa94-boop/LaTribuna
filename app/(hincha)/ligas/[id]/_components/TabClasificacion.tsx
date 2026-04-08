@@ -423,7 +423,7 @@ function PlayerDetailModal({ player, matches, isCurrentUser, onClose }: {
         </div>
 
         {/* Match breakdown list */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto px-5 py-4 pb-24 sm:pb-4 space-y-3">
           <p className="font-condensed text-xs text-lt-muted2 uppercase tracking-widest">
             Desglose por partido
           </p>
