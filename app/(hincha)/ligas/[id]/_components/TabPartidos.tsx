@@ -267,50 +267,33 @@ function MatchCard({
   const correctCount = questions.filter(q => predictions[q.id]?.isCorrect === true).length
   const totalPointsEarned = questions.reduce((sum, q) => sum + (predictions[q.id]?.pointsEarned ?? 0), 0)
 
+  // Derived counts
+  const unansweredOpen = questions.filter(q => q.status === 'OPEN' && !predictions[q.id]).length
+  const answeredOpen = questions.filter(q => q.status === 'OPEN' && predictions[q.id]).length
+
   return (
-    <div className="bg-lt-card rounded-card border border-[rgba(255,255,255,0.07)] overflow-hidden">
+    <div className={cn(
+      'bg-lt-card rounded-card border overflow-hidden transition-colors',
+      isLive ? 'border-lt-red/30' : 'border-[rgba(255,255,255,0.07)]'
+    )}>
       {/* Match header — clickable to toggle */}
       <button
         onClick={() => setIsExpanded((prev) => !prev)}
         className={cn(
-          'w-full text-left px-4 pt-4 pb-3 transition-colors',
-          isLive && 'bg-lt-red/5 border-b border-lt-red/20',
-          !isLive && !isExpanded && 'border-b border-transparent',
-          !isLive && isExpanded && 'border-b border-[rgba(255,255,255,0.05)]'
+          'w-full text-left transition-colors',
+          isLive && 'bg-lt-red/5',
+          isExpanded && 'border-b border-[rgba(255,255,255,0.05)]'
         )}
       >
-        {/* Competition + status + chevron */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-lt-muted2 font-condensed text-xs uppercase tracking-wide">
+        {/* Top bar: competition + status + chevron */}
+        <div className="flex items-center justify-between px-4 pt-3 pb-0">
+          <span className="text-lt-muted2 font-condensed text-[10px] uppercase tracking-widest">
             {match.competition}
           </span>
-          <div className="flex items-center gap-2">
-            {/* Badges resumen cuando está colapsado */}
-            {!isExpanded && questions.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                {openQuestions > 0 ? (
-                  <span className="flex items-center gap-1 bg-lt-green/15 border border-lt-green/30 text-lt-green font-condensed text-[10px] font-700 px-2 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-lt-green animate-pulse-dot" />
-                    {openQuestions} abiertas
-                  </span>
-                ) : answeredCount === questions.length ? (
-                  <span className="flex items-center gap-1 bg-lt-green/10 text-lt-green font-condensed text-[10px] px-2 py-0.5 rounded-full">
-                    ✅ {answeredCount}/{questions.length}
-                  </span>
-                ) : answeredCount > 0 ? (
-                  <span className="flex items-center gap-1 bg-lt-amber/10 border border-lt-amber/20 text-lt-amber font-condensed text-[10px] px-2 py-0.5 rounded-full">
-                    ⚠️ {answeredCount}/{questions.length}
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 bg-lt-red/10 border border-lt-red/20 text-lt-red font-condensed text-[10px] px-2 py-0.5 rounded-full">
-                    0/{questions.length} sin responder
-                  </span>
-                )}
-              </div>
-            )}
+          <div className="flex items-center gap-1.5">
             <MatchStatusBadge match={match} />
             <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
               className={cn(
                 'text-lt-muted2 transition-transform duration-200 flex-shrink-0',
                 isExpanded && 'rotate-180'
@@ -321,89 +304,137 @@ function MatchCard({
           </div>
         </div>
 
-        {/* Equipos + marcador */}
-        <div className="flex items-center gap-2">
-          {/* Home */}
-          <div className="flex flex-1 items-center justify-end gap-2">
-            <span className="text-lt-white font-condensed text-base font-700 text-right leading-tight">
-              {match.homeTeam}
-            </span>
-            {match.homeLogo ? (
-              <Image src={match.homeLogo} alt={match.homeTeam} width={32} height={32} className="object-contain flex-shrink-0" />
-            ) : (
-              <TeamPlaceholder />
-            )}
-          </div>
+        {/* Teams + Score — centered with max-width for better proportions */}
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-center max-w-[400px] mx-auto">
+            {/* Home team */}
+            <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+              {match.homeLogo ? (
+                <Image src={match.homeLogo} alt={match.homeTeam} width={40} height={40} className="object-contain flex-shrink-0" />
+              ) : (
+                <TeamPlaceholder size={40} />
+              )}
+              <span className="text-lt-white font-condensed text-xs font-700 text-center leading-tight line-clamp-2">
+                {match.homeTeam}
+              </span>
+            </div>
 
-          {/* Marcador */}
-          <div className="flex flex-col items-center min-w-[52px]">
-            {isLive || isFinished ? (
-              <span className={cn(
-                'font-bebas text-2xl leading-none tabular-nums',
-                isLive ? 'text-lt-green' : 'text-lt-white'
-              )}>
-                {match.homeScore ?? 0} - {match.awayScore ?? 0}
-              </span>
-            ) : (
-              <span className="text-lt-muted2 font-condensed text-sm tabular-nums">
-                {kickoff.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            )}
-            {isLive && match.minutePlayed && (
-              <span className="text-lt-red text-[10px] font-condensed mt-0.5">
-                {formatMatchMinute(match.minutePlayed)}
-              </span>
-            )}
-            {!isLive && !isFinished && (
-              <span className="text-lt-muted2 text-[10px] font-condensed mt-0.5">
-                {kickoff.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
-              </span>
-            )}
-          </div>
+            {/* Score / Time — center column */}
+            <div className="flex flex-col items-center px-3 min-w-[72px]">
+              {isLive || isFinished ? (
+                <span className={cn(
+                  'font-bebas text-3xl leading-none tabular-nums tracking-wide',
+                  isLive ? 'text-lt-green' : 'text-lt-white'
+                )}>
+                  {match.homeScore ?? 0} - {match.awayScore ?? 0}
+                </span>
+              ) : (
+                <span className="font-bebas text-2xl text-lt-white tabular-nums leading-none">
+                  {kickoff.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+              {isLive && match.minutePlayed && (
+                <span className="text-lt-red text-[10px] font-condensed font-700 mt-1 flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-lt-red animate-pulse-dot" />
+                  {formatMatchMinute(match.minutePlayed)}
+                </span>
+              )}
+              {!isLive && !isFinished && (
+                <span className="text-lt-muted2 text-[10px] font-condensed mt-0.5">
+                  {kickoff.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+                </span>
+              )}
+            </div>
 
-          {/* Away */}
-          <div className="flex flex-1 items-center gap-2">
-            {match.awayLogo ? (
-              <Image src={match.awayLogo} alt={match.awayTeam} width={32} height={32} className="object-contain flex-shrink-0" />
-            ) : (
-              <TeamPlaceholder />
-            )}
-            <span className="text-lt-white font-condensed text-base font-700 leading-tight">
-              {match.awayTeam}
-            </span>
+            {/* Away team */}
+            <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+              {match.awayLogo ? (
+                <Image src={match.awayLogo} alt={match.awayTeam} width={40} height={40} className="object-contain flex-shrink-0" />
+              ) : (
+                <TeamPlaceholder size={40} />
+              )}
+              <span className="text-lt-white font-condensed text-xs font-700 text-center leading-tight line-clamp-2">
+                {match.awayTeam}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* CTA si está en vivo */}
-        {isLive && (
-          <Link
-            href={`/ligas/${leagueId}/trivia?matchId=${match.id}`}
-            onClick={(e) => e.stopPropagation()}
-            className="mt-3 w-full flex items-center justify-center gap-2 bg-lt-red text-white font-condensed font-700 text-sm py-2.5 rounded-btn hover:opacity-90 transition-opacity"
-          >
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse-dot" />
-            ¡JUGAR EN VIVO AHORA!
-          </Link>
+        {/* Question status bar — always visible when there are questions */}
+        {questions.length > 0 && (
+          <div className="px-4 pb-3">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              {/* Open questions with pending answers */}
+              {unansweredOpen > 0 && (
+                <span className="flex items-center gap-1 bg-lt-amber/10 border border-lt-amber/25 text-lt-amber font-condensed text-[10px] font-700 px-2.5 py-1 rounded-full">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  {unansweredOpen} sin responder
+                </span>
+              )}
+              {/* Answered open questions */}
+              {answeredOpen > 0 && (
+                <span className="flex items-center gap-1 bg-lt-green/10 border border-lt-green/25 text-lt-green font-condensed text-[10px] font-700 px-2.5 py-1 rounded-full">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  {answeredOpen} respondida{answeredOpen !== 1 ? 's' : ''}
+                </span>
+              )}
+              {/* All answered, no more open — show completed */}
+              {openQuestions === 0 && answeredCount === questions.length && questions.length > 0 && (
+                <span className="flex items-center gap-1 bg-lt-green/10 text-lt-green font-condensed text-[10px] font-700 px-2.5 py-1 rounded-full">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  {answeredCount}/{questions.length} completadas
+                </span>
+              )}
+              {/* Partially answered, none open */}
+              {openQuestions === 0 && answeredCount > 0 && answeredCount < questions.length && (
+                <span className="flex items-center gap-1 bg-lt-card2 text-lt-muted2 font-condensed text-[10px] px-2.5 py-1 rounded-full">
+                  {answeredCount}/{questions.length} respondidas
+                </span>
+              )}
+              {/* No open, never answered */}
+              {openQuestions === 0 && answeredCount === 0 && !isFinished && (
+                <span className="text-lt-muted2 font-condensed text-[10px]">
+                  {questions.length} pregunta{questions.length !== 1 ? 's' : ''} · Pendientes
+                </span>
+              )}
+              {/* Finished match summary when collapsed */}
+              {isFinished && !isExpanded && (
+                <>
+                  <span className="text-lt-muted2 font-condensed text-[10px]">·</span>
+                  <span className="text-lt-muted2 font-condensed text-[10px]">
+                    {correctCount} acierto{correctCount !== 1 ? 's' : ''}
+                  </span>
+                  {totalPointsEarned > 0 && (
+                    <>
+                      <span className="text-lt-muted2 font-condensed text-[10px]">·</span>
+                      <span className="text-lt-green font-condensed text-[10px] font-700">
+                        +{totalPointsEarned} pts
+                      </span>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
         )}
 
-        {/* Compact summary for finished matches when collapsed */}
-        {isFinished && !isExpanded && questions.length > 0 && (
-          <div className="mt-3 flex items-center justify-between bg-lt-card2 rounded-btn px-3 py-2">
-            <div className="flex items-center gap-3">
-              <span className="text-lt-muted2 font-condensed text-xs">
-                ✅ {correctCount}/{questions.length} aciertos
-              </span>
-              <span className="text-lt-muted2 font-condensed text-xs">·</span>
-              <span className={cn(
-                'font-condensed text-xs font-700',
-                totalPointsEarned > 0 ? 'text-lt-green' : 'text-lt-muted2'
-              )}>
-                {totalPointsEarned > 0 ? `+${totalPointsEarned} pts` : '0 pts'}
-              </span>
-            </div>
-            <span className="text-lt-muted2 font-condensed text-[10px]">
-              Toca para ver detalle
-            </span>
+        {/* CTA si está en vivo */}
+        {isLive && (
+          <div className="px-4 pb-3">
+            <Link
+              href={`/ligas/${leagueId}/trivia?matchId=${match.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full flex items-center justify-center gap-2 bg-lt-red text-white font-condensed font-700 text-sm py-2.5 rounded-btn hover:opacity-90 transition-opacity"
+            >
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse-dot" />
+              ¡JUGAR EN VIVO AHORA!
+            </Link>
           </div>
         )}
       </button>
@@ -721,8 +752,8 @@ function QuestionStatusPill({ status }: { status: string }) {
   )
 }
 
-function TeamPlaceholder() {
-  return <div className="w-8 h-8 rounded-full bg-lt-card2 border border-lt-muted flex-shrink-0" />
+function TeamPlaceholder({ size = 32 }: { size?: number }) {
+  return <div className="rounded-full bg-lt-card2 border border-[rgba(255,255,255,0.1)] flex-shrink-0" style={{ width: size, height: size }} />
 }
 
 function EmptyPartidos() {
