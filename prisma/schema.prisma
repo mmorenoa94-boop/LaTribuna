@@ -44,6 +44,7 @@ model User {
   checkins          Checkin[]
   redemptions       Redemption[]
   pushSubscriptions PushSubscription[]
+  achievements      UserAchievement[]
 }
 
 enum UserRole {
@@ -561,5 +562,18 @@ model UserInterest {
   tag    String
 
   @@unique([userId, tag])
+}
+
+// LOGROS / ACHIEVEMENTS
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  @@unique([userId, achievementId])
+  @@index([userId])
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { checkAchievements } from '@/lib/achievements'
 
 /**
  * PATCH /api/leagues/[id]/admin/members/[uid]
@@ -51,6 +52,9 @@ export async function PATCH(
     where: { leagueId_userId: { leagueId: params.id, userId: params.uid } },
     data: { status: 'APPROVED' },
   })
+
+  // Check league achievements for the approved member
+  checkAchievements(params.uid, 'league').catch(() => {})
 
   return NextResponse.json(updated)
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { awardXp } from '@/lib/scoring'
+import { checkAchievements } from '@/lib/achievements'
 import type { Gender } from '@prisma/client'
 
 // XP reward for completing profile to 100% (configurable)
@@ -126,6 +127,7 @@ export async function PATCH(req: Request) {
     updated.xp = result.newXp
     updated.level = result.newLevel
     xpAwarded = PROFILE_COMPLETE_XP
+    checkAchievements(session.user.id, 'profile').catch(() => {})
   }
 
   return NextResponse.json({ ...updated, xpAwarded })

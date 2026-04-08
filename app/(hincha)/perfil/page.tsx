@@ -7,6 +7,7 @@ import { getBalance } from '@/lib/wallet'
 import { formatCOP } from '@/lib/utils'
 import { XPBar } from '@/components/hincha/XPBar'
 import { XPExplainer } from '@/components/hincha/XPExplainer'
+import { AchievementsGrid } from '@/components/hincha/AchievementsGrid'
 import { SignOutButton } from './_components/SignOutButton'
 import { AccuracyStatCard } from './_components/AccuracyStatCard'
 
@@ -203,6 +204,9 @@ export default async function PerfilPage() {
             <StatCard label="Racha" value={`${user.streak}🔥`} icon="📅" />
           </div>
         </div>
+
+        {/* Achievements */}
+        <AchievementsGrid compact />
 
         {/* Profile completeness */}
         <ProfileCompletenessBar pct={user.profilePct} />

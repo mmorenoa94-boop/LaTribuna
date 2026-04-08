@@ -1,5 +1,6 @@
   import { prisma } from './prisma'
   import { creditWallet } from './wallet'
+  import { checkAchievements } from './achievements'
 
   // ── Level System ──
   // XP thresholds per level (cumulative)
@@ -62,6 +63,11 @@
       data: { xp: newXp, level: newLevel },
     })
 
+    // Check level-based achievements
+    if (leveledUp) {
+      checkAchievements(userId, 'level').catch(() => {})
+    }
+
     return { newXp, newLevel, leveledUp }
   }
 
@@ -104,6 +110,9 @@
         if (bonusXp > 0) {
           await awardXp(userId, bonusXp)
         }
+
+        // Check streak achievements
+        checkAchievements(userId, 'streak').catch(() => {})
 
         return { streak: newStreak, bonusXp }
       }
@@ -267,14 +276,24 @@
       })
     })
 
-    // XP and streaks outside the transaction (non-critical, OK if they fail independently)
+    // XP, streaks, and achievements outside the transaction (non-critical)
     for (const participant of correctOnes) {
       try {
         await awardXp(participant.userId, participant.model === 'answer' ? 5 : 10)
         await updateStreak(participant.userId)
+        // Achievement checks
+        await checkAchievements(participant.userId, 'correct')
+        if (participant.model === 'answer') {
+          await checkAchievements(participant.userId, 'live_answer')
+        }
       } catch (e) {
-        console.error(`[scoring] XP/streak error for user ${participant.userId}:`, e)
+        console.error(`[scoring] XP/streak/achievement error for user ${participant.userId}:`, e)
       }
+    }
+
+    // Check answer count achievements for ALL participants
+    for (const participant of allParticipants) {
+      checkAchievements(participant.userId, 'answer').catch(() => {})
     }
 
     return { scored: totalParticipants, correct: winnersCount, totalPot, winnersCount }
@@ -390,6 +409,12 @@
 
         // Award XP (10 XP for correct prediction)
         await awardXp(pred.userId, 10)
+
+        // Achievement checks
+        checkAchievements(pred.userId, 'correct').catch(() => {})
+        if (isScoreType) {
+          checkAchievements(pred.userId, 'score_correct').catch(() => {})
+        }
       }
 
       // Store pot metadata on the question
