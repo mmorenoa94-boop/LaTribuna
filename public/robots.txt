@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /entrega_2/
+Disallow: /entrega_2

@@ -82,6 +82,12 @@ const nextConfig = {
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
     ],
   },
+  async rewrites() {
+    return [
+      { source: '/entrega_2', destination: '/entrega_2/index.html' },
+      { source: '/entrega_2/', destination: '/entrega_2/index.html' },
+    ]
+  },
 }
 
 export default pwaConfig(nextConfig)
