@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Shield (clean, geometric) -->
+  <path d="M32 6 
+           L52 14 
+           L48 42 
+           L32 58 
+           L16 42 
+           L12 14 
+           Z" 
+        fill="#0A0C0F"/>
+
+  <!-- LT monogram (minimal, aligned) -->
+  <g fill="#FFB300">
+    <!-- L -->
+    <rect x="22" y="24" width="4" height="16"/>
+    <rect x="22" y="36" width="10" height="4"/>
+
+    <!-- T -->
+    <rect x="30" y="24" width="12" height="4"/>
+    <rect x="35" y="24" width="4" height="16"/>
+  </g>
+</svg>
