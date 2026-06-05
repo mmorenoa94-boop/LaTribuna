@@ -3,6 +3,8 @@ import type {
   LeagueMember, WalletTransaction, Reward, Notification,
   UserRole, LeagueType, MatchStatus, QuestionType,
   QuestionTiming, QuestionStatus, TransactionType,
+  WorldCupPool, PoolQuestion, PoolEntry, PoolAnswer,
+  PoolStatus, PoolEntryStatus, PoolQuestionType, PoolQuestionCategory,
 } from '@prisma/client'
 
 // Re-exportar tipos de Prisma
@@ -11,6 +13,8 @@ export type {
   LeagueMember, WalletTransaction, Reward, Notification,
   UserRole, LeagueType, MatchStatus, QuestionType,
   QuestionTiming, QuestionStatus, TransactionType,
+  WorldCupPool, PoolQuestion, PoolEntry, PoolAnswer,
+  PoolStatus, PoolEntryStatus, PoolQuestionType, PoolQuestionCategory,
 }
 
 // Tipos extendidos para la UI
@@ -84,4 +88,59 @@ export interface PaginatedResponse<T> {
   total: number
   page: number
   perPage: number
+}
+
+// ── Polla Mundialista ──
+
+// Pregunta para el participante (sin correctAnswer)
+export interface PoolQuestionPublic {
+  id: string
+  order: number
+  text: string
+  type: PoolQuestionType
+  category: PoolQuestionCategory
+  options: unknown
+  pointsValue: number
+  isTiebreaker: boolean
+}
+
+export interface PoolWithQuestions extends WorldCupPool {
+  questions: PoolQuestion[]
+}
+
+export interface PoolEntryWithAnswers extends PoolEntry {
+  answers: PoolAnswer[]
+}
+
+// Estado que ve el participante en /mundial
+export interface PoolStateResponse {
+  pool: {
+    id: string
+    name: string
+    season: string
+    entryFee: number
+    prizeSplit: number[]
+    status: PoolStatus
+    lockAt: string | null
+    nequiNumber: string | null
+    whatsappUrl: string | null
+  } | null
+  entry: {
+    id: string
+    status: PoolEntryStatus
+    submittedAt: string | null
+  } | null
+  questions: PoolQuestionPublic[]
+  myAnswers: Record<string, unknown> // questionId -> answer
+  confirmedCount: number
+}
+
+export interface PoolRankingEntry {
+  position: number
+  userId: string
+  name: string
+  image?: string | null
+  totalPoints: number
+  groupsCorrect: number
+  prize: number // monto en COP (0 si no está en podio)
 }
