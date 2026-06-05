@@ -86,6 +86,8 @@ const nextConfig = {
     return [
       { source: '/entrega_2', destination: '/entrega_2/index.html' },
       { source: '/entrega_2/', destination: '/entrega_2/index.html' },
+      { source: '/torneo-mundialista', destination: '/torneo-mundialista/index.html' },
+      { source: '/torneo-mundialista/', destination: '/torneo-mundialista/index.html' },
     ]
   },
 }
