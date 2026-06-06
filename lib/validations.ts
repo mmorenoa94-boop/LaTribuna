@@ -175,7 +175,19 @@ export const adminPoolSchema = z.object({
   matchPointsExactBonus: z.number().int().min(0).max(100).optional(),
 })
 
-export const adminPoolUpdateSchema = adminPoolSchema.partial()
+// Update SIN defaults (mismo motivo que en las preguntas)
+export const adminPoolUpdateSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  season: z.string().max(10).optional(),
+  entryFee: z.number().int().min(0).max(10_000_000).optional(),
+  prizeSplit: z.array(z.number().int().min(0).max(100)).length(3).optional(),
+  status: z.enum(['DRAFT', 'OPEN_REGISTRATION', 'LOCKED', 'RESOLVED']).optional(),
+  lockAt: z.string().datetime().nullable().optional(),
+  nequiNumber: z.string().max(40).nullable().optional(),
+  whatsappUrl: z.string().url().nullable().optional(),
+  matchPointsOutcome: z.number().int().min(0).max(100).optional(),
+  matchPointsExactBonus: z.number().int().min(0).max(100).optional(),
+})
 
 // Crear/editar pregunta (admin)
 export const adminPoolQuestionSchema = z.object({
@@ -189,7 +201,18 @@ export const adminPoolQuestionSchema = z.object({
   tiebreakRank: z.number().int().min(1).max(10).nullable().optional(),
 })
 
-export const adminPoolQuestionUpdateSchema = adminPoolQuestionSchema.partial()
+// Update SIN defaults: si se omite un campo, NO debe rellenarse con un valor
+// por defecto (eso sobreescribía pts/categoría/desempate al guardar solo opciones).
+export const adminPoolQuestionUpdateSchema = z.object({
+  order: z.number().int().min(0).max(200).optional(),
+  text: z.string().min(3).max(300).optional(),
+  type: z.enum(['TEAM_PICK', 'PLAYER_PICK', 'YES_NO', 'SINGLE_CHOICE', 'NUMERIC', 'GROUP_RANK']).optional(),
+  category: z.enum(['GLOBAL', 'COLOMBIA', 'BRACKET']).optional(),
+  options: z.any().optional(),
+  pointsValue: z.number().int().min(0).max(1000).optional(),
+  isTiebreaker: z.boolean().optional(),
+  tiebreakRank: z.number().int().min(1).max(10).nullable().optional(),
+})
 
 // Resolución (admin): respuestas correctas + valor real de goles Colombia
 export const resolvePoolSchema = z.object({
