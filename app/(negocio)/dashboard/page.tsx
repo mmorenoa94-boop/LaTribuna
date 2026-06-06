@@ -49,6 +49,23 @@ export default async function DashboardPage() {
         <h1 className="text-lt-white font-bebas text-3xl md:text-4xl leading-tight">{business.name}</h1>
       </div>
 
+      {/* Banner Polla Mundialista */}
+      <Link
+        href="/mundial"
+        className="block rounded-card bg-gradient-to-r from-lt-green/20 to-lt-blue/10 border border-lt-green/40 px-4 py-3"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-lt-green text-[11px] font-condensed uppercase tracking-widest">
+              Mundial 2026
+            </p>
+            <p className="text-lt-white font-bebas text-2xl leading-none">Polla Mundialista</p>
+            <p className="text-lt-muted2 text-xs">Participa y compite por el pozo →</p>
+          </div>
+          <span className="text-3xl">🏆</span>
+        </div>
+      </Link>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Check-ins hoy" value={checkinsToday} icon="📍" accent />
