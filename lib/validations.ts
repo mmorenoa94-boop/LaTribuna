@@ -134,6 +134,145 @@ export const createPaymentSchema = z.object({
   redirectUrl: z.string().url(),
 })
 
+// ── Polla Mundialista ──
+
+// Solicitud de cupo (participante)
+export const poolEntrySchema = z.object({
+  paymentNote: z.string().max(300).optional(),
+})
+
+// Guardado masivo de respuestas. answer admite string | number | string[] | { [grupo]: [1ro, 2do] }
+const poolAnswerValue = z.union([
+  z.string().max(200),
+  z.number(),
+  z.array(z.string().max(100)).max(48),
+  z.record(z.string(), z.array(z.string().max(100)).max(4)),
+])
+
+export const poolAnswersSchema = z.object({
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string().cuid(),
+        answer: poolAnswerValue,
+      })
+    )
+    .min(1)
+    .max(60),
+})
+
+// Crear/editar pool (admin)
+export const adminPoolSchema = z.object({
+  name: z.string().min(2).max(100),
+  season: z.string().max(10).default('2026'),
+  entryFee: z.number().int().min(0).max(10_000_000),
+  prizeSplit: z.array(z.number().int().min(0).max(100)).length(3).default([60, 30, 10]),
+  status: z.enum(['DRAFT', 'OPEN_REGISTRATION', 'LOCKED', 'RESOLVED']).optional(),
+  lockAt: z.string().datetime().nullable().optional(),
+  nequiNumber: z.string().max(40).nullable().optional(),
+  whatsappUrl: z.string().url().nullable().optional(),
+  matchPointsOutcome: z.number().int().min(0).max(100).optional(),
+  matchPointsExactBonus: z.number().int().min(0).max(100).optional(),
+})
+
+// Update SIN defaults (mismo motivo que en las preguntas)
+export const adminPoolUpdateSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  season: z.string().max(10).optional(),
+  entryFee: z.number().int().min(0).max(10_000_000).optional(),
+  prizeSplit: z.array(z.number().int().min(0).max(100)).length(3).optional(),
+  status: z.enum(['DRAFT', 'OPEN_REGISTRATION', 'LOCKED', 'RESOLVED']).optional(),
+  lockAt: z.string().datetime().nullable().optional(),
+  nequiNumber: z.string().max(40).nullable().optional(),
+  whatsappUrl: z.string().url().nullable().optional(),
+  matchPointsOutcome: z.number().int().min(0).max(100).optional(),
+  matchPointsExactBonus: z.number().int().min(0).max(100).optional(),
+})
+
+// Crear/editar pregunta (admin)
+export const adminPoolQuestionSchema = z.object({
+  order: z.number().int().min(0).max(200),
+  text: z.string().min(3).max(300),
+  type: z.enum(['TEAM_PICK', 'PLAYER_PICK', 'YES_NO', 'SINGLE_CHOICE', 'NUMERIC', 'GROUP_RANK']),
+  category: z.enum(['GLOBAL', 'COLOMBIA', 'BRACKET']).default('GLOBAL'),
+  options: z.any().optional(),
+  pointsValue: z.number().int().min(0).max(1000).default(20),
+  isTiebreaker: z.boolean().default(false),
+  tiebreakRank: z.number().int().min(1).max(10).nullable().optional(),
+})
+
+// Update SIN defaults: si se omite un campo, NO debe rellenarse con un valor
+// por defecto (eso sobreescribía pts/categoría/desempate al guardar solo opciones).
+export const adminPoolQuestionUpdateSchema = z.object({
+  order: z.number().int().min(0).max(200).optional(),
+  text: z.string().min(3).max(300).optional(),
+  type: z.enum(['TEAM_PICK', 'PLAYER_PICK', 'YES_NO', 'SINGLE_CHOICE', 'NUMERIC', 'GROUP_RANK']).optional(),
+  category: z.enum(['GLOBAL', 'COLOMBIA', 'BRACKET']).optional(),
+  options: z.any().optional(),
+  pointsValue: z.number().int().min(0).max(1000).optional(),
+  isTiebreaker: z.boolean().optional(),
+  tiebreakRank: z.number().int().min(1).max(10).nullable().optional(),
+})
+
+// Resolución (admin): respuestas correctas + valor real de goles Colombia
+export const resolvePoolSchema = z.object({
+  corrections: z
+    .array(
+      z.object({
+        questionId: z.string().cuid(),
+        correctAnswer: poolAnswerValue,
+      })
+    )
+    .min(1),
+  colombiaGoalsReal: z.number().int().min(0).max(100).nullable().optional(),
+  totalGoalsReal: z.number().int().min(0).max(500).nullable().optional(),
+})
+
+// ── Partidos de la polla ──
+
+export const poolMatchSchema = z.object({
+  homeTeam: z.string().min(1).max(60),
+  awayTeam: z.string().min(1).max(60),
+  homeFlag: z.string().max(200).nullable().optional(),
+  awayFlag: z.string().max(200).nullable().optional(),
+  phase: z.string().max(60).default('Fase de grupos'),
+  kickoffAt: z.string().datetime().nullable().optional(),
+  order: z.number().int().min(0).max(1000).default(0),
+})
+
+// Carga masiva (CSV ya parseado a array en el cliente)
+export const poolMatchBulkSchema = z.object({
+  matches: z.array(poolMatchSchema).min(1).max(200),
+})
+
+// Edición admin: status, datos, y marcador real
+export const poolMatchUpdateSchema = z.object({
+  homeTeam: z.string().min(1).max(60).optional(),
+  awayTeam: z.string().min(1).max(60).optional(),
+  homeFlag: z.string().max(200).nullable().optional(),
+  awayFlag: z.string().max(200).nullable().optional(),
+  phase: z.string().max(60).optional(),
+  kickoffAt: z.string().datetime().nullable().optional(),
+  order: z.number().int().min(0).max(1000).optional(),
+  status: z.enum(['SCHEDULED', 'OPEN', 'CLOSED', 'FINISHED']).optional(),
+  homeScore: z.number().int().min(0).max(99).nullable().optional(),
+  awayScore: z.number().int().min(0).max(99).nullable().optional(),
+})
+
+// Pronóstico de marcadores del participante
+export const poolMatchPredictionsSchema = z.object({
+  predictions: z
+    .array(
+      z.object({
+        matchId: z.string().cuid(),
+        homePredict: z.number().int().min(0).max(99),
+        awayPredict: z.number().int().min(0).max(99),
+      })
+    )
+    .min(1)
+    .max(200),
+})
+
 // ── Battles ──
 export const createBattleSchema = z.object({
   name: z.string().min(2).max(100),

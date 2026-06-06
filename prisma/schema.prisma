@@ -45,6 +45,7 @@ model User {
   redemptions       Redemption[]
   pushSubscriptions PushSubscription[]
   achievements      UserAchievement[]
+  poolEntries       PoolEntry[]
 }
 
 enum UserRole {
@@ -176,7 +177,7 @@ enum MatchMode {
 
 enum ScoringMode {
   FIXED // Cada respuesta correcta da los puntos fijos de la pregunta
-  POOL  // Los puntos se reparten entre los que aciertan
+  POOL // Los puntos se reparten entre los que aciertan
 }
 
 enum VerifType {
@@ -577,3 +578,161 @@ model UserAchievement {
   @@index([userId])
 }
 
+// POLLA MUNDIALISTA 2026
+
+enum PoolStatus {
+  DRAFT
+  OPEN_REGISTRATION
+  LOCKED
+  RESOLVED
+}
+
+enum PoolEntryStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+enum PoolQuestionType {
+  TEAM_PICK
+  PLAYER_PICK
+  YES_NO
+  SINGLE_CHOICE
+  NUMERIC
+  GROUP_RANK
+}
+
+enum PoolQuestionCategory {
+  GLOBAL
+  COLOMBIA
+  BRACKET
+}
+
+model WorldCupPool {
+  id                    String     @id @default(cuid())
+  name                  String
+  season                String     @default("2026")
+  entryFee              Int
+  prizeSplit            Json       @default("[60, 30, 10]")
+  status                PoolStatus @default(DRAFT)
+  lockAt                DateTime?
+  nequiNumber           String?
+  whatsappUrl           String?
+  // Valores reales (los ingresa el admin al resolver, para los desempates por cercanía)
+  colombiaGoalsReal     Int?
+  totalGoalsReal        Int?
+  // Puntos por pronóstico de marcador: resultado (1X2) + bono por marcador exacto
+  matchPointsOutcome    Int        @default(3)
+  matchPointsExactBonus Int        @default(2)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  questions PoolQuestion[]
+  entries   PoolEntry[]
+  matches   PoolMatch[]
+}
+
+model PoolQuestion {
+  id            String               @id @default(cuid())
+  poolId        String
+  pool          WorldCupPool         @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  order         Int
+  text          String
+  type          PoolQuestionType
+  category      PoolQuestionCategory @default(GLOBAL)
+  options       Json                 @default("[]")
+  correctAnswer Json?
+  pointsValue   Int                  @default(20)
+  isTiebreaker  Boolean              @default(false)
+  tiebreakRank  Int?
+  createdAt     DateTime             @default(now())
+
+  answers PoolAnswer[]
+
+  @@index([poolId])
+}
+
+model PoolEntry {
+  id                 String          @id @default(cuid())
+  poolId             String
+  pool               WorldCupPool    @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status             PoolEntryStatus @default(PENDING)
+  paymentNote        String?
+  confirmedById      String?
+  confirmedAt        DateTime?
+  submittedAt        DateTime?
+  totalPoints        Int             @default(0)
+  groupsCorrect      Int             @default(0)
+  colombiaGoalsGuess Int?
+  totalGoalsGuess    Int?
+  firstScorerCorrect Boolean         @default(false)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  answers          PoolAnswer[]
+  matchPredictions PoolMatchPrediction[]
+
+  @@unique([poolId, userId])
+  @@index([poolId, status])
+}
+
+model PoolAnswer {
+  id           String       @id @default(cuid())
+  entryId      String
+  entry        PoolEntry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     PoolQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer       Json
+  isCorrect    Boolean?
+  pointsEarned Int          @default(0)
+
+  @@unique([entryId, questionId])
+  @@index([questionId])
+}
+
+enum PoolMatchStatus {
+  SCHEDULED // creado, aún no visible para pronosticar
+  OPEN // abierto: los usuarios pueden pronosticar marcador
+  CLOSED // cerrado: ya no se puede editar, sin resultado aún
+  FINISHED // con resultado real cargado y puntos asignados
+}
+
+model PoolMatch {
+  id        String          @id @default(cuid())
+  poolId    String
+  pool      WorldCupPool    @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  homeTeam  String
+  awayTeam  String
+  homeFlag  String?
+  awayFlag  String?
+  phase     String          @default("Fase de grupos")
+  kickoffAt DateTime?
+  order     Int             @default(0)
+  status    PoolMatchStatus @default(SCHEDULED)
+  homeScore Int?
+  awayScore Int?
+  createdAt DateTime        @default(now())
+
+  predictions PoolMatchPrediction[]
+
+  @@index([poolId])
+}
+
+model PoolMatchPrediction {
+  id             String    @id @default(cuid())
+  entryId        String
+  entry          PoolEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  matchId        String
+  match          PoolMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  homePredict    Int
+  awayPredict    Int
+  outcomeCorrect Boolean?
+  exactCorrect   Boolean?
+  pointsEarned   Int       @default(0)
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([entryId, matchId])
+  @@index([matchId])
+}
