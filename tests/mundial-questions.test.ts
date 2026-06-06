@@ -9,8 +9,8 @@ describe('buildSeedQuestions', () => {
   const seed = buildSeedQuestions()
 
   it('genera el set acordado de preguntas', () => {
-    // 6 globales + 3 Colombia + 3 desempate
-    expect(seed.length).toBe(12)
+    // 6 globales + 3 Colombia + 4 desempate (grupos, goles mundial, goles Colombia, primer goleador)
+    expect(seed.length).toBe(13)
   })
 
   it('asigna order secuencial sin huecos', () => {
@@ -18,10 +18,17 @@ describe('buildSeedQuestions', () => {
     expect(orders).toEqual(Array.from({ length: seed.length }, (_, i) => i))
   })
 
-  it('tiene exactamente 3 preguntas de desempate con rank 1,2,3', () => {
+  it('tiene exactamente 4 preguntas de desempate con rank 1,2,3,4', () => {
     const tb = seed.filter((q) => q.isTiebreaker)
-    expect(tb.length).toBe(3)
-    expect(tb.map((q) => q.tiebreakRank).sort()).toEqual([1, 2, 3])
+    expect(tb.length).toBe(4)
+    expect(tb.map((q) => q.tiebreakRank).sort()).toEqual([1, 2, 3, 4])
+  })
+
+  it('incluye un desempate de goles totales del mundial (NUMERIC global)', () => {
+    const tg = seed.find(
+      (q) => q.type === 'NUMERIC' && q.isTiebreaker && q.category === 'GLOBAL'
+    )
+    expect(tg).toBeDefined()
   })
 
   it('las preguntas de desempate no otorgan puntos', () => {

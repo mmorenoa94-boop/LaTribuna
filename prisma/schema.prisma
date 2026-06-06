@@ -618,8 +618,9 @@ model WorldCupPool {
   lockAt                DateTime?
   nequiNumber           String?
   whatsappUrl           String?
-  // Valor real de goles de Colombia (lo ingresa el admin al resolver, para el desempate)
+  // Valores reales (los ingresa el admin al resolver, para los desempates por cercanía)
   colombiaGoalsReal     Int?
+  totalGoalsReal        Int?
   // Puntos por pronóstico de marcador: resultado (1X2) + bono por marcador exacto
   matchPointsOutcome    Int        @default(3)
   matchPointsExactBonus Int        @default(2)
@@ -665,6 +666,7 @@ model PoolEntry {
   totalPoints        Int             @default(0)
   groupsCorrect      Int             @default(0)
   colombiaGoalsGuess Int?
+  totalGoalsGuess    Int?
   firstScorerCorrect Boolean         @default(false)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt

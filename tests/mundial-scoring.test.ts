@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   normalizeAnswer,
-  countGroupsCorrect,
+  countPositionsCorrect,
   outcome,
   computeMatchPoints,
   closenessScore,
@@ -27,30 +27,32 @@ describe('normalizeAnswer', () => {
   })
 })
 
-describe('countGroupsCorrect', () => {
+describe('countPositionsCorrect (ranking completo por grupo)', () => {
   const correct = {
-    A: ['Colombia', 'Brasil'],
-    B: ['Argentina', 'México'],
-    C: ['España', 'Japón'],
+    A: ['Colombia', 'Brasil', 'Serbia', 'Suiza'],
+    B: ['Argentina', 'México', 'Polonia', 'Arabia'],
   }
 
-  it('cuenta solo los grupos con orden exacto correcto', () => {
+  it('cuenta cada posición acertada sumando todos los grupos', () => {
     const user = {
-      A: ['Colombia', 'Brasil'], // correcto
-      B: ['México', 'Argentina'], // orden invertido → incorrecto
-      C: ['España', 'Japón'], // correcto
+      A: ['Colombia', 'Brasil', 'Suiza', 'Serbia'], // 2 posiciones (1° y 2°)
+      B: ['Argentina', 'México', 'Polonia', 'Arabia'], // 4 posiciones
     }
-    expect(countGroupsCorrect(user, correct)).toBe(2)
+    expect(countPositionsCorrect(user, correct)).toBe(6)
+  })
+
+  it('grupo perfecto suma sus 4 posiciones', () => {
+    const user = { A: ['Colombia', 'Brasil', 'Serbia', 'Suiza'], B: [] }
+    expect(countPositionsCorrect(user, correct)).toBe(4)
   })
 
   it('es laxo con tildes y mayúsculas', () => {
-    const user = { A: ['colombia', 'brasil'], B: [], C: ['  españa ', 'japon'] }
-    expect(countGroupsCorrect(user, correct)).toBe(2)
+    const user = { A: ['colombia', 'brasil', 'serbia', 'suiza'], B: [] }
+    expect(countPositionsCorrect(user, correct)).toBe(4)
   })
 
   it('devuelve 0 con entradas inválidas', () => {
-    expect(countGroupsCorrect(null, correct)).toBe(0)
-    expect(countGroupsCorrect({ A: ['Colombia'] }, correct)).toBe(0) // falta 2°
+    expect(countPositionsCorrect(null, correct)).toBe(0)
   })
 })
 
@@ -100,9 +102,11 @@ describe('closenessScore', () => {
 })
 
 describe('compareRanking (cascada de desempate)', () => {
+  const NO_REALS = { total: null, colombia: null }
   const base = (over: Partial<RankSortable>): RankSortable => ({
     totalPoints: 0,
     groupsCorrect: 0,
+    totalGoalsGuess: null,
     colombiaGoalsGuess: null,
     firstScorerCorrect: false,
     createdAt: new Date('2026-01-01T00:00:00Z'),
@@ -112,31 +116,38 @@ describe('compareRanking (cascada de desempate)', () => {
   it('1º criterio: más puntos primero', () => {
     const a = base({ totalPoints: 100 })
     const b = base({ totalPoints: 90 })
-    expect(compareRanking(a, b, null)).toBeLessThan(0)
+    expect(compareRanking(a, b, NO_REALS)).toBeLessThan(0)
   })
 
-  it('2º criterio: a igualdad de puntos, más grupos acertados', () => {
+  it('2º criterio: a igualdad de puntos, más posiciones de grupos acertadas', () => {
     const a = base({ totalPoints: 50, groupsCorrect: 8 })
     const b = base({ totalPoints: 50, groupsCorrect: 5 })
-    expect(compareRanking(a, b, null)).toBeLessThan(0)
+    expect(compareRanking(a, b, NO_REALS)).toBeLessThan(0)
   })
 
-  it('3º criterio: cercanía a goles reales de Colombia', () => {
-    const a = base({ totalPoints: 50, groupsCorrect: 5, colombiaGoalsGuess: 6 })
-    const b = base({ totalPoints: 50, groupsCorrect: 5, colombiaGoalsGuess: 3 })
-    expect(compareRanking(a, b, 7)).toBeLessThan(0) // 6 más cerca de 7 que 3
+  it('3º criterio: cercanía a goles totales del mundial', () => {
+    const a = base({ totalPoints: 50, groupsCorrect: 5, totalGoalsGuess: 160 })
+    const b = base({ totalPoints: 50, groupsCorrect: 5, totalGoalsGuess: 140 })
+    expect(compareRanking(a, b, { total: 165, colombia: null })).toBeLessThan(0)
   })
 
-  it('4º criterio: primer goleador acertado', () => {
-    const a = base({ totalPoints: 50, groupsCorrect: 5, colombiaGoalsGuess: 5, firstScorerCorrect: true })
-    const b = base({ totalPoints: 50, groupsCorrect: 5, colombiaGoalsGuess: 5, firstScorerCorrect: false })
-    expect(compareRanking(a, b, 5)).toBeLessThan(0)
+  it('4º criterio: cercanía a goles de Colombia', () => {
+    const a = base({ totalPoints: 50, groupsCorrect: 5, totalGoalsGuess: 150, colombiaGoalsGuess: 6 })
+    const b = base({ totalPoints: 50, groupsCorrect: 5, totalGoalsGuess: 150, colombiaGoalsGuess: 3 })
+    expect(compareRanking(a, b, { total: 150, colombia: 7 })).toBeLessThan(0)
   })
 
-  it('5º criterio: quien se inscribió primero', () => {
+  it('5º criterio: primer goleador acertado', () => {
+    const reals = { total: 150, colombia: 5 }
+    const a = base({ totalPoints: 50, groupsCorrect: 5, totalGoalsGuess: 150, colombiaGoalsGuess: 5, firstScorerCorrect: true })
+    const b = base({ totalPoints: 50, groupsCorrect: 5, totalGoalsGuess: 150, colombiaGoalsGuess: 5, firstScorerCorrect: false })
+    expect(compareRanking(a, b, reals)).toBeLessThan(0)
+  })
+
+  it('6º criterio: quien se inscribió primero', () => {
     const a = base({ totalPoints: 50, createdAt: new Date('2026-01-01T00:00:00Z') })
     const b = base({ totalPoints: 50, createdAt: new Date('2026-02-01T00:00:00Z') })
-    expect(compareRanking(a, b, null)).toBeLessThan(0)
+    expect(compareRanking(a, b, NO_REALS)).toBeLessThan(0)
   })
 
   it('ordena un arreglo completo correctamente', () => {
@@ -145,7 +156,7 @@ describe('compareRanking (cascada de desempate)', () => {
       base({ totalPoints: 80, groupsCorrect: 3 }),
       base({ totalPoints: 80, groupsCorrect: 9 }),
     ]
-    const sorted = [...entries].sort((x, y) => compareRanking(x, y, null))
+    const sorted = [...entries].sort((x, y) => compareRanking(x, y, NO_REALS))
     expect(sorted.map((e) => e.totalPoints + ':' + e.groupsCorrect)).toEqual([
       '80:9',
       '80:3',
