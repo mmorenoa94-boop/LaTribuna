@@ -202,6 +202,7 @@ export const resolvePoolSchema = z.object({
     )
     .min(1),
   colombiaGoalsReal: z.number().int().min(0).max(100).nullable().optional(),
+  totalGoalsReal: z.number().int().min(0).max(500).nullable().optional(),
 })
 
 // ── Partidos de la polla ──

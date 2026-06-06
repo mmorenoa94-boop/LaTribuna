@@ -18,12 +18,13 @@ export function normalizeAnswer(v: unknown): string {
 }
 
 /**
- * Para una pregunta GROUP_RANK: cuenta cuántos grupos el usuario acertó
- * (mismos 2 clasificados en el mismo orden 1°/2°).
+ * Para una pregunta GROUP_RANK con ranking completo: cuenta cuántas POSICIONES
+ * acertó el usuario sumadas en todos los grupos (cada equipo en su slot exacto).
  * Estructura esperada (tanto en answer del usuario como en correctAnswer):
- *   { "A": ["Equipo X", "Equipo Y"], "B": [...], ... }
+ *   { "A": ["1°","2°","3°","4°"], "B": [...], ... }
+ * Métrica más granular = mejor desempate.
  */
-export function countGroupsCorrect(userAnswer: unknown, correctAnswer: unknown): number {
+export function countPositionsCorrect(userAnswer: unknown, correctAnswer: unknown): number {
   if (
     !userAnswer || typeof userAnswer !== 'object' ||
     !correctAnswer || typeof correctAnswer !== 'object'
@@ -36,12 +37,10 @@ export function countGroupsCorrect(userAnswer: unknown, correctAnswer: unknown):
   for (const group of Object.keys(ca)) {
     const expected = ca[group] ?? []
     const got = ua[group] ?? []
-    if (
-      expected.length >= 2 && got.length >= 2 &&
-      normalizeAnswer(expected[0]) === normalizeAnswer(got[0]) &&
-      normalizeAnswer(expected[1]) === normalizeAnswer(got[1])
-    ) {
-      correct++
+    for (let i = 0; i < expected.length; i++) {
+      if (expected[i] && got[i] && normalizeAnswer(expected[i]) === normalizeAnswer(got[i])) {
+        correct++
+      }
     }
   }
   return correct
@@ -75,10 +74,17 @@ export function computeMatchPoints(
 // Campos mínimos necesarios para ordenar por la cascada de desempate
 export interface RankSortable {
   totalPoints: number
-  groupsCorrect: number
+  groupsCorrect: number // posiciones acertadas en los grupos
+  totalGoalsGuess: number | null
   colombiaGoalsGuess: number | null
   firstScorerCorrect: boolean
   createdAt: Date
+}
+
+// Valores reales para los desempates por cercanía
+export interface ClosenessReals {
+  total: number | null
+  colombia: number | null
 }
 
 /**
@@ -95,13 +101,17 @@ export function closenessScore(guess: number | null, real: number | null): numbe
 
 /**
  * Comparador puro de la cascada de desempate:
- * puntos → grupos → cercanía goles Colombia → primer goleador → fecha inscripción.
+ * puntos → posiciones de grupos → cercanía goles del mundial → cercanía goles
+ * de Colombia → primer goleador → fecha de inscripción.
  */
-export function compareRanking(a: RankSortable, b: RankSortable, real: number | null): number {
+export function compareRanking(a: RankSortable, b: RankSortable, reals: ClosenessReals): number {
   if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints
   if (b.groupsCorrect !== a.groupsCorrect) return b.groupsCorrect - a.groupsCorrect
-  const ca = closenessScore(a.colombiaGoalsGuess, real)
-  const cb = closenessScore(b.colombiaGoalsGuess, real)
+  const ta = closenessScore(a.totalGoalsGuess, reals.total)
+  const tb = closenessScore(b.totalGoalsGuess, reals.total)
+  if (ta !== tb) return ta - tb
+  const ca = closenessScore(a.colombiaGoalsGuess, reals.colombia)
+  const cb = closenessScore(b.colombiaGoalsGuess, reals.colombia)
   if (ca !== cb) return ca - cb
   if (a.firstScorerCorrect !== b.firstScorerCorrect) return a.firstScorerCorrect ? -1 : 1
   return a.createdAt.getTime() - b.createdAt.getTime()

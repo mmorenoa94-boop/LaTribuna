@@ -211,7 +211,11 @@ function PoolForm({ data, onChange }: { data: PoolStateResponse; onChange: () =>
     if (q.type === 'GROUP_RANK') {
       const groups = (q.options as GroupRankOptions)?.groups ?? []
       const obj = (v as Record<string, string[]>) || {}
-      return groups.every((g) => obj[g.name]?.[0] && obj[g.name]?.[1])
+      // Completo cuando cada grupo tiene sus 4 posiciones elegidas
+      return groups.every((g) => {
+        const r = obj[g.name] || []
+        return g.teams.every((_, i) => !!r[i])
+      })
     }
     return v !== undefined && v !== null && v !== ''
   }).length
@@ -220,12 +224,15 @@ function PoolForm({ data, onChange }: { data: PoolStateResponse; onChange: () =>
     setAnswers((prev) => ({ ...prev, [qid]: value }))
   }
 
-  function setGroupRank(qid: string, group: string, pos: 0 | 1, team: string) {
+  function setGroupRank(qid: string, group: string, pos: number, team: string) {
     setAnswers((prev) => {
-      const current = ((prev[qid] as Record<string, string[]>) || {})
-      const pair = [...(current[group] || ['', ''])]
-      pair[pos] = team
-      return { ...prev, [qid]: { ...current, [group]: pair } }
+      const current = (prev[qid] as Record<string, string[]>) || {}
+      const ranking = [...(current[group] || ['', '', '', ''])]
+      // Si el equipo ya estaba en otra posición de este grupo, lo quitamos de allí
+      const dup = ranking.indexOf(team)
+      if (dup !== -1 && dup !== pos) ranking[dup] = ''
+      ranking[pos] = team
+      return { ...prev, [qid]: { ...current, [group]: ranking } }
     })
   }
 
@@ -359,7 +366,7 @@ function QuestionCard({
   value: unknown
   editable: boolean
   onChange: (v: unknown) => void
-  onGroupChange: (group: string, pos: 0 | 1, team: string) => void
+  onGroupChange: (group: string, pos: number, team: string) => void
 }) {
   const options = (Array.isArray(q.options) ? (q.options as string[]) : []) as string[]
   const catColor =
@@ -434,7 +441,9 @@ function QuestionCard({
   )
 }
 
-// ── Selectores de bracket por grupo (1° y 2°) ──
+// ── Selectores de bracket por grupo (ranking completo 1° a 4°) ──
+const POS_LABEL = ['1° lugar', '2° lugar', '3° lugar', '4° lugar']
+
 function GroupRankInput({
   q,
   value,
@@ -444,7 +453,7 @@ function GroupRankInput({
   q: PoolQuestionPublic
   value: Record<string, string[]> | undefined
   editable: boolean
-  onGroupChange: (group: string, pos: 0 | 1, team: string) => void
+  onGroupChange: (group: string, pos: number, team: string) => void
 }) {
   const groups = (q.options as GroupRankOptions)?.groups ?? []
   const v = value || {}
@@ -452,47 +461,37 @@ function GroupRankInput({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {groups.map((g) => {
-        const first = v[g.name]?.[0] ?? ''
-        const second = v[g.name]?.[1] ?? ''
+        const ranking = v[g.name] ?? []
         return (
           <div key={g.name} className="rounded-btn bg-lt-card2/50 border border-lt-card2 p-3">
             <div className="font-bebas text-lg text-lt-white mb-2">Grupo {g.name}</div>
-            <label className="block text-[10px] text-lt-muted uppercase tracking-wider mb-1">
-              1° lugar
-            </label>
-            <select
-              disabled={!editable}
-              value={first}
-              onChange={(e) => onGroupChange(g.name, 0, e.target.value)}
-              className="w-full bg-lt-card border border-lt-card2 rounded px-2 py-1.5 text-sm text-lt-white mb-2 disabled:opacity-60"
-            >
-              <option value="">—</option>
-              {g.teams
-                .filter((t) => t !== second)
-                .map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-            </select>
-            <label className="block text-[10px] text-lt-muted uppercase tracking-wider mb-1">
-              2° lugar
-            </label>
-            <select
-              disabled={!editable}
-              value={second}
-              onChange={(e) => onGroupChange(g.name, 1, e.target.value)}
-              className="w-full bg-lt-card border border-lt-card2 rounded px-2 py-1.5 text-sm text-lt-white disabled:opacity-60"
-            >
-              <option value="">—</option>
-              {g.teams
-                .filter((t) => t !== first)
-                .map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-            </select>
+            {g.teams.map((_, pos) => {
+              const chosen = ranking[pos] ?? ''
+              // Disponibles: los no usados en otras posiciones de este grupo (+ el actual)
+              const used = new Set(ranking.filter((t, i) => t && i !== pos))
+              return (
+                <div key={pos} className="mb-2 last:mb-0">
+                  <label className="block text-[10px] text-lt-muted uppercase tracking-wider mb-1">
+                    {POS_LABEL[pos]}
+                  </label>
+                  <select
+                    disabled={!editable}
+                    value={chosen}
+                    onChange={(e) => onGroupChange(g.name, pos, e.target.value)}
+                    className="w-full bg-lt-card border border-lt-card2 rounded px-2 py-1.5 text-sm text-lt-white disabled:opacity-60"
+                  >
+                    <option value="">—</option>
+                    {g.teams
+                      .filter((t) => !used.has(t))
+                      .map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )
+            })}
           </div>
         )
       })}

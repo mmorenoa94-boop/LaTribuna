@@ -31,13 +31,15 @@ export async function POST(req: Request) {
       data: { correctAnswer: c.correctAnswer as Prisma.InputJsonValue },
     })
   )
+  const poolData: Prisma.WorldCupPoolUpdateInput = {}
   if (parsed.data.colombiaGoalsReal !== undefined) {
-    ops.push(
-      prisma.worldCupPool.update({
-        where: { id: pool.id },
-        data: { colombiaGoalsReal: parsed.data.colombiaGoalsReal },
-      })
-    )
+    poolData.colombiaGoalsReal = parsed.data.colombiaGoalsReal
+  }
+  if (parsed.data.totalGoalsReal !== undefined) {
+    poolData.totalGoalsReal = parsed.data.totalGoalsReal
+  }
+  if (Object.keys(poolData).length > 0) {
+    ops.push(prisma.worldCupPool.update({ where: { id: pool.id }, data: poolData }))
   }
   await prisma.$transaction(ops)
 
