@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client'
 import type { PoolRankingEntry } from '@/types'
 import {
   normalizeAnswer,
-  countGroupsCorrect,
+  countPositionsCorrect,
   computeMatchPoints,
   compareRanking,
   prizeForPosition,
@@ -12,14 +12,14 @@ import {
 // Re-export de la lógica pura para mantener compatibilidad con los imports existentes
 export {
   normalizeAnswer,
-  countGroupsCorrect,
+  countPositionsCorrect,
   outcome,
   computeMatchPoints,
   closenessScore,
   compareRanking,
   prizeForPosition,
 } from './mundial-scoring-pure'
-export type { RankSortable } from './mundial-scoring-pure'
+export type { RankSortable, ClosenessReals } from './mundial-scoring-pure'
 
 /**
  * Resuelve la polla completa:
@@ -128,9 +128,28 @@ export async function recomputeEntryAggregates(poolId: string) {
   if (!pool) return
 
   const questions = pool.questions
+  // Detección semántica (no por rank, robusto ante reordenamientos del admin)
   const groupQuestion = questions.find((q) => q.type === 'GROUP_RANK')
-  const colombiaGoalsQ = questions.find((q) => q.type === 'NUMERIC' && q.isTiebreaker)
-  const firstScorerQ = questions.find((q) => q.isTiebreaker && q.tiebreakRank === 3)
+  const totalGoalsQ = questions.find(
+    (q) => q.type === 'NUMERIC' && q.isTiebreaker && q.category === 'GLOBAL'
+  )
+  const colombiaGoalsQ = questions.find(
+    (q) => q.type === 'NUMERIC' && q.isTiebreaker && q.category === 'COLOMBIA'
+  )
+  const firstScorerQ = questions.find(
+    (q) => q.type === 'PLAYER_PICK' && q.isTiebreaker && q.category === 'COLOMBIA'
+  )
+
+  const numericGuess = (
+    q: { id: string } | undefined,
+    map: Map<string, { answer: unknown }>
+  ): number | null => {
+    if (!q) return null
+    const a = map.get(q.id)
+    if (!a) return null
+    const n = Number(a.answer)
+    return Number.isFinite(n) ? n : null
+  }
 
   const entries = await prisma.poolEntry.findMany({
     where: { poolId, status: 'CONFIRMED' },
@@ -146,17 +165,11 @@ export async function recomputeEntryAggregates(poolId: string) {
     let groupsCorrect = 0
     if (groupQuestion?.correctAnswer != null) {
       const ga = answerByQ.get(groupQuestion.id)
-      if (ga) groupsCorrect = countGroupsCorrect(ga.answer, groupQuestion.correctAnswer)
+      if (ga) groupsCorrect = countPositionsCorrect(ga.answer, groupQuestion.correctAnswer)
     }
 
-    let colombiaGoalsGuess: number | null = null
-    if (colombiaGoalsQ) {
-      const ca = answerByQ.get(colombiaGoalsQ.id)
-      if (ca) {
-        const n = Number(ca.answer)
-        colombiaGoalsGuess = Number.isFinite(n) ? n : null
-      }
-    }
+    const totalGoalsGuess = numericGuess(totalGoalsQ, answerByQ)
+    const colombiaGoalsGuess = numericGuess(colombiaGoalsQ, answerByQ)
 
     let firstScorerCorrect = false
     if (firstScorerQ?.correctAnswer != null) {
@@ -172,6 +185,7 @@ export async function recomputeEntryAggregates(poolId: string) {
       data: {
         totalPoints: answerPts + matchPts,
         groupsCorrect,
+        totalGoalsGuess,
         colombiaGoalsGuess,
         firstScorerCorrect,
       },
@@ -198,11 +212,11 @@ export async function buildRanking(poolId: string): Promise<PoolRankingEntry[]> 
     include: { user: { select: { id: true, name: true, image: true } } },
   })
 
-  const real = pool.colombiaGoalsReal
+  const reals = { total: pool.totalGoalsReal, colombia: pool.colombiaGoalsReal }
   const split = (pool.prizeSplit as number[]) ?? [60, 30, 10]
   const pot = pool.entryFee * entries.length
 
-  const sorted = [...entries].sort((a, b) => compareRanking(a, b, real))
+  const sorted = [...entries].sort((a, b) => compareRanking(a, b, reals))
 
   return sorted.map((e, idx) => {
     const position = idx + 1

@@ -82,6 +82,7 @@ export default function AdminClient() {
             questions={data.questions}
             onChange={(m) => { flash(m); load() }}
           />
+          <GroupsEditor questions={data.questions} onChange={(m) => { flash(m); load() }} />
           <MatchesManager matches={data.matches} onChange={(m) => { flash(m); load() }} />
           <EntriesManager onChange={(m) => { flash(m); load() }} counts={data.entryCounts} />
           <ResolvePanel pool={data.pool} questions={data.questions} onResolved={(m) => { flash(m); load() }} />
@@ -237,9 +238,13 @@ function QuestionsManager({
 }) {
   const [busy, setBusy] = useState(false)
 
-  async function seed() {
+  async function seed(reset = false) {
+    if (reset && !confirm('Esto BORRA las preguntas actuales (y sus respuestas) y las recrea. ¿Continuar?')) return
     setBusy(true)
-    const res = await fetch('/api/admin/mundial/seed-questions', { method: 'POST' })
+    const url = reset
+      ? '/api/admin/mundial/seed-questions?reset=1'
+      : '/api/admin/mundial/seed-questions'
+    const res = await fetch(url, { method: 'POST' })
     const j = await res.json().catch(() => ({}))
     setBusy(false)
     onChange(res.ok ? `Sembradas ${j.data?.created} preguntas` : j.error || 'Error al sembrar')
@@ -255,9 +260,13 @@ function QuestionsManager({
     <div className="rounded-card bg-lt-card border border-lt-card2 p-5 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="font-bebas text-2xl text-lt-white">Preguntas ({questions.length})</h2>
-        {questions.length === 0 && (
-          <button onClick={seed} disabled={busy} className="btn-primary">
+        {questions.length === 0 ? (
+          <button onClick={() => seed(false)} disabled={busy} className="btn-primary">
             {busy ? 'Sembrando…' : 'Sembrar preguntas'}
+          </button>
+        ) : (
+          <button onClick={() => seed(true)} disabled={busy} className="btn-primary" style={{ background: '#FF6D00' }}>
+            {busy ? 'Procesando…' : 'Re-sembrar (borra y recrea)'}
           </button>
         )}
       </div>
@@ -397,6 +406,9 @@ function ResolvePanel({
   const [colombiaGoals, setColombiaGoals] = useState(
     pool.colombiaGoalsReal != null ? String(pool.colombiaGoalsReal) : ''
   )
+  const [totalGoals, setTotalGoals] = useState(
+    pool.totalGoalsReal != null ? String(pool.totalGoalsReal) : ''
+  )
   const [busy, setBusy] = useState(false)
 
   function setCorr(id: string, v: string) {
@@ -428,6 +440,7 @@ function ResolvePanel({
       body: JSON.stringify({
         corrections: payload,
         colombiaGoalsReal: colombiaGoals === '' ? null : Number(colombiaGoals),
+        totalGoalsReal: totalGoals === '' ? null : Number(totalGoals),
       }),
     })
     const j = await res.json().catch(() => ({}))
@@ -442,14 +455,24 @@ function ResolvePanel({
         Ingresa la respuesta correcta de cada pregunta. Para el bracket de grupos usa JSON, ej:{' '}
         <code>{'{"A":["Equipo A1","Equipo A2"]}'}</code>. Las preguntas de desempate no dan puntos.
       </p>
-      <Field label="Goles reales de Colombia (desempate)">
-        <input
-          type="number"
-          className="inp"
-          value={colombiaGoals}
-          onChange={(e) => setColombiaGoals(e.target.value)}
-        />
-      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Goles totales del mundial (desempate)">
+          <input
+            type="number"
+            className="inp"
+            value={totalGoals}
+            onChange={(e) => setTotalGoals(e.target.value)}
+          />
+        </Field>
+        <Field label="Goles reales de Colombia (desempate)">
+          <input
+            type="number"
+            className="inp"
+            value={colombiaGoals}
+            onChange={(e) => setColombiaGoals(e.target.value)}
+          />
+        </Field>
+      </div>
       <div className="space-y-2">
         {questions.map((q) => (
           <Field key={q.id} label={`${q.order + 1}. ${q.text}`}>
@@ -464,6 +487,113 @@ function ResolvePanel({
       </div>
       <button onClick={resolve} disabled={busy} className="btn-primary">
         {busy ? 'Calculando…' : 'Resolver y calcular ranking'}
+      </button>
+      <style jsx global>{styles}</style>
+    </div>
+  )
+}
+
+// ── Editor de grupos y selecciones ──
+type GroupDef = { name: string; teams: string[] }
+
+function GroupsEditor({
+  questions,
+  onChange,
+}: {
+  questions: PoolQuestion[]
+  onChange: (m: string) => void
+}) {
+  const groupQ = questions.find((q) => q.type === 'GROUP_RANK')
+  const teamPickQs = questions.filter((q) => q.type === 'TEAM_PICK')
+
+  const initial: GroupDef[] = (() => {
+    const opt = groupQ?.options as { groups?: GroupDef[] } | undefined
+    if (opt?.groups?.length) {
+      return opt.groups.map((g) => ({
+        name: g.name,
+        teams: [0, 1, 2, 3].map((i) => g.teams?.[i] ?? ''),
+      }))
+    }
+    return []
+  })()
+
+  const [groups, setGroups] = useState<GroupDef[]>(initial)
+  const [busy, setBusy] = useState(false)
+
+  if (!groupQ) {
+    return (
+      <div className="rounded-card bg-lt-card border border-lt-card2 p-5">
+        <h2 className="font-bebas text-2xl text-lt-white">Grupos y selecciones</h2>
+        <p className="text-sm text-lt-muted">Siembra las preguntas primero para configurar los grupos.</p>
+      </div>
+    )
+  }
+
+  function setTeam(gi: number, ti: number, val: string) {
+    setGroups((prev) => {
+      const next = prev.map((g) => ({ name: g.name, teams: [...g.teams] }))
+      next[gi].teams[ti] = val
+      return next
+    })
+  }
+
+  async function save() {
+    setBusy(true)
+    // 1. Guardar los grupos en la pregunta GROUP_RANK
+    const r1 = await fetch(`/api/admin/mundial/questions/${groupQ!.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ options: { groups } }),
+    })
+    // 2. Derivar las 48 selecciones y actualizarlas en campeón/subcampeón/3°
+    const teams = Array.from(
+      new Set(groups.flatMap((g) => g.teams.map((t) => t.trim()).filter(Boolean)))
+    ).sort((a, b) => a.localeCompare(b, 'es'))
+
+    let ok = r1.ok
+    for (const q of teamPickQs) {
+      const r = await fetch(`/api/admin/mundial/questions/${q.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ options: teams }),
+      })
+      ok = ok && r.ok
+    }
+    setBusy(false)
+    onChange(
+      ok
+        ? `Grupos guardados · ${teams.length} selecciones aplicadas a campeón/subcampeón/3°`
+        : 'Error al guardar grupos'
+    )
+  }
+
+  return (
+    <div className="rounded-card bg-lt-card border border-lt-card2 p-5 space-y-3">
+      <h2 className="font-bebas text-2xl text-lt-white">Grupos y selecciones</h2>
+      <p className="text-xs text-lt-muted">
+        Escribe los 4 equipos de cada grupo (en cualquier orden; el usuario los ordenará). Al guardar,
+        la lista completa de selecciones se aplica automáticamente a las preguntas de campeón,
+        subcampeón y tercer puesto.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {groups.map((g, gi) => (
+          <div key={g.name} className="rounded-btn bg-lt-card2/40 border border-lt-card2 p-3">
+            <div className="font-bebas text-lg text-lt-white mb-2">Grupo {g.name}</div>
+            {g.teams.map((t, ti) => (
+              <input
+                key={ti}
+                className="inp"
+                style={{ marginBottom: 6 }}
+                value={t}
+                onChange={(e) => setTeam(gi, ti, e.target.value)}
+                placeholder={`Equipo ${ti + 1}`}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+      <button onClick={save} disabled={busy} className="btn-primary">
+        {busy ? 'Guardando…' : 'Guardar grupos y selecciones'}
       </button>
       <style jsx global>{styles}</style>
     </div>
