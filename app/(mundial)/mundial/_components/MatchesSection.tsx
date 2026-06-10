@@ -10,6 +10,7 @@ type MatchRow = {
   homeFlag: string | null
   awayFlag: string | null
   phase: string
+  groupName: string | null
   kickoffAt: string | null
   status: 'OPEN' | 'CLOSED' | 'FINISHED'
   homeScore: number | null
@@ -35,6 +36,37 @@ const STATUS_LABEL: Record<string, string> = {
   FINISHED: 'Finalizado',
 }
 
+const NO_DATE_KEY = 'sin-fecha'
+
+// La fecha/hora se guarda como hora-pared de Colombia dentro de un instante UTC
+// (ej. 21:00 CO => ...T21:00:00Z). Por eso agrupamos, etiquetamos y mostramos la hora
+// SIEMPRE en UTC: así un partido nocturno no se corre de día y la hora mostrada es la de Colombia.
+function dayKey(iso: string | null): string {
+  if (!iso) return NO_DATE_KEY
+  return iso.slice(0, 10) // "YYYY-MM-DD" directo del ISO
+}
+
+function dayLabel(iso: string | null): string {
+  if (!iso) return 'Sin fecha'
+  const label = new Date(iso).toLocaleDateString('es-CO', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  })
+  return label.replace(',', '').toUpperCase() // "JUEVES 11 DE JUNIO"
+}
+
+function timeLabel(iso: string | null): string | null {
+  if (!iso) return null
+  return new Date(iso).toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+  })
+}
+
 export default function MatchesSection() {
   const { data, refetch } = useQuery({
     queryKey: ['mundial-matches'],
@@ -46,8 +78,10 @@ export default function MatchesSection() {
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [selectedDay, setSelectedDay] = useState<string>('ALL')
 
-  // Inicializa el borrador con las predicciones existentes
+  // Inicializa el borrador con TODAS las predicciones existentes (no solo el día visible),
+  // para que al guardar nunca se pierdan los marcadores escritos en otros días.
   useEffect(() => {
     if (!data) return
     const init: Record<string, { h: string; a: string }> = {}
@@ -60,13 +94,33 @@ export default function MatchesSection() {
     setDraft(init)
   }, [data])
 
-  const grouped = useMemo(() => {
-    const g: Record<string, MatchRow[]> = {}
+  // Días ordenados cronológicamente (el "sin fecha" va al final).
+  const days = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; count: number }>()
     for (const m of data?.data ?? []) {
-      ;(g[m.phase] ??= []).push(m)
+      const key = dayKey(m.kickoffAt)
+      const existing = map.get(key)
+      if (existing) existing.count++
+      else map.set(key, { key, label: dayLabel(m.kickoffAt), count: 1 })
     }
-    return g
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.key === NO_DATE_KEY) return 1
+      if (b.key === NO_DATE_KEY) return -1
+      return a.key < b.key ? -1 : a.key > b.key ? 1 : 0
+    })
   }, [data])
+
+  // Partidos del/los día(s) visible(s), agrupados por día para mostrar el encabezado.
+  const visibleGroups = useMemo(() => {
+    const wanted = selectedDay === 'ALL' ? days.map((d) => d.key) : [selectedDay]
+    return wanted
+      .map((key) => ({
+        key,
+        label: days.find((d) => d.key === key)?.label ?? '',
+        matches: (data?.data ?? []).filter((m) => dayKey(m.kickoffAt) === key),
+      }))
+      .filter((g) => g.matches.length > 0)
+  }, [data, days, selectedDay])
 
   if (!data || data.data.length === 0) return null
 
@@ -79,6 +133,7 @@ export default function MatchesSection() {
   async function save() {
     setSaving(true)
     setError(null)
+    // Recorre TODOS los partidos abiertos (sin importar el día visible) y manda los que tengan marcador.
     const predictions = (data?.data ?? [])
       .filter((m) => m.status === 'OPEN')
       .map((m) => ({ m, d: draft[m.id] }))
@@ -124,29 +179,68 @@ export default function MatchesSection() {
         Pronostica el marcador de cada partido habilitado. Se cierran cuando el admin lo indique.
       </p>
 
-      {Object.entries(grouped).map(([phase, matches]) => (
-        <div key={phase} className="mb-5">
-          <div className="text-[11px] font-condensed uppercase tracking-widest text-lt-green mb-2">
-            {phase}
+      {/* Selector de día: TODOS + cada fecha */}
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1">
+        <button
+          onClick={() => setSelectedDay('ALL')}
+          className={`shrink-0 px-3 py-1.5 rounded-btn text-xs font-condensed uppercase tracking-wider whitespace-nowrap ${
+            selectedDay === 'ALL'
+              ? 'bg-lt-green text-black'
+              : 'bg-lt-card border border-lt-card2 text-lt-muted'
+          }`}
+        >
+          Todos
+        </button>
+        {days.map((d) => (
+          <button
+            key={d.key}
+            onClick={() => setSelectedDay(d.key)}
+            className={`shrink-0 px-3 py-1.5 rounded-btn text-xs font-condensed uppercase tracking-wider whitespace-nowrap ${
+              selectedDay === d.key
+                ? 'bg-lt-green text-black'
+                : 'bg-lt-card border border-lt-card2 text-lt-muted'
+            }`}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
+      {visibleGroups.map((group) => (
+        <div key={group.key} className="mb-5">
+          <div className="flex items-center justify-between bg-lt-card2 rounded-card px-3 py-2 mb-2">
+            <span className="text-[11px] font-condensed uppercase tracking-widest text-lt-white">
+              {group.label}
+            </span>
+            <span className="text-[10px] text-lt-muted">
+              {group.matches.length} {group.matches.length === 1 ? 'partido' : 'partidos'}
+            </span>
           </div>
           <div className="space-y-2">
-            {matches.map((m) => {
+            {group.matches.map((m) => {
               const editable = canEdit && m.status === 'OPEN'
               const d = draft[m.id] ?? { h: '', a: '' }
+              const hora = timeLabel(m.kickoffAt)
               return (
-                <div
-                  key={m.id}
-                  className="rounded-card bg-lt-card border border-lt-card2 p-3"
-                >
+                <div key={m.id} className="rounded-card bg-lt-card border border-lt-card2 p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] uppercase tracking-wider text-lt-muted">
-                      {STATUS_LABEL[m.status]}
+                    <span className="flex items-center gap-2">
+                      {m.groupName && (
+                        <span className="text-[10px] font-condensed uppercase tracking-wider text-lt-green border border-lt-green/40 rounded px-1.5 py-0.5">
+                          Grupo {m.groupName}
+                        </span>
+                      )}
+                      <span className="text-[10px] uppercase tracking-wider text-lt-muted">
+                        {STATUS_LABEL[m.status]}
+                      </span>
                     </span>
-                    {m.status === 'FINISHED' && (
+                    {m.status === 'FINISHED' ? (
                       <span className="text-[10px] text-lt-green">
                         Real: {m.homeScore}-{m.awayScore}
                         {m.myPrediction ? ` · +${m.myPrediction.pointsEarned} pts` : ''}
                       </span>
+                    ) : (
+                      hora && <span className="text-[10px] text-lt-muted">{hora}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
