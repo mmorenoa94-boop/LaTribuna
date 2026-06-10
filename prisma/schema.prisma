@@ -708,6 +708,7 @@ model PoolMatch {
   homeFlag  String?
   awayFlag  String?
   phase     String          @default("Fase de grupos")
+  groupName String?         // Grupo del mundial (A-L) durante la fase de grupos
   kickoffAt DateTime?
   order     Int             @default(0)
   status    PoolMatchStatus @default(SCHEDULED)

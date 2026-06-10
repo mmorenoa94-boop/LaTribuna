@@ -45,6 +45,7 @@ export async function GET() {
       homeFlag: m.homeFlag,
       awayFlag: m.awayFlag,
       phase: m.phase,
+      groupName: m.groupName,
       kickoffAt: m.kickoffAt ? m.kickoffAt.toISOString() : null,
       status: m.status,
       homeScore: m.homeScore,
