@@ -143,5 +143,6 @@ export interface PoolRankingEntry {
   totalPoints: number
   groupsCorrect: number
   matchesCorrect: number // partidos con resultado (1X2) acertado
+  exactCorrect: number // partidos con marcador exacto acertado (subconjunto de matchesCorrect)
   prize: number // monto en COP (0 si no está en podio)
 }
