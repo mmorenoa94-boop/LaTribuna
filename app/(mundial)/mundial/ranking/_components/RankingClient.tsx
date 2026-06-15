@@ -13,6 +13,8 @@ type RankingResponse = {
     entryFee: number
     prizeSplit: number[]
     pot: number
+    matchPointsOutcome: number
+    matchPointsExactBonus: number
   } | null
 }
 
@@ -63,6 +65,11 @@ export default function RankingClient() {
             {ranking.length} participante(s) · reparto {pool.prizeSplit.join(' / ')}%
             {!resolved && ' · estimado hasta el cierre'}
           </div>
+          <div className="text-xs text-lt-muted mt-2 pt-2 border-t border-lt-card2">
+            Puntaje: <span className="text-lt-white">+{pool.matchPointsOutcome}</span> por resultado
+            acertado · <span className="text-lt-green">+{pool.matchPointsExactBonus}</span> extra por
+            marcador exacto
+          </div>
         </div>
       )}
 
@@ -101,6 +108,12 @@ export default function RankingClient() {
                 <div className="text-lt-white font-medium truncate">{r.name}</div>
                 <div className="text-xs text-lt-muted">
                   {r.matchesCorrect} {r.matchesCorrect === 1 ? 'partido acertado' : 'partidos acertados'}
+                  {r.exactCorrect > 0 && (
+                    <span className="text-lt-green">
+                      {' · '}
+                      {r.exactCorrect} {r.exactCorrect === 1 ? 'exacto' : 'exactos'}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="text-right">
