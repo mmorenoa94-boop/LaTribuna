@@ -209,7 +209,10 @@ export async function buildRanking(poolId: string): Promise<PoolRankingEntry[]> 
 
   const entries = await prisma.poolEntry.findMany({
     where: { poolId, status: 'CONFIRMED' },
-    include: { user: { select: { id: true, name: true, image: true } } },
+    include: {
+      user: { select: { id: true, name: true, image: true } },
+      matchPredictions: { select: { outcomeCorrect: true } },
+    },
   })
 
   const reals = { total: pool.totalGoalsReal, colombia: pool.colombiaGoalsReal }
@@ -220,6 +223,7 @@ export async function buildRanking(poolId: string): Promise<PoolRankingEntry[]> 
 
   return sorted.map((e, idx) => {
     const position = idx + 1
+    const matchesCorrect = e.matchPredictions.filter((m) => m.outcomeCorrect).length
     return {
       position,
       userId: e.user.id,
@@ -227,6 +231,7 @@ export async function buildRanking(poolId: string): Promise<PoolRankingEntry[]> 
       image: e.user.image,
       totalPoints: e.totalPoints,
       groupsCorrect: e.groupsCorrect,
+      matchesCorrect,
       prize: prizeForPosition(position, split, pot),
     }
   })

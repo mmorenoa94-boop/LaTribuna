@@ -44,3 +44,7 @@ next-env.d.ts
 /public/worker-*.js
 /public/sw.js.map
 /public/workbox-*.js.map
+
+# Exportes con datos personales de inscritos (no versionar)
+/correos-produccion.csv
+/inscritos_polla_mundialista.csv

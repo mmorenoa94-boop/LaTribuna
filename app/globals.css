@@ -30,7 +30,10 @@
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
+  /* `clip` evita el scroll horizontal igual que `hidden`, pero sin convertir al
+     body en contenedor de scroll — eso es lo que rompía `position: sticky`
+     (p. ej. la barra "Guardar marcadores"). No usar `hidden` aquí. */
+  overflow-x: clip;
   background-color: #0A0C0F;
   color: #F0F2F5;
   -webkit-tap-highlight-color: transparent;

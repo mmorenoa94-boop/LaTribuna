@@ -142,5 +142,6 @@ export interface PoolRankingEntry {
   image?: string | null
   totalPoints: number
   groupsCorrect: number
+  matchesCorrect: number // partidos con resultado (1X2) acertado
   prize: number // monto en COP (0 si no está en podio)
 }
