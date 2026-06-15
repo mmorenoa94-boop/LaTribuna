@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { NO_DATE_KEY, dayKey, buildPredictionsPayload, countUnsaved } from '@/lib/mundial-matches-pure'
 
 type MatchRow = {
   id: string
@@ -36,16 +37,10 @@ const STATUS_LABEL: Record<string, string> = {
   FINISHED: 'Finalizado',
 }
 
-const NO_DATE_KEY = 'sin-fecha'
-
 // La fecha/hora se guarda como hora-pared de Colombia dentro de un instante UTC
-// (ej. 21:00 CO => ...T21:00:00Z). Por eso agrupamos, etiquetamos y mostramos la hora
-// SIEMPRE en UTC: así un partido nocturno no se corre de día y la hora mostrada es la de Colombia.
-function dayKey(iso: string | null): string {
-  if (!iso) return NO_DATE_KEY
-  return iso.slice(0, 10) // "YYYY-MM-DD" directo del ISO
-}
-
+// (ej. 21:00 CO => ...T21:00:00Z). Por eso etiquetamos y mostramos la hora SIEMPRE en UTC:
+// así un partido nocturno no se corre de día y la hora mostrada es la de Colombia.
+// (dayKey/NO_DATE_KEY viven en lib/mundial-matches-pure para poder testearlos.)
 function dayLabel(iso: string | null): string {
   if (!iso) return 'Sin fecha'
   const label = new Date(iso).toLocaleDateString('es-CO', {
@@ -122,6 +117,9 @@ export default function MatchesSection() {
       .filter((g) => g.matches.length > 0)
   }, [data, days, selectedDay])
 
+  // Marcadores completos (de partidos abiertos) que difieren de lo ya guardado en BD.
+  const unsavedCount = useMemo(() => countUnsaved(data?.data ?? [], draft), [data, draft])
+
   if (!data || data.data.length === 0) return null
 
   const canEdit = data.entryStatus === 'CONFIRMED'
@@ -134,15 +132,7 @@ export default function MatchesSection() {
     setSaving(true)
     setError(null)
     // Recorre TODOS los partidos abiertos (sin importar el día visible) y manda los que tengan marcador.
-    const predictions = (data?.data ?? [])
-      .filter((m) => m.status === 'OPEN')
-      .map((m) => ({ m, d: draft[m.id] }))
-      .filter(({ d }) => d && d.h !== '' && d.a !== '')
-      .map(({ m, d }) => ({
-        matchId: m.id,
-        homePredict: Number(d.h),
-        awayPredict: Number(d.a),
-      }))
+    const predictions = buildPredictionsPayload(data?.data ?? [], draft)
 
     if (predictions.length === 0) {
       setSaving(false)
@@ -279,16 +269,28 @@ export default function MatchesSection() {
         </div>
       ))}
 
-      {error && <p className="text-sm text-lt-red mb-3">{error}</p>}
-
       {canEdit && hasOpen && (
-        <button
-          onClick={save}
-          disabled={saving}
-          className="w-full font-condensed uppercase tracking-wider font-bold py-3 rounded-btn bg-lt-green text-black disabled:opacity-50"
-        >
-          {saving ? 'Guardando…' : savedAt ? `Marcadores guardados ${savedAt}` : 'Guardar marcadores'}
-        </button>
+        <div className="sticky bottom-0 mt-6 -mx-4 px-4 py-3 bg-lt-black/90 backdrop-blur border-t border-lt-card2">
+          {error && <p className="text-sm text-lt-red mb-2 text-center">{error}</p>}
+          {unsavedCount > 0 && !saving && (
+            <p className="text-xs text-lt-amber mb-2 text-center">
+              Tienes {unsavedCount} {unsavedCount === 1 ? 'marcador' : 'marcadores'} sin guardar
+            </p>
+          )}
+          <button
+            onClick={save}
+            disabled={saving}
+            className="w-full font-condensed uppercase tracking-wider font-bold py-3 rounded-btn bg-lt-green text-black disabled:opacity-50"
+          >
+            {saving
+              ? 'Guardando…'
+              : unsavedCount > 0
+                ? `Guardar marcadores (${unsavedCount})`
+                : savedAt
+                  ? `Marcadores guardados ${savedAt}`
+                  : 'Guardar marcadores'}
+          </button>
+        </div>
       )}
     </div>
   )

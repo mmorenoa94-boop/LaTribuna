@@ -53,12 +53,28 @@ export default function MundialClient() {
     )
   }
 
-  // CONFIRMED → formulario de preguntas + marcadores (rolling)
+  // CONFIRMED → lo que se llena hoy (marcadores) va primero; preguntas/grupos abajo y plegables.
   return (
     <>
-      <PoolForm data={data} onChange={refetch} />
+      <PoolHeader pool={data.pool} />
       <MatchesSection />
+      <PoolForm data={data} onChange={refetch} />
     </>
+  )
+}
+
+// ── Encabezado: título de la polla + acceso al ranking (siempre arriba) ──
+function PoolHeader({ pool }: { pool: NonNullable<PoolStateResponse['pool']> }) {
+  return (
+    <div className="max-w-2xl mx-auto px-4 pt-8 pb-2 flex items-center justify-between gap-3 animate-fade-in">
+      <h1 className="font-bebas text-4xl text-lt-white leading-none">{pool.name}</h1>
+      <Link
+        href="/mundial/ranking"
+        className="shrink-0 text-xs font-condensed uppercase tracking-wider text-lt-green border border-lt-green/40 rounded-btn px-3 py-2"
+      >
+        Ver ranking
+      </Link>
+    </div>
   )
 }
 
@@ -196,6 +212,8 @@ function PoolForm({ data, onChange }: { data: PoolStateResponse; onChange: () =>
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Plegable: abierto mientras se pueda responder; cerrado cuando la polla ya está bloqueada/enviada.
+  const [open, setOpen] = useState(editable)
 
   useEffect(() => {
     setAnswers(data.myAnswers || {})
@@ -288,64 +306,87 @@ function PoolForm({ data, onChange }: { data: PoolStateResponse; onChange: () =>
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
-      <div className="flex items-center justify-between mb-1">
-        <h1 className="font-bebas text-4xl text-lt-white leading-none">{pool.name}</h1>
-        <Link
-          href="/mundial/ranking"
-          className="text-xs font-condensed uppercase tracking-wider text-lt-green border border-lt-green/40 rounded-btn px-3 py-2"
-        >
-          Ver ranking
-        </Link>
-      </div>
-      <p className="text-lt-muted text-sm mb-5">
-        {submitted
-          ? 'Tus respuestas están enviadas. Esto es solo lectura.'
-          : editable
-            ? 'Responde todo antes del cierre. Puedes guardar y volver, pero el envío definitivo no se puede cambiar.'
-            : 'La polla está cerrada para edición.'}
-      </p>
-
-      {/* Progreso */}
-      <div className="mb-5 rounded-card bg-lt-card border border-lt-card2 px-4 py-3 flex items-center justify-between">
-        <span className="text-sm text-lt-muted">Respondidas</span>
-        <span className="font-bebas text-2xl text-lt-white">
-          {answeredCount}/{questions.length}
+    <div className="max-w-2xl mx-auto px-4 pb-8 animate-fade-in">
+      {/* Encabezado plegable: cerrado por defecto cuando ya no se puede responder */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="w-full flex items-center justify-between gap-3 rounded-card bg-lt-card border border-lt-card2 px-4 py-3 text-left"
+      >
+        <span>
+          <span className="block font-condensed uppercase tracking-wider text-sm text-lt-white">
+            Preguntas y grupos
+          </span>
+          <span className="block text-xs text-lt-muted">
+            {submitted
+              ? 'Enviadas · solo lectura'
+              : editable
+                ? 'Responde antes del cierre'
+                : 'Cerradas · solo lectura'}
+          </span>
         </span>
-      </div>
-
-      <div className="space-y-4">
-        {questions.map((q, i) => (
-          <QuestionCard
-            key={q.id}
-            index={i + 1}
-            q={q}
-            value={answers[q.id]}
-            editable={editable}
-            onChange={(v) => setAnswer(q.id, v)}
-            onGroupChange={(group, pos, team) => setGroupRank(q.id, group, pos, team)}
-          />
-        ))}
-      </div>
-
-      {error && <p className="text-sm text-lt-red mt-4">{error}</p>}
-
-      {editable && (
-        <div className="sticky bottom-0 mt-6 -mx-4 px-4 py-3 bg-lt-black/90 backdrop-blur border-t border-lt-card2 flex gap-3">
-          <button
-            onClick={save}
-            disabled={saving}
-            className="flex-1 font-condensed uppercase tracking-wider py-3 rounded-btn border border-lt-card2 text-lt-white disabled:opacity-50"
+        <span className="flex items-center gap-3 shrink-0">
+          <span className="font-bebas text-xl text-lt-white">
+            {answeredCount}/{questions.length}
+          </span>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            className={`text-lt-muted transition-transform ${open ? 'rotate-180' : ''}`}
           >
-            {saving ? 'Guardando…' : savedAt ? `Guardado ${savedAt}` : 'Guardar'}
-          </button>
-          <button
-            onClick={submitFinal}
-            disabled={saving || answeredCount < questions.length}
-            className="flex-1 font-condensed uppercase tracking-wider font-bold py-3 rounded-btn bg-lt-green text-black disabled:opacity-50"
-          >
-            Enviar definitivo
-          </button>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
+      </button>
+
+      {open && (
+        <div className="mt-4">
+          <p className="text-lt-muted text-sm mb-5">
+            {submitted
+              ? 'Tus respuestas están enviadas. Esto es solo lectura.'
+              : editable
+                ? 'Responde todo antes del cierre. Puedes guardar y volver, pero el envío definitivo no se puede cambiar.'
+                : 'La polla está cerrada para edición.'}
+          </p>
+
+          <div className="space-y-4">
+            {questions.map((q, i) => (
+              <QuestionCard
+                key={q.id}
+                index={i + 1}
+                q={q}
+                value={answers[q.id]}
+                editable={editable}
+                onChange={(v) => setAnswer(q.id, v)}
+                onGroupChange={(group, pos, team) => setGroupRank(q.id, group, pos, team)}
+              />
+            ))}
+          </div>
+
+          {error && <p className="text-sm text-lt-red mt-4">{error}</p>}
+
+          {editable && (
+            <div className="sticky bottom-0 mt-6 -mx-4 px-4 py-3 bg-lt-black/90 backdrop-blur border-t border-lt-card2 flex gap-3">
+              <button
+                onClick={save}
+                disabled={saving}
+                className="flex-1 font-condensed uppercase tracking-wider py-3 rounded-btn border border-lt-card2 text-lt-white disabled:opacity-50"
+              >
+                {saving ? 'Guardando…' : savedAt ? `Guardado ${savedAt}` : 'Guardar'}
+              </button>
+              <button
+                onClick={submitFinal}
+                disabled={saving || answeredCount < questions.length}
+                className="flex-1 font-condensed uppercase tracking-wider font-bold py-3 rounded-btn bg-lt-green text-black disabled:opacity-50"
+              >
+                Enviar definitivo
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
