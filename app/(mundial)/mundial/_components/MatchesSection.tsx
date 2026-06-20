@@ -1,8 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { NO_DATE_KEY, dayKey, buildPredictionsPayload, countUnsaved } from '@/lib/mundial-matches-pure'
+import {
+  NO_DATE_KEY,
+  dayKey,
+  buildPredictionsPayload,
+  countUnsaved,
+  currentDayKey,
+  pickDefaultDay,
+  relativeDayLabel,
+} from '@/lib/mundial-matches-pure'
 
 type MatchRow = {
   id: string
@@ -73,7 +81,11 @@ export default function MatchesSection() {
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectedDay, setSelectedDay] = useState<string>('ALL')
+  // null = aún sin elección del usuario → se usa el día por defecto (hoy / próximo).
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+
+  // "Hoy" en la convención del proyecto (hora-pared de Colombia embebida en UTC).
+  const today = useMemo(() => currentDayKey(new Date()), [])
 
   // Inicializa el borrador con TODAS las predicciones existentes (no solo el día visible),
   // para que al guardar nunca se pierdan los marcadores escritos en otros días.
@@ -105,9 +117,18 @@ export default function MatchesSection() {
     })
   }, [data])
 
+  // Día efectivo: el elegido por el usuario, o el default (hoy / próximo con partidos).
+  const activeDay = selectedDay ?? pickDefaultDay(days.map((d) => d.key), today)
+
+  // Centra la pestaña activa en el carrusel cuando cambia (incluye el default inicial).
+  const activeTabRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({ inline: 'center', block: 'nearest' })
+  }, [activeDay])
+
   // Partidos del/los día(s) visible(s), agrupados por día para mostrar el encabezado.
   const visibleGroups = useMemo(() => {
-    const wanted = selectedDay === 'ALL' ? days.map((d) => d.key) : [selectedDay]
+    const wanted = activeDay === 'ALL' ? days.map((d) => d.key) : [activeDay]
     return wanted
       .map((key) => ({
         key,
@@ -115,7 +136,7 @@ export default function MatchesSection() {
         matches: (data?.data ?? []).filter((m) => dayKey(m.kickoffAt) === key),
       }))
       .filter((g) => g.matches.length > 0)
-  }, [data, days, selectedDay])
+  }, [data, days, activeDay])
 
   // Marcadores completos (de partidos abiertos) que difieren de lo ya guardado en BD.
   const unsavedCount = useMemo(() => countUnsaved(data?.data ?? [], draft), [data, draft])
@@ -174,26 +195,30 @@ export default function MatchesSection() {
         <button
           onClick={() => setSelectedDay('ALL')}
           className={`shrink-0 px-3 py-1.5 rounded-btn text-xs font-condensed uppercase tracking-wider whitespace-nowrap ${
-            selectedDay === 'ALL'
+            activeDay === 'ALL'
               ? 'bg-lt-green text-black'
               : 'bg-lt-card border border-lt-card2 text-lt-muted'
           }`}
         >
           Todos
         </button>
-        {days.map((d) => (
-          <button
-            key={d.key}
-            onClick={() => setSelectedDay(d.key)}
-            className={`shrink-0 px-3 py-1.5 rounded-btn text-xs font-condensed uppercase tracking-wider whitespace-nowrap ${
-              selectedDay === d.key
-                ? 'bg-lt-green text-black'
-                : 'bg-lt-card border border-lt-card2 text-lt-muted'
-            }`}
-          >
-            {d.label}
-          </button>
-        ))}
+        {days.map((d) => {
+          const rel = relativeDayLabel(d.key, today)
+          return (
+            <button
+              key={d.key}
+              ref={activeDay === d.key ? activeTabRef : undefined}
+              onClick={() => setSelectedDay(d.key)}
+              className={`shrink-0 px-3 py-1.5 rounded-btn text-xs font-condensed uppercase tracking-wider whitespace-nowrap ${
+                activeDay === d.key
+                  ? 'bg-lt-green text-black'
+                  : 'bg-lt-card border border-lt-card2 text-lt-muted'
+              }`}
+            >
+              {rel ? `${rel} · ${d.label}` : d.label}
+            </button>
+          )
+        })}
       </div>
 
       {visibleGroups.map((group) => (

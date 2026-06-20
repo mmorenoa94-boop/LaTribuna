@@ -5,6 +5,10 @@ import {
   isComplete,
   buildPredictionsPayload,
   countUnsaved,
+  currentDayKey,
+  compareDayKeys,
+  pickDefaultDay,
+  relativeDayLabel,
   type PredictableMatch,
   type ScoreDraft,
 } from '@/lib/mundial-matches-pure'
@@ -29,6 +33,66 @@ describe('dayKey', () => {
   })
   it('null va al cubo "sin fecha"', () => {
     expect(dayKey(null)).toBe(NO_DATE_KEY)
+  })
+})
+
+describe('currentDayKey (hoy en hora-pared de Colombia UTC-5)', () => {
+  it('media mañana en Colombia cae en el mismo día', () => {
+    // 10:00Z = 05:00 CO del 20-jun
+    expect(currentDayKey(new Date('2026-06-20T10:00:00Z'))).toBe('2026-06-20')
+  })
+  it('madrugada UTC (noche previa en Colombia) sigue siendo el día anterior', () => {
+    // 02:00Z = 21:00 CO del 19-jun
+    expect(currentDayKey(new Date('2026-06-20T02:00:00Z'))).toBe('2026-06-19')
+  })
+  it('frontera: 23:59 CO sigue en el día, 00:00 CO ya es el siguiente', () => {
+    expect(currentDayKey(new Date('2026-06-20T04:59:00Z'))).toBe('2026-06-19') // 23:59 CO 19-jun
+    expect(currentDayKey(new Date('2026-06-20T05:00:00Z'))).toBe('2026-06-20') // 00:00 CO 20-jun
+  })
+})
+
+describe('compareDayKeys', () => {
+  it('ordena cronológicamente y deja "sin fecha" al final', () => {
+    const sorted = ['2026-06-22', NO_DATE_KEY, '2026-06-20', '2026-06-21'].sort(compareDayKeys)
+    expect(sorted).toEqual(['2026-06-20', '2026-06-21', '2026-06-22', NO_DATE_KEY])
+  })
+})
+
+describe('pickDefaultDay', () => {
+  const days = ['2026-06-20', '2026-06-21', '2026-06-22']
+
+  it('elige hoy si tiene partidos', () => {
+    expect(pickDefaultDay(days, '2026-06-21')).toBe('2026-06-21')
+  })
+  it('si hoy no tiene partidos, elige el próximo día', () => {
+    expect(pickDefaultDay(days, '2026-06-19')).toBe('2026-06-20')
+    expect(pickDefaultDay(['2026-06-20', '2026-06-22'], '2026-06-21')).toBe('2026-06-22')
+  })
+  it('si ya pasaron todos, elige el último día jugado', () => {
+    expect(pickDefaultDay(days, '2026-07-01')).toBe('2026-06-22')
+  })
+  it('sin días reales devuelve ALL', () => {
+    expect(pickDefaultDay([], '2026-06-20')).toBe('ALL')
+    expect(pickDefaultDay([NO_DATE_KEY], '2026-06-20')).toBe('ALL')
+  })
+  it('nunca elige NO_DATE_KEY como default', () => {
+    expect(pickDefaultDay([NO_DATE_KEY, '2026-06-20'], '2026-06-20')).toBe('2026-06-20')
+  })
+})
+
+describe('relativeDayLabel', () => {
+  const today = '2026-06-20'
+  it('hoy / ayer / mañana', () => {
+    expect(relativeDayLabel('2026-06-20', today)).toBe('HOY')
+    expect(relativeDayLabel('2026-06-19', today)).toBe('AYER')
+    expect(relativeDayLabel('2026-06-21', today)).toBe('MAÑANA')
+  })
+  it('días lejanos no tienen etiqueta relativa', () => {
+    expect(relativeDayLabel('2026-06-25', today)).toBeNull()
+    expect(relativeDayLabel('2026-06-15', today)).toBeNull()
+  })
+  it('"sin fecha" no tiene etiqueta', () => {
+    expect(relativeDayLabel(NO_DATE_KEY, today)).toBeNull()
   })
 })
 

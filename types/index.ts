@@ -146,3 +146,40 @@ export interface PoolRankingEntry {
   exactCorrect: number // partidos con marcador exacto acertado (subconjunto de matchesCorrect)
   prize: number // monto en COP (0 si no está en podio)
 }
+
+// Detalle de un participante (modal al hacer clic en el ranking).
+// Solo expone partidos FINALIZADOS: nunca se ven los pronósticos de otros
+// antes de que el partido termine y el admin cargue el marcador.
+export interface PoolPlayerMatchBreakdown {
+  matchId: string
+  homeTeam: string
+  awayTeam: string
+  homeFlag: string | null
+  awayFlag: string | null
+  kickoffAt: string | null
+  homeScore: number
+  awayScore: number
+  predicted: { home: number; away: number } | null // null = no pronosticó ese partido
+  pointsEarned: number
+  outcomeCorrect: boolean
+  exactCorrect: boolean
+}
+
+export interface PoolPlayerHistoryPoint {
+  dayKey: string
+  label: string // etiqueta legible del día (ej. "VIE 20 JUN")
+  position: number
+  points: number
+}
+
+export interface PoolPlayerDetail {
+  userId: string
+  name: string
+  image: string | null
+  position: number
+  totalPoints: number
+  matchesCorrect: number
+  exactCorrect: number
+  breakdown: PoolPlayerMatchBreakdown[]
+  history: PoolPlayerHistoryPoint[]
+}
