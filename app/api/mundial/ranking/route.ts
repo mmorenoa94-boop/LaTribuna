@@ -22,6 +22,8 @@ export async function GET() {
       entryFee: pool.entryFee,
       prizeSplit: (pool.prizeSplit as number[]) ?? [60, 30, 10],
       pot: pool.entryFee * ranking.length,
+      matchPointsOutcome: pool.matchPointsOutcome,
+      matchPointsExactBonus: pool.matchPointsExactBonus,
     },
   })
 }
