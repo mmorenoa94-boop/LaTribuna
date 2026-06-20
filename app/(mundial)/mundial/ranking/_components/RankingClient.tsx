@@ -1,8 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { PoolRankingEntry } from '@/types'
+import PlayerDetailModal from './PlayerDetailModal'
 
 type RankingResponse = {
   data: PoolRankingEntry[]
@@ -36,6 +38,7 @@ export default function RankingClient() {
     queryFn: fetchRanking,
     refetchInterval: 30_000,
   })
+  const [selectedUser, setSelectedUser] = useState<string | null>(null)
 
   if (isLoading) {
     return <div className="max-w-2xl mx-auto px-5 py-16 text-center text-lt-muted">Cargando…</div>
@@ -83,11 +86,22 @@ export default function RankingClient() {
       {ranking.length === 0 ? (
         <p className="text-lt-muted text-center py-10">Aún no hay participantes confirmados.</p>
       ) : (
+        <>
+        <p className="text-[11px] text-lt-muted mb-2">Toca un jugador para ver el detalle de sus puntos.</p>
         <div className="space-y-2">
           {ranking.map((r) => (
             <div
               key={r.userId}
-              className={`flex items-center gap-3 rounded-card px-4 py-3 border ${
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedUser(r.userId)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setSelectedUser(r.userId)
+                }
+              }}
+              className={`flex items-center gap-3 rounded-card px-4 py-3 border cursor-pointer transition-colors hover:border-lt-green/60 focus:outline-none focus:border-lt-green ${
                 r.position <= 3
                   ? 'bg-lt-card border-lt-green/30'
                   : 'bg-lt-card/60 border-lt-card2'
@@ -132,6 +146,11 @@ export default function RankingClient() {
             </div>
           ))}
         </div>
+        </>
+      )}
+
+      {selectedUser && (
+        <PlayerDetailModal userId={selectedUser} onClose={() => setSelectedUser(null)} />
       )}
     </div>
   )
