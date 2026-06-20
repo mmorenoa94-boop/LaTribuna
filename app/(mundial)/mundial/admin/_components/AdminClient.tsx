@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { PoolQuestion, WorldCupPool } from '@/types'
+import type { PendingReport } from '@/lib/mundial-pending-pure'
 
 type AdminMatch = {
   id: string
@@ -85,6 +86,7 @@ export default function AdminClient() {
           <GroupsEditor questions={data.questions} onChange={(m) => { flash(m); load() }} />
           <MatchesManager matches={data.matches} onChange={(m) => { flash(m); load() }} />
           <EntriesManager onChange={(m) => { flash(m); load() }} counts={data.entryCounts} />
+          <PendingPredictions onFlash={flash} />
           <ResolvePanel pool={data.pool} questions={data.questions} onResolved={(m) => { flash(m); load() }} />
         </>
       )}
@@ -377,6 +379,139 @@ function EntriesManager({
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ── Pronósticos pendientes ──
+function fmtKickoff(iso: string | null): string {
+  if (!iso) return 's/fecha'
+  // La hora-pared de Colombia va embebida en UTC: mostramos en UTC para no correr el día.
+  return new Date(iso)
+    .toLocaleString('es-CO', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'UTC',
+    })
+    .replace(',', '')
+}
+
+function PendingPredictions({ onFlash }: { onFlash: (m: string) => void }) {
+  const [report, setReport] = useState<PendingReport | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  async function load() {
+    setLoading(true)
+    const res = await fetch('/api/admin/mundial/pending')
+    const j = await res.json().catch(() => ({}))
+    setReport(j.data ?? null)
+    setLoading(false)
+  }
+  useEffect(() => {
+    load()
+  }, [])
+
+  async function copyEmails() {
+    if (!report) return
+    const emails = report.users.map((u) => u.email).filter(Boolean).join(', ')
+    try {
+      await navigator.clipboard.writeText(emails)
+      onFlash(`Copiados ${report.users.length} emails al portapapeles`)
+    } catch {
+      onFlash('No se pudo copiar (revisa permisos del navegador)')
+    }
+  }
+
+  return (
+    <div className="rounded-card bg-lt-card border border-lt-card2 p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-bebas text-2xl text-lt-white">Pronósticos pendientes</h2>
+        <button onClick={load} disabled={loading} className="text-lt-green text-xs">
+          {loading ? 'Cargando…' : 'Actualizar'}
+        </button>
+      </div>
+      <p className="text-xs text-lt-muted">
+        Inscritos confirmados que no han llenado los marcadores de los partidos aún abiertos (OPEN).
+        Útil para recordarles antes de que se cierren.
+      </p>
+
+      {!report || loading ? (
+        <p className="text-sm text-lt-muted">Cargando…</p>
+      ) : report.totalOpenMatches === 0 ? (
+        <p className="text-sm text-lt-muted">No hay partidos abiertos (OPEN) por ahora.</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-3 text-sm">
+            <span className="text-lt-muted">
+              <span className="text-lt-white font-bebas text-xl">{report.totalConfirmed}</span> inscritos
+            </span>
+            <span className="text-lt-muted">
+              <span className="text-lt-amber font-bebas text-xl">{report.withPending}</span> con pendientes
+            </span>
+            <span className="text-lt-muted">
+              <span className="text-lt-green font-bebas text-xl">{report.complete}</span> al día
+            </span>
+            <span className="text-lt-muted">
+              <span className="text-lt-white font-bebas text-xl">{report.totalOpenMatches}</span> partidos abiertos
+            </span>
+          </div>
+
+          {report.users.length === 0 ? (
+            <p className="text-sm text-lt-green">¡Todos al día! Nadie tiene pendientes. 🎉</p>
+          ) : (
+            <>
+              <button onClick={copyEmails} className="btn-primary" style={{ padding: '6px 14px' }}>
+                Copiar emails ({report.users.length})
+              </button>
+              <div className="space-y-1.5 pt-1">
+                {report.users.map((u) => (
+                  <div
+                    key={u.userId}
+                    className="flex items-center gap-2 text-sm border-b border-lt-card2 pb-1.5"
+                  >
+                    <span
+                      className="shrink-0 w-12 text-center font-bebas text-lg text-lt-amber"
+                      title="Partidos sin pronosticar"
+                    >
+                      {u.missing}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-lt-white truncate">{u.name}</div>
+                      <div className="text-[11px] text-lt-muted truncate">
+                        {u.email}
+                        {u.phone ? ` · ${u.phone}` : ''}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[11px] text-lt-muted">{u.done} hechos</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Faltantes por partido */}
+          <details className="pt-1">
+            <summary className="text-xs text-lt-muted cursor-pointer">Ver faltantes por partido</summary>
+            <div className="space-y-1 pt-2">
+              {report.byMatch.map((m) => (
+                <div key={m.id} className="flex items-center justify-between gap-2 text-[12px]">
+                  <span className="text-lt-white truncate">
+                    <span className="text-lt-muted">{fmtKickoff(m.kickoffAt)}</span> · {m.label}
+                  </span>
+                  <span className="shrink-0 text-lt-amber">
+                    faltan {m.missing}/{report.totalConfirmed}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </details>
+        </>
+      )}
+      <style jsx global>{styles}</style>
     </div>
   )
 }
