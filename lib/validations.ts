@@ -228,6 +228,12 @@ export const resolvePoolSchema = z.object({
   totalGoalsReal: z.number().int().min(0).max(500).nullable().optional(),
 })
 
+// Resolución incremental de UNA pregunta (no cierra la polla).
+// correctAnswer = null limpia la respuesta y resetea sus puntos.
+export const questionResolveSchema = z.object({
+  correctAnswer: poolAnswerValue.nullable(),
+})
+
 // ── Partidos de la polla ──
 
 export const poolMatchSchema = z.object({
