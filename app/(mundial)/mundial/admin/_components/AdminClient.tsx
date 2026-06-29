@@ -1,8 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { PoolQuestion, WorldCupPool } from '@/types'
 import type { PendingReport } from '@/lib/mundial-pending-pure'
+import {
+  dayKey,
+  currentDayKey,
+  compareDayKeys,
+  relativeDayLabel,
+  pickDefaultDay,
+} from '@/lib/mundial-matches-pure'
 
 type AdminMatch = {
   id: string
@@ -412,6 +419,20 @@ function fmtKickoff(iso: string | null): string {
     .replace(',', '')
 }
 
+// Etiqueta corta de día para el filtro de partidos (hora-pared de Colombia embebida en UTC).
+function fmtDay(iso: string | null): string {
+  if (!iso) return 'Sin fecha'
+  return new Date(iso)
+    .toLocaleDateString('es-CO', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+    })
+    .replace(/\./g, '')
+    .replace(',', '')
+}
+
 function PendingPredictions({ onFlash }: { onFlash: (m: string) => void }) {
   const [report, setReport] = useState<PendingReport | null>(null)
   const [loading, setLoading] = useState(true)
@@ -557,9 +578,41 @@ function ResolvePanel({
     pool.totalGoalsReal != null ? String(pool.totalGoalsReal) : ''
   )
   const [busy, setBusy] = useState(false)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   function setCorr(id: string, v: string) {
     setCorrections((prev) => ({ ...prev, [id]: v }))
+  }
+
+  // Parsea el valor escrito según el tipo de pregunta (igual que en resolve()).
+  function parseAnswer(q: PoolQuestion, raw: string): unknown {
+    if (q.type === 'GROUP_RANK' || q.type === 'NUMERIC') {
+      try {
+        return JSON.parse(raw)
+      } catch {
+        if (q.type === 'NUMERIC') return Number(raw)
+      }
+    }
+    return raw
+  }
+
+  // Resuelve UNA pregunta ahora (sin cerrar la polla). Los puntos se reflejan
+  // de inmediato en el ranking.
+  async function resolveOne(q: PoolQuestion) {
+    const raw = corrections[q.id]
+    if (raw === undefined || raw === '') {
+      onResolved('Escribe primero la respuesta correcta')
+      return
+    }
+    setBusyId(q.id)
+    const res = await fetch(`/api/admin/mundial/questions/${q.id}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ correctAnswer: parseAnswer(q, raw) }),
+    })
+    const j = await res.json().catch(() => ({}))
+    setBusyId(null)
+    onResolved(res.ok ? `Pregunta ${q.order + 1} resuelta · ranking actualizado` : j.error || 'Error')
   }
 
   async function resolve() {
@@ -568,18 +621,7 @@ function ResolvePanel({
 
     const payload = questions
       .filter((q) => corrections[q.id] !== undefined && corrections[q.id] !== '')
-      .map((q) => {
-        let answer: unknown = corrections[q.id]
-        // GROUP_RANK y similares pueden venir como JSON
-        if (q.type === 'GROUP_RANK' || q.type === 'NUMERIC') {
-          try {
-            answer = JSON.parse(corrections[q.id])
-          } catch {
-            if (q.type === 'NUMERIC') answer = Number(corrections[q.id])
-          }
-        }
-        return { questionId: q.id, answer }
-      })
+      .map((q) => ({ questionId: q.id, answer: parseAnswer(q, corrections[q.id]) }))
 
     const res = await fetch('/api/admin/mundial/resolve', {
       method: 'POST',
@@ -602,6 +644,11 @@ function ResolvePanel({
         Ingresa la respuesta correcta de cada pregunta. Para el bracket de grupos usa JSON, ej:{' '}
         <code>{'{"A":["Equipo A1","Equipo A2"]}'}</code>. Las preguntas de desempate no dan puntos.
       </p>
+      <p className="text-xs text-lt-amber">
+        Podés resolver preguntas de a una con el botón <b>Resolver</b> a medida que se definen
+        (los puntos se reflejan al instante en el ranking, sin cerrar la polla). El botón grande de
+        abajo recalcula todo y <b>marca la polla como RESUELTA</b>: úsalo solo al final del Mundial.
+      </p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Goles totales del mundial (desempate)">
           <input
@@ -622,13 +669,26 @@ function ResolvePanel({
       </div>
       <div className="space-y-2">
         {questions.map((q) => (
-          <Field key={q.id} label={`${q.order + 1}. ${q.text}`}>
-            <input
-              className="inp"
-              value={corrections[q.id] ?? ''}
-              onChange={(e) => setCorr(q.id, e.target.value)}
-              placeholder={q.type === 'GROUP_RANK' ? '{"A":["...","..."]}' : 'Respuesta correcta'}
-            />
+          <Field
+            key={q.id}
+            label={`${q.order + 1}. ${q.text}${q.correctAnswer != null ? '  ✓ resuelta' : ''}`}
+          >
+            <div className="flex gap-2">
+              <input
+                className="inp"
+                value={corrections[q.id] ?? ''}
+                onChange={(e) => setCorr(q.id, e.target.value)}
+                placeholder={q.type === 'GROUP_RANK' ? '{"A":["...","..."]}' : 'Respuesta correcta'}
+              />
+              <button
+                onClick={() => resolveOne(q)}
+                disabled={busyId === q.id}
+                className="btn-primary shrink-0"
+                style={{ padding: '6px 12px' }}
+              >
+                {busyId === q.id ? '…' : 'Resolver'}
+              </button>
+            </div>
           </Field>
         ))}
       </div>
@@ -761,6 +821,26 @@ function MatchesManager({
   const [kickoff, setKickoff] = useState('')
   const [csv, setCsv] = useState('')
   const [busy, setBusy] = useState(false)
+  // Filtro por fecha de la lista (null = día por defecto: hoy / próximo con partidos).
+  const [dayFilter, setDayFilter] = useState<string | null>(null)
+
+  const today = useMemo(() => currentDayKey(new Date()), [])
+
+  // Días con partidos, ordenados cronológicamente ("sin fecha" al final).
+  const days = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; count: number }>()
+    for (const m of matches) {
+      const key = dayKey(m.kickoffAt)
+      const ex = map.get(key)
+      if (ex) ex.count++
+      else map.set(key, { key, label: fmtDay(m.kickoffAt), count: 1 })
+    }
+    return Array.from(map.values()).sort((a, b) => compareDayKeys(a.key, b.key))
+  }, [matches])
+
+  const activeDay = dayFilter ?? pickDefaultDay(days.map((d) => d.key), today)
+  const visibleMatches =
+    activeDay === 'ALL' ? matches : matches.filter((m) => dayKey(m.kickoffAt) === activeDay)
 
   async function createOne() {
     if (!home.trim() || !away.trim()) return
@@ -858,11 +938,41 @@ function MatchesManager({
         Cargar CSV
       </button>
 
+      {/* Filtro por fecha */}
+      {days.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          <button
+            onClick={() => setDayFilter('ALL')}
+            className={`shrink-0 px-3 py-1.5 rounded-btn text-xs font-condensed uppercase tracking-wider whitespace-nowrap ${
+              activeDay === 'ALL' ? 'bg-lt-green text-black' : 'bg-lt-card2 border border-lt-card2 text-lt-muted'
+            }`}
+          >
+            Todos ({matches.length})
+          </button>
+          {days.map((d) => {
+            const rel = relativeDayLabel(d.key, today)
+            return (
+              <button
+                key={d.key}
+                onClick={() => setDayFilter(d.key)}
+                className={`shrink-0 px-3 py-1.5 rounded-btn text-xs font-condensed uppercase tracking-wider whitespace-nowrap ${
+                  activeDay === d.key ? 'bg-lt-green text-black' : 'bg-lt-card2 border border-lt-card2 text-lt-muted'
+                }`}
+              >
+                {rel ? `${rel} · ` : ''}{d.label} ({d.count})
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {/* Lista */}
       <div className="space-y-2 pt-2">
-        {matches.map((m) => (
-          <MatchRow key={m.id} m={m} onChange={onChange} />
-        ))}
+        {visibleMatches.length === 0 ? (
+          <p className="text-sm text-lt-muted">No hay partidos en esta fecha.</p>
+        ) : (
+          visibleMatches.map((m) => <MatchRow key={m.id} m={m} onChange={onChange} />)
+        )}
       </div>
       <style jsx global>{styles}</style>
     </div>
@@ -897,7 +1007,7 @@ function MatchRow({ m, onChange }: { m: AdminMatch; onChange: (msg: string) => v
       <div className="flex items-center gap-2">
         <span className="flex-1 text-lt-white">
           {m.homeTeam} vs {m.awayTeam}
-          <span className="text-[11px] text-lt-muted"> · {m.phase} · {m._count.predictions} pred.</span>
+          <span className="text-[11px] text-lt-muted"> · {fmtKickoff(m.kickoffAt)} · {m.phase} · {m._count.predictions} pred.</span>
         </span>
         <button onClick={del} className="text-lt-red text-xs">
           Eliminar

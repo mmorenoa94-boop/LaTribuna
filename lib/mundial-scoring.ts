@@ -117,6 +117,37 @@ export async function scoreMatchPredictions(matchId: string) {
 }
 
 /**
+ * Resuelve UNA sola pregunta de forma incremental, SIN cerrar la polla.
+ * - Preguntas con puntos: marca isCorrect/pointsEarned en cada respuesta de inscritos confirmados.
+ * - Preguntas de desempate (sin puntos): no marcan puntos; su efecto (groupsCorrect,
+ *   firstScorerCorrect, etc.) se refleja al recalcular agregados.
+ * Requiere que la pregunta ya tenga correctAnswer. Misma lógica de comparación que resolvePool().
+ */
+export async function scoreQuestion(questionId: string) {
+  const question = await prisma.poolQuestion.findUnique({ where: { id: questionId } })
+  if (!question) throw new Error('Pregunta no encontrada')
+  if (question.correctAnswer == null) throw new Error('La pregunta no tiene respuesta correcta')
+
+  if (!question.isTiebreaker && question.pointsValue > 0) {
+    const answers = await prisma.poolAnswer.findMany({
+      where: { questionId, entry: { poolId: question.poolId, status: 'CONFIRMED' } },
+    })
+    const ops: Prisma.PrismaPromise<unknown>[] = answers.map((ans) => {
+      const isCorrect =
+        normalizeAnswer(ans.answer) === normalizeAnswer(question.correctAnswer)
+      return prisma.poolAnswer.update({
+        where: { id: ans.id },
+        data: { isCorrect, pointsEarned: isCorrect ? question.pointsValue : 0 },
+      })
+    })
+    if (ops.length) await prisma.$transaction(ops)
+  }
+
+  await recomputeEntryAggregates(question.poolId)
+  return { scored: true }
+}
+
+/**
  * Recalcula totalPoints (respuestas + partidos) y los caches de desempate
  * de todos los participantes confirmados de la polla. Idempotente.
  */
