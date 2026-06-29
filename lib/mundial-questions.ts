@@ -139,22 +139,33 @@ export function buildSeedQuestions(): SeedQuestion[] {
       isTiebreaker: false,
     },
 
-    // ── Desempates (sin puntos) ──
+    // ── Bracket de grupos (con puntos) ──
     {
       order: next(),
-      text: 'Desempate 1: Ordena los 4 equipos de cada grupo (de 1° a 4°).',
+      text: 'Ordena los 4 equipos de cada grupo (de 1° a 4°). Suma 1 punto por cada posición acertada.',
       type: 'GROUP_RANK',
       category: 'BRACKET',
       options: { groups: DEFAULT_GROUPS },
+      pointsValue: 1, // puntos por cada posición acertada (hasta 48)
+      isTiebreaker: false,
+    },
+
+    // ── Desempates (sin puntos) ──
+    {
+      order: next(),
+      text: 'Desempate 1: ¿Cuántos goles se anotarán en TODO el mundial?',
+      type: 'NUMERIC',
+      category: 'GLOBAL',
+      options: [],
       pointsValue: 0,
       isTiebreaker: true,
       tiebreakRank: 1,
     },
     {
       order: next(),
-      text: 'Desempate 2: ¿Cuántos goles se anotarán en TODO el mundial?',
+      text: 'Desempate 2: ¿Cuántos goles anotará Colombia en todo el torneo?',
       type: 'NUMERIC',
-      category: 'GLOBAL',
+      category: 'COLOMBIA',
       options: [],
       pointsValue: 0,
       isTiebreaker: true,
@@ -162,23 +173,13 @@ export function buildSeedQuestions(): SeedQuestion[] {
     },
     {
       order: next(),
-      text: 'Desempate 3: ¿Cuántos goles anotará Colombia en todo el torneo?',
-      type: 'NUMERIC',
-      category: 'COLOMBIA',
-      options: [],
-      pointsValue: 0,
-      isTiebreaker: true,
-      tiebreakRank: 3,
-    },
-    {
-      order: next(),
-      text: 'Desempate 4: ¿Quién marcará el primer gol de Colombia en el torneo?',
+      text: 'Desempate 3: ¿Quién marcará el primer gol de Colombia en el torneo?',
       type: 'PLAYER_PICK',
       category: 'COLOMBIA',
       options: [],
       pointsValue: 0,
       isTiebreaker: true,
-      tiebreakRank: 4,
+      tiebreakRank: 3,
     },
   ]
 }

@@ -726,6 +726,10 @@ function GroupsEditor({
 
   const [groups, setGroups] = useState<GroupDef[]>(initial)
   const [busy, setBusy] = useState(false)
+  // Puntos por cada posición acertada del bracket (pointsValue de la pregunta GROUP_RANK).
+  const [bracketPts, setBracketPts] = useState<number>(
+    groupQ && groupQ.pointsValue > 0 ? groupQ.pointsValue : 1
+  )
 
   if (!groupQ) {
     return (
@@ -750,7 +754,7 @@ function GroupsEditor({
     const r1 = await fetch(`/api/admin/mundial/questions/${groupQ!.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ options: { groups } }),
+      body: JSON.stringify({ options: { groups }, pointsValue: bracketPts, isTiebreaker: false }),
     })
     // 2. Derivar las 48 selecciones y actualizarlas en campeón/subcampeón/3°
     const teams = Array.from(
@@ -782,6 +786,16 @@ function GroupsEditor({
         la lista completa de selecciones se aplica automáticamente a las preguntas de campeón,
         subcampeón y tercer puesto.
       </p>
+      <Field label="Puntos por posición acertada del bracket (suma al total, ya no es desempate)">
+        <input
+          type="number"
+          min={0}
+          className="inp"
+          style={{ maxWidth: 160 }}
+          value={bracketPts}
+          onChange={(e) => setBracketPts(Number(e.target.value))}
+        />
+      </Field>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {groups.map((g, gi) => (
           <div key={g.name} className="rounded-btn bg-lt-card2/40 border border-lt-card2 p-3">

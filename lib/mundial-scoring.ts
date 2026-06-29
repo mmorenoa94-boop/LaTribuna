@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client'
 import type { PoolRankingEntry } from '@/types'
 import {
   normalizeAnswer,
-  countPositionsCorrect,
+  computeBracketPoints,
   computeMatchPoints,
   compareRanking,
   prizeForPosition,
@@ -51,7 +51,13 @@ export async function resolvePool(poolId: string) {
     for (const q of questions) {
       const ans = answerByQ.get(q.id)
       if (!ans) continue
-      if (q.isTiebreaker || q.pointsValue <= 0 || q.correctAnswer == null) continue
+      if (q.correctAnswer == null) continue
+
+      // El bracket de grupos NO se puntúa por respuesta: sus puntos (por posición
+      // acertada) se calculan en recomputeEntryAggregates, robusto ante cambios de pointsValue.
+      if (q.type === 'GROUP_RANK') continue
+
+      if (q.isTiebreaker || q.pointsValue <= 0) continue
 
       const isCorrect =
         normalizeAnswer(ans.answer) === normalizeAnswer(q.correctAnswer)
@@ -128,7 +134,9 @@ export async function scoreQuestion(questionId: string) {
   if (!question) throw new Error('Pregunta no encontrada')
   if (question.correctAnswer == null) throw new Error('La pregunta no tiene respuesta correcta')
 
-  if (!question.isTiebreaker && question.pointsValue > 0) {
+  // El bracket (GROUP_RANK) se puntúa íntegramente en recomputeEntryAggregates
+  // (por posición acertada). El resto de preguntas con puntos se marcan por respuesta.
+  if (question.type !== 'GROUP_RANK' && !question.isTiebreaker && question.pointsValue > 0) {
     const answers = await prisma.poolAnswer.findMany({
       where: { questionId, entry: { poolId: question.poolId, status: 'CONFIRMED' } },
     })
@@ -193,10 +201,16 @@ export async function recomputeEntryAggregates(poolId: string) {
     const answerPts = entry.answers.reduce((s, a) => s + a.pointsEarned, 0)
     const matchPts = entry.matchPredictions.reduce((s, m) => s + m.pointsEarned, 0)
 
+    // Bracket de grupos: puntos por posición acertada + cache de posiciones (informativo).
     let groupsCorrect = 0
+    let bracketPts = 0
     if (groupQuestion?.correctAnswer != null) {
       const ga = answerByQ.get(groupQuestion.id)
-      if (ga) groupsCorrect = countPositionsCorrect(ga.answer, groupQuestion.correctAnswer)
+      if (ga) {
+        const r = computeBracketPoints(ga.answer, groupQuestion.correctAnswer, groupQuestion.pointsValue)
+        groupsCorrect = r.positionsCorrect
+        bracketPts = r.earned
+      }
     }
 
     const totalGoalsGuess = numericGuess(totalGoalsQ, answerByQ)
@@ -214,7 +228,7 @@ export async function recomputeEntryAggregates(poolId: string) {
     return prisma.poolEntry.update({
       where: { id: entry.id },
       data: {
-        totalPoints: answerPts + matchPts,
+        totalPoints: answerPts + matchPts + bracketPts,
         groupsCorrect,
         totalGoalsGuess,
         colombiaGoalsGuess,
