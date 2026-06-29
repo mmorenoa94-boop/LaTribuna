@@ -42,6 +42,18 @@ function toLocalInput(iso: string | null): string {
   return new Date(d.getTime() - off * 60000).toISOString().slice(0, 16)
 }
 
+// La polla guarda la hora-pared de Colombia EMBEBIDA como instante UTC
+// (14:00 CO => ...T14:00:00Z); todo el lado del participante la muestra leyendo UTC literal.
+// Por eso el kickoff NO debe pasar por new Date()/offset del navegador: tomamos la hora-pared
+// tal cual la escribió el admin (Colombia) y la sellamos como UTC. Acepta "YYYY-MM-DDTHH:mm",
+// "YYYY-MM-DD HH:mm", con o sin segundos y con o sin "Z". Devuelve null si no se reconoce.
+function coWallClockToInstant(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const m = raw.trim().match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/)
+  if (!m) return null
+  return `${m[1]}T${m[2]}:${m[3]}:00.000Z`
+}
+
 export default function AdminClient() {
   const [data, setData] = useState<AdminData>(null)
   const [loading, setLoading] = useState(true)
@@ -760,7 +772,7 @@ function MatchesManager({
         homeTeam: home,
         awayTeam: away,
         phase,
-        kickoffAt: kickoff ? new Date(kickoff).toISOString() : null,
+        kickoffAt: coWallClockToInstant(kickoff),
       }),
     })
     setBusy(false)
@@ -786,7 +798,7 @@ function MatchesManager({
         homeTeam: cols[0],
         awayTeam: cols[1],
         phase: cols[2] || 'Fase de grupos',
-        kickoffAt: cols[3] ? new Date(cols[3]).toISOString() : null,
+        kickoffAt: coWallClockToInstant(cols[3]),
       }))
 
     if (rows.length === 0) {
@@ -833,13 +845,13 @@ function MatchesManager({
       </button>
 
       {/* CSV */}
-      <Field label="Carga masiva CSV (local,visitante,fase,inicioISO)">
+      <Field label="Carga masiva CSV (local,visitante,fase,inicio · hora de Colombia)">
         <textarea
           className="inp"
           rows={4}
           value={csv}
           onChange={(e) => setCsv(e.target.value)}
-          placeholder={'Colombia,Brasil,Fase de grupos,2026-06-12T19:00:00Z\nArgentina,México,Fase de grupos'}
+          placeholder={'Colombia,Brasil,Octavos,2026-06-29T14:00\nArgentina,México,Octavos'}
         />
       </Field>
       <button onClick={uploadCsv} disabled={busy} className="btn-primary">
