@@ -9,7 +9,8 @@ describe('buildSeedQuestions', () => {
   const seed = buildSeedQuestions()
 
   it('genera el set acordado de preguntas', () => {
-    // 6 globales + 3 Colombia + 4 desempate (grupos, goles mundial, goles Colombia, primer goleador)
+    // 6 globales + 3 Colombia + bracket de grupos (con puntos) + 3 desempate
+    // (goles mundial, goles Colombia, primer goleador)
     expect(seed.length).toBe(13)
   })
 
@@ -18,10 +19,10 @@ describe('buildSeedQuestions', () => {
     expect(orders).toEqual(Array.from({ length: seed.length }, (_, i) => i))
   })
 
-  it('tiene exactamente 4 preguntas de desempate con rank 1,2,3,4', () => {
+  it('tiene exactamente 3 preguntas de desempate con rank 1,2,3', () => {
     const tb = seed.filter((q) => q.isTiebreaker)
-    expect(tb.length).toBe(4)
-    expect(tb.map((q) => q.tiebreakRank).sort()).toEqual([1, 2, 3, 4])
+    expect(tb.length).toBe(3)
+    expect(tb.map((q) => q.tiebreakRank).sort()).toEqual([1, 2, 3])
   })
 
   it('incluye un desempate de goles totales del mundial (NUMERIC global)', () => {
@@ -48,10 +49,11 @@ describe('buildSeedQuestions', () => {
     expect(teamPicks.length).toBe(3)
   })
 
-  it('el bracket de grupos es GROUP_RANK y es desempate', () => {
+  it('el bracket de grupos es GROUP_RANK, otorga puntos y no es desempate', () => {
     const bracket = seed.find((q) => q.type === 'GROUP_RANK')
     expect(bracket).toBeDefined()
-    expect(bracket!.isTiebreaker).toBe(true)
+    expect(bracket!.isTiebreaker).toBe(false)
+    expect(bracket!.pointsValue).toBeGreaterThan(0)
     const opts = bracket!.options as { groups: { name: string; teams: string[] }[] }
     expect(opts.groups.length).toBe(12)
   })

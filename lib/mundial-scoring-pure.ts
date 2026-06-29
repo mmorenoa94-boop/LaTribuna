@@ -46,6 +46,20 @@ export function countPositionsCorrect(userAnswer: unknown, correctAnswer: unknow
   return correct
 }
 
+/**
+ * Puntos del bracket de grupos (pregunta GROUP_RANK): suma `pointsPerPosition`
+ * por cada equipo colocado en su puesto exacto, sumando los 12 grupos.
+ * Ej. con 1 pt por posición: aciertos parciales suman (hasta 48 si están todos).
+ */
+export function computeBracketPoints(
+  userAnswer: unknown,
+  correctAnswer: unknown,
+  pointsPerPosition: number
+): { positionsCorrect: number; earned: number } {
+  const positionsCorrect = countPositionsCorrect(userAnswer, correctAnswer)
+  return { positionsCorrect, earned: positionsCorrect * Math.max(0, pointsPerPosition) }
+}
+
 // Resultado de un marcador: 'H' local gana, 'A' visitante gana, 'D' empate
 export function outcome(home: number, away: number): 'H' | 'A' | 'D' {
   if (home > away) return 'H'
@@ -74,7 +88,7 @@ export function computeMatchPoints(
 // Campos mínimos necesarios para ordenar por la cascada de desempate
 export interface RankSortable {
   totalPoints: number
-  groupsCorrect: number // posiciones acertadas en los grupos
+  groupsCorrect: number // posiciones acertadas en los grupos (solo informativo; ya no desempata)
   totalGoalsGuess: number | null
   colombiaGoalsGuess: number | null
   firstScorerCorrect: boolean
@@ -101,12 +115,12 @@ export function closenessScore(guess: number | null, real: number | null): numbe
 
 /**
  * Comparador puro de la cascada de desempate:
- * puntos → posiciones de grupos → cercanía goles del mundial → cercanía goles
- * de Colombia → primer goleador → fecha de inscripción.
+ * puntos → cercanía goles del mundial → cercanía goles de Colombia →
+ * primer goleador → fecha de inscripción.
+ * (El bracket de grupos ya NO es desempate: aporta puntos directos al total.)
  */
 export function compareRanking(a: RankSortable, b: RankSortable, reals: ClosenessReals): number {
   if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints
-  if (b.groupsCorrect !== a.groupsCorrect) return b.groupsCorrect - a.groupsCorrect
   const ta = closenessScore(a.totalGoalsGuess, reals.total)
   const tb = closenessScore(b.totalGoalsGuess, reals.total)
   if (ta !== tb) return ta - tb

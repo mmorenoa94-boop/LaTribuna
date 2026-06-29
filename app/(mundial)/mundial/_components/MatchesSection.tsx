@@ -186,9 +186,15 @@ export default function MatchesSection() {
           {data.pointsConfig.outcome} pts resultado · +{data.pointsConfig.exactBonus} exacto
         </span>
       </div>
-      <p className="text-sm text-lt-muted mb-4">
+      <p className="text-sm text-lt-muted mb-3">
         Pronostica el marcador de cada partido habilitado. Se cierran cuando el admin lo indique.
       </p>
+      <div className="rounded-card bg-lt-amber/10 border border-lt-amber/40 px-3 py-2 mb-4">
+        <p className="text-xs text-lt-amber leading-snug">
+          ⚠️ En eliminación directa el marcador cuenta a los <b>90 minutos</b> (tiempo reglamentario).
+          La prórroga y los penales no suman — sí puede haber empate.
+        </p>
+      </div>
 
       {/* Selector de día: TODOS + cada fecha */}
       <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1">
