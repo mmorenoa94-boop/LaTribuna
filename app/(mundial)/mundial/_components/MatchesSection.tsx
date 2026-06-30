@@ -8,6 +8,7 @@ import {
   buildPredictionsPayload,
   countUnsaved,
   currentDayKey,
+  needsAdvancePick,
   pickDefaultDay,
   relativeDayLabel,
 } from '@/lib/mundial-matches-pure'
@@ -24,13 +25,19 @@ type MatchRow = {
   status: 'OPEN' | 'CLOSED' | 'FINISHED'
   homeScore: number | null
   awayScore: number | null
-  myPrediction: { homePredict: number; awayPredict: number; pointsEarned: number } | null
+  advancesReal: string | null
+  myPrediction: {
+    homePredict: number
+    awayPredict: number
+    advancesPredict: string | null
+    pointsEarned: number
+  } | null
 }
 
 type MatchesResponse = {
   data: MatchRow[]
   entryStatus: string | null
-  pointsConfig: { outcome: number; exactBonus: number }
+  pointsConfig: { outcome: number; exactBonus: number; advance: number }
 }
 
 async function fetchMatches(): Promise<MatchesResponse> {
@@ -77,7 +84,7 @@ export default function MatchesSection() {
     refetchInterval: 60_000,
   })
 
-  const [draft, setDraft] = useState<Record<string, { h: string; a: string }>>({})
+  const [draft, setDraft] = useState<Record<string, { h: string; a: string; adv?: string }>>({})
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -91,11 +98,12 @@ export default function MatchesSection() {
   // para que al guardar nunca se pierdan los marcadores escritos en otros días.
   useEffect(() => {
     if (!data) return
-    const init: Record<string, { h: string; a: string }> = {}
+    const init: Record<string, { h: string; a: string; adv?: string }> = {}
     for (const m of data.data) {
       init[m.id] = {
         h: m.myPrediction ? String(m.myPrediction.homePredict) : '',
         a: m.myPrediction ? String(m.myPrediction.awayPredict) : '',
+        adv: m.myPrediction?.advancesPredict ?? undefined,
       }
     }
     setDraft(init)
@@ -149,6 +157,10 @@ export default function MatchesSection() {
     setDraft((prev) => ({ ...prev, [id]: { ...prev[id], [side]: value } }))
   }
 
+  function setAdv(id: string, team: string) {
+    setDraft((prev) => ({ ...prev, [id]: { ...prev[id], adv: team } }))
+  }
+
   async function save() {
     setSaving(true)
     setError(null)
@@ -183,7 +195,8 @@ export default function MatchesSection() {
       <div className="flex items-center justify-between mb-1">
         <h2 className="font-bebas text-3xl text-lt-white leading-none">Marcadores</h2>
         <span className="text-xs text-lt-muted">
-          {data.pointsConfig.outcome} pts resultado · +{data.pointsConfig.exactBonus} exacto
+          {data.pointsConfig.outcome} pts resultado · +{data.pointsConfig.exactBonus} exacto · +
+          {data.pointsConfig.advance} avanza
         </span>
       </div>
       <p className="text-sm text-lt-muted mb-3">
@@ -293,6 +306,39 @@ export default function MatchesSection() {
                       {m.awayFlag ? ` ${m.awayFlag}` : ''}
                     </span>
                   </div>
+
+                  {/* Eliminación + empate a los 90' → ¿quién avanza? (prórroga/penales) */}
+                  {editable && needsAdvancePick(m.phase, Number(d.h), Number(d.a)) && d.h !== '' && d.a !== '' && (
+                    <div className="mt-3 pt-3 border-t border-lt-card2">
+                      <span className="block text-[10px] uppercase tracking-wider text-lt-amber mb-1.5">
+                        Empate a los 90&apos; · ¿Quién avanza? (+{data.pointsConfig.advance})
+                      </span>
+                      <div className="flex gap-2">
+                        {[m.homeTeam, m.awayTeam].map((team) => (
+                          <button
+                            key={team}
+                            type="button"
+                            onClick={() => setAdv(m.id, team)}
+                            className={`flex-1 text-xs py-2 rounded-btn border transition-colors ${
+                              d.adv === team
+                                ? 'bg-lt-green text-black border-lt-green font-bold'
+                                : 'bg-lt-card2 text-lt-white border-lt-card2'
+                            }`}
+                          >
+                            {team}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Finalizado por prórroga/penales → quién avanzó realmente */}
+                  {m.status === 'FINISHED' && m.advancesReal && (
+                    <div className="mt-2 pt-2 border-t border-lt-card2 text-[11px] text-lt-muted">
+                      Avanzó por penales/prórroga:{' '}
+                      <span className="text-lt-green">{m.advancesReal}</span>
+                    </div>
+                  )}
                 </div>
               )
             })}

@@ -624,6 +624,9 @@ model WorldCupPool {
   // Puntos por pronóstico de marcador: resultado (1X2) + bono por marcador exacto
   matchPointsOutcome    Int        @default(3)
   matchPointsExactBonus Int        @default(2)
+  // Bono por acertar qué equipo avanza en partidos de eliminación definidos por
+  // prórroga/penales (empate a los 90'). Ver lib/mundial-scoring-pure.ts.
+  matchPointsAdvance    Int        @default(2)
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 
@@ -714,6 +717,9 @@ model PoolMatch {
   status    PoolMatchStatus @default(SCHEDULED)
   homeScore Int?
   awayScore Int?
+  // Equipo que avanza cuando un partido de eliminación termina empatado a los 90'
+  // (se define por prórroga/penales). Lo carga el admin junto al resultado.
+  advancesReal String?
   createdAt DateTime        @default(now())
 
   predictions PoolMatchPrediction[]
@@ -729,8 +735,12 @@ model PoolMatchPrediction {
   match          PoolMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
   homePredict    Int
   awayPredict    Int
+  // Equipo que el usuario cree que avanza; SOLO se llena cuando predice empate a los 90'
+  // en un partido de eliminación. Si predijo un ganador, el ganador es el avanzador implícito.
+  advancesPredict String?
   outcomeCorrect Boolean?
   exactCorrect   Boolean?
+  advanceCorrect Boolean?
   pointsEarned   Int       @default(0)
   updatedAt      DateTime  @updatedAt
 
