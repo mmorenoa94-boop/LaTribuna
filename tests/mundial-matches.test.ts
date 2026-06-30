@@ -7,6 +7,7 @@ import {
   countUnsaved,
   currentDayKey,
   compareDayKeys,
+  needsAdvancePick,
   pickDefaultDay,
   relativeDayLabel,
   type PredictableMatch,
@@ -201,5 +202,60 @@ describe('countUnsaved', () => {
       vacio: { h: '', a: '' }, // no cuenta (incompleto)
     }
     expect(countUnsaved(matches, draft)).toBe(2)
+  })
+})
+
+describe('needsAdvancePick', () => {
+  it('aplica solo en eliminación con empate', () => {
+    expect(needsAdvancePick('Octavos de final', 1, 1)).toBe(true)
+    expect(needsAdvancePick('Octavos de final', 2, 1)).toBe(false) // no es empate
+    expect(needsAdvancePick('Fase de grupos', 1, 1)).toBe(false) // no es eliminación
+    expect(needsAdvancePick(undefined, 1, 1)).toBe(false)
+  })
+})
+
+describe('buildPredictionsPayload con avanzador (eliminación)', () => {
+  // Partido de eliminación con la fase seteada.
+  const ko = (id: string): PredictableMatch => ({ id, status: 'OPEN', phase: 'Octavos de final', myPrediction: null })
+
+  it('adjunta advancesPredict cuando es eliminación + empate', () => {
+    const payload = buildPredictionsPayload([ko('a')], { a: { h: '1', a: '1', adv: 'Paraguay' } })
+    expect(payload[0]).toEqual({ matchId: 'a', homePredict: 1, awayPredict: 1, advancesPredict: 'Paraguay' })
+  })
+
+  it('en eliminación + empate sin selección, advancesPredict queda null', () => {
+    const payload = buildPredictionsPayload([ko('a')], { a: { h: '0', a: '0' } })
+    expect(payload[0].advancesPredict).toBeNull()
+  })
+
+  it('si predice un ganador NO adjunta advancesPredict (avanzador implícito)', () => {
+    const payload = buildPredictionsPayload([ko('a')], { a: { h: '2', a: '1', adv: 'Paraguay' } })
+    expect(payload[0]).toEqual({ matchId: 'a', homePredict: 2, awayPredict: 1 })
+    expect('advancesPredict' in payload[0]).toBe(false)
+  })
+
+  it('en fase de grupos nunca adjunta advancesPredict aunque sea empate', () => {
+    const group: PredictableMatch = { id: 'g', status: 'OPEN', phase: 'Fase de grupos', myPrediction: null }
+    const payload = buildPredictionsPayload([group], { g: { h: '1', a: '1', adv: 'X' } })
+    expect('advancesPredict' in payload[0]).toBe(false)
+  })
+})
+
+describe('countUnsaved con avanzador', () => {
+  const ko = (id: string, myPrediction: PredictableMatch['myPrediction']): PredictableMatch => ({
+    id,
+    status: 'OPEN',
+    phase: 'Octavos de final',
+    myPrediction,
+  })
+
+  it('cuenta cambio de avanzador aunque el marcador sea idéntico', () => {
+    const matches = [ko('a', { homePredict: 1, awayPredict: 1, advancesPredict: 'Alemania' })]
+    expect(countUnsaved(matches, { a: { h: '1', a: '1', adv: 'Paraguay' } })).toBe(1)
+  })
+
+  it('no cuenta si marcador y avanzador son idénticos', () => {
+    const matches = [ko('a', { homePredict: 1, awayPredict: 1, advancesPredict: 'Paraguay' })]
+    expect(countUnsaved(matches, { a: { h: '1', a: '1', adv: 'Paraguay' } })).toBe(0)
   })
 })

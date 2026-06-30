@@ -3,6 +3,7 @@ import { requireAuth, isAuthError } from '@/lib/auth-guard'
 import { prisma } from '@/lib/prisma'
 import { getVisiblePool } from '@/lib/mundial'
 import { poolMatchPredictionsSchema } from '@/lib/validations'
+import { isKnockoutPhase } from '@/lib/mundial-scoring-pure'
 
 // GET /api/mundial/matches — partidos visibles + predicciones del usuario
 export async function GET() {
@@ -24,7 +25,10 @@ export async function GET() {
     orderBy: [{ order: 'asc' }, { kickoffAt: 'asc' }],
   })
 
-  let predByMatch: Record<string, { homePredict: number; awayPredict: number; pointsEarned: number }> = {}
+  let predByMatch: Record<
+    string,
+    { homePredict: number; awayPredict: number; advancesPredict: string | null; pointsEarned: number }
+  > = {}
   if (entry) {
     const preds = await prisma.poolMatchPrediction.findMany({
       where: { entryId: entry.id },
@@ -32,7 +36,12 @@ export async function GET() {
     predByMatch = Object.fromEntries(
       preds.map((p) => [
         p.matchId,
-        { homePredict: p.homePredict, awayPredict: p.awayPredict, pointsEarned: p.pointsEarned },
+        {
+          homePredict: p.homePredict,
+          awayPredict: p.awayPredict,
+          advancesPredict: p.advancesPredict,
+          pointsEarned: p.pointsEarned,
+        },
       ])
     )
   }
@@ -50,12 +59,14 @@ export async function GET() {
       status: m.status,
       homeScore: m.homeScore,
       awayScore: m.awayScore,
+      advancesReal: m.advancesReal,
       myPrediction: predByMatch[m.id] ?? null,
     })),
     entryStatus: entry?.status ?? null,
     pointsConfig: {
       outcome: pool.matchPointsOutcome,
       exactBonus: pool.matchPointsExactBonus,
+      advance: pool.matchPointsAdvance,
     },
   })
 }
@@ -82,12 +93,13 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: 'Predicciones inválidas' }, { status: 400 })
   }
 
-  // Solo aceptar partidos de esta polla que estén OPEN
-  const openMatches = new Set(
+  // Solo aceptar partidos de esta polla que estén OPEN (guardamos la fase para
+  // saber si aplica el "¿quién avanza?" de eliminación).
+  const openMatches = new Map(
     (await prisma.poolMatch.findMany({
       where: { poolId: pool.id, status: 'OPEN' },
-      select: { id: true },
-    })).map((m) => m.id)
+      select: { id: true, phase: true },
+    })).map((m) => [m.id, m.phase])
   )
 
   const valid = parsed.data.predictions.filter((p) => openMatches.has(p.matchId))
@@ -95,18 +107,24 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: 'No hay partidos abiertos para pronosticar' }, { status: 400 })
   }
 
-  const ops = valid.map((p) =>
-    prisma.poolMatchPrediction.upsert({
+  const ops = valid.map((p) => {
+    // "¿Quién avanza?" solo se persiste en eliminación cuando el pronóstico es empate;
+    // si predice un ganador, el avanzador es implícito y no se guarda selección.
+    const isDraw = p.homePredict === p.awayPredict
+    const knockout = isKnockoutPhase(openMatches.get(p.matchId))
+    const advancesPredict = knockout && isDraw ? p.advancesPredict ?? null : null
+    return prisma.poolMatchPrediction.upsert({
       where: { entryId_matchId: { entryId: entry.id, matchId: p.matchId } },
       create: {
         entryId: entry.id,
         matchId: p.matchId,
         homePredict: p.homePredict,
         awayPredict: p.awayPredict,
+        advancesPredict,
       },
-      update: { homePredict: p.homePredict, awayPredict: p.awayPredict },
+      update: { homePredict: p.homePredict, awayPredict: p.awayPredict, advancesPredict },
     })
-  )
+  })
   await prisma.$transaction(ops)
 
   return NextResponse.json({ data: { saved: ops.length } })

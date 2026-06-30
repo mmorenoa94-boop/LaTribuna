@@ -3,22 +3,32 @@
  * SIN dependencias de React/DB — aislada aquí para poder testearla unitariamente.
  */
 
+import { isKnockoutPhase } from './mundial-scoring-pure'
+
 export type MatchStatus = 'OPEN' | 'CLOSED' | 'FINISHED'
 
 /** Marcador en edición tal como vive en el estado del formulario (strings de inputs). */
-export type ScoreDraft = { h: string; a: string }
+/** `adv` = equipo elegido para "¿quién avanza?" (solo eliminación + empate). */
+export type ScoreDraft = { h: string; a: string; adv?: string }
 
 /** Datos mínimos de un partido necesarios para la lógica de guardado/conteo. */
 export type PredictableMatch = {
   id: string
   status: MatchStatus
-  myPrediction: { homePredict: number; awayPredict: number } | null
+  phase?: string
+  myPrediction: { homePredict: number; awayPredict: number; advancesPredict?: string | null } | null
 }
 
 export type PredictionPayload = {
   matchId: string
   homePredict: number
   awayPredict: number
+  advancesPredict?: string | null
+}
+
+/** ¿Para este partido/marcador aplica elegir quién avanza? (eliminación + empate). */
+export function needsAdvancePick(phase: string | undefined, h: number, a: number): boolean {
+  return isKnockoutPhase(phase) && h === a
 }
 
 export const NO_DATE_KEY = 'sin-fecha'
@@ -98,11 +108,14 @@ export function buildPredictionsPayload(
     .filter((m) => m.status === 'OPEN')
     .map((m) => ({ m, d: draft[m.id] }))
     .filter(({ d }) => isComplete(d))
-    .map(({ m, d }) => ({
-      matchId: m.id,
-      homePredict: Number(d.h),
-      awayPredict: Number(d.a),
-    }))
+    .map(({ m, d }) => {
+      const h = Number(d.h)
+      const a = Number(d.a)
+      const item: PredictionPayload = { matchId: m.id, homePredict: h, awayPredict: a }
+      // Solo adjuntamos el avanzador cuando aplica (eliminación + empate).
+      if (needsAdvancePick(m.phase, h, a)) item.advancesPredict = d.adv ?? null
+      return item
+    })
 }
 
 /**
@@ -119,6 +132,16 @@ export function countUnsaved(
     const d = draft[m.id]
     if (!isComplete(d)) return false
     const saved = m.myPrediction
-    return !saved || saved.homePredict !== Number(d.h) || saved.awayPredict !== Number(d.a)
+    const h = Number(d.h)
+    const a = Number(d.a)
+    if (!saved) return true
+    if (saved.homePredict !== h || saved.awayPredict !== a) return true
+    // Cambio en "quién avanza" (solo eliminación + empate) también cuenta como sin guardar.
+    if (needsAdvancePick(m.phase, h, a)) {
+      const savedAdv = saved.advancesPredict ?? null
+      const draftAdv = d.adv ?? null
+      if (savedAdv !== draftAdv) return true
+    }
+    return false
   }).length
 }

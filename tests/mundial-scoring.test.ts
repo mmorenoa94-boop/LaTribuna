@@ -5,6 +5,9 @@ import {
   computeBracketPoints,
   outcome,
   computeMatchPoints,
+  computeAdvancePoints,
+  impliedAdvancer,
+  isKnockoutPhase,
   closenessScore,
   compareRanking,
   prizeForPosition,
@@ -111,6 +114,80 @@ describe('computeMatchPoints', () => {
   it('empate con distinto marcador da solo resultado', () => {
     const r = computeMatchPoints(0, 0, 1, 1, 3, 2)
     expect(r).toEqual({ outcomeCorrect: true, exactCorrect: false, earned: 3 })
+  })
+})
+
+describe('isKnockoutPhase', () => {
+  it('la fase de grupos NO es eliminación', () => {
+    expect(isKnockoutPhase('Fase de grupos')).toBe(false)
+    expect(isKnockoutPhase('fase de grupos')).toBe(false) // laxo con mayúsculas
+  })
+  it('cualquier otra fase es eliminación', () => {
+    expect(isKnockoutPhase('Octavos de final')).toBe(true)
+    expect(isKnockoutPhase('Final')).toBe(true)
+  })
+  it('null/undefined no es eliminación', () => {
+    expect(isKnockoutPhase(null)).toBe(false)
+    expect(isKnockoutPhase(undefined)).toBe(false)
+  })
+})
+
+describe('impliedAdvancer', () => {
+  it('si predice ganador, ese ganador es el avanzador implícito', () => {
+    expect(impliedAdvancer(2, 1, 'Alemania', 'Paraguay', null)).toBe('Alemania')
+    expect(impliedAdvancer(1, 2, 'Alemania', 'Paraguay', null)).toBe('Paraguay')
+  })
+  it('si predice empate, usa la selección explícita', () => {
+    expect(impliedAdvancer(1, 1, 'Alemania', 'Paraguay', 'Paraguay')).toBe('Paraguay')
+  })
+  it('empate sin selección devuelve null', () => {
+    expect(impliedAdvancer(1, 1, 'Alemania', 'Paraguay', null)).toBeNull()
+  })
+})
+
+describe('computeAdvancePoints (Alemania 1-1 Paraguay, avanza Paraguay por penales)', () => {
+  // Local = Alemania, Visitante = Paraguay. Real: empate 1-1 a los 90', avanza Paraguay.
+  const base = {
+    isKnockout: true,
+    homeScore: 1,
+    awayScore: 1,
+    advancesReal: 'Paraguay',
+    homeTeam: 'Alemania',
+    awayTeam: 'Paraguay',
+    ptsAdvance: 2,
+  }
+
+  it('predijo empate y acertó el avanzador → +2', () => {
+    const r = computeAdvancePoints({ ...base, homePredict: 1, awayPredict: 1, advancesPredict: 'Paraguay' })
+    expect(r).toEqual({ advanceCorrect: true, earned: 2 })
+  })
+  it('predijo empate pero erró el avanzador → 0', () => {
+    const r = computeAdvancePoints({ ...base, homePredict: 1, awayPredict: 1, advancesPredict: 'Alemania' })
+    expect(r).toEqual({ advanceCorrect: false, earned: 0 })
+  })
+  it('predijo ganador (Paraguay) → avanzador implícito correcto → +2', () => {
+    const r = computeAdvancePoints({ ...base, homePredict: 1, awayPredict: 2, advancesPredict: null })
+    expect(r).toEqual({ advanceCorrect: true, earned: 2 })
+  })
+  it('predijo ganador (Alemania) → avanzador implícito incorrecto → 0', () => {
+    const r = computeAdvancePoints({ ...base, homePredict: 2, awayPredict: 1, advancesPredict: null })
+    expect(r).toEqual({ advanceCorrect: false, earned: 0 })
+  })
+  it('NO aplica si no es eliminación', () => {
+    const r = computeAdvancePoints({ ...base, isKnockout: false, homePredict: 1, awayPredict: 1, advancesPredict: 'Paraguay' })
+    expect(r.earned).toBe(0)
+  })
+  it('NO aplica si el partido real NO terminó empatado a los 90', () => {
+    const r = computeAdvancePoints({ ...base, homeScore: 2, awayScore: 1, homePredict: 1, awayPredict: 1, advancesPredict: 'Paraguay' })
+    expect(r.earned).toBe(0)
+  })
+  it('NO aplica si el admin no cargó quién avanzó', () => {
+    const r = computeAdvancePoints({ ...base, advancesReal: null, homePredict: 1, awayPredict: 1, advancesPredict: 'Paraguay' })
+    expect(r.earned).toBe(0)
+  })
+  it('es laxo con tildes y mayúsculas en el nombre del equipo', () => {
+    const r = computeAdvancePoints({ ...base, advancesReal: 'PARAGUAY', homePredict: 1, awayPredict: 1, advancesPredict: 'paraguay' })
+    expect(r.advanceCorrect).toBe(true)
   })
 })
 

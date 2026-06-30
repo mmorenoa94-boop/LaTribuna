@@ -5,6 +5,8 @@ import {
   normalizeAnswer,
   computeBracketPoints,
   computeMatchPoints,
+  computeAdvancePoints,
+  isKnockoutPhase,
   compareRanking,
   prizeForPosition,
 } from './mundial-scoring-pure'
@@ -15,6 +17,8 @@ export {
   countPositionsCorrect,
   outcome,
   computeMatchPoints,
+  computeAdvancePoints,
+  isKnockoutPhase,
   closenessScore,
   compareRanking,
   prizeForPosition,
@@ -86,6 +90,8 @@ export async function resolvePool(poolId: string) {
 /**
  * Califica las predicciones de UN partido ya finalizado (con homeScore/awayScore).
  * Resultado correcto (1X2) → matchPointsOutcome; marcador exacto → + matchPointsExactBonus.
+ * En eliminación con empate a los 90' (definido por prórroga/penales): + matchPointsAdvance
+ * a quien acertó qué equipo avanza (ver computeAdvancePoints).
  * Luego recalcula los totales de los participantes afectados.
  */
 export async function scoreMatchPredictions(matchId: string) {
@@ -100,9 +106,11 @@ export async function scoreMatchPredictions(matchId: string) {
 
   const ptsOutcome = match.pool.matchPointsOutcome
   const ptsExactBonus = match.pool.matchPointsExactBonus
+  const ptsAdvance = match.pool.matchPointsAdvance
+  const knockout = isKnockoutPhase(match.phase)
 
   const ops: Prisma.PrismaPromise<unknown>[] = match.predictions.map((p) => {
-    const { outcomeCorrect, exactCorrect, earned } = computeMatchPoints(
+    const base = computeMatchPoints(
       p.homePredict,
       p.awayPredict,
       match.homeScore!,
@@ -110,9 +118,26 @@ export async function scoreMatchPredictions(matchId: string) {
       ptsOutcome,
       ptsExactBonus
     )
+    const adv = computeAdvancePoints({
+      isKnockout: knockout,
+      homeScore: match.homeScore!,
+      awayScore: match.awayScore!,
+      advancesReal: match.advancesReal,
+      homePredict: p.homePredict,
+      awayPredict: p.awayPredict,
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
+      advancesPredict: p.advancesPredict,
+      ptsAdvance,
+    })
     return prisma.poolMatchPrediction.update({
       where: { id: p.id },
-      data: { outcomeCorrect, exactCorrect, pointsEarned: earned },
+      data: {
+        outcomeCorrect: base.outcomeCorrect,
+        exactCorrect: base.exactCorrect,
+        advanceCorrect: adv.advanceCorrect,
+        pointsEarned: base.earned + adv.earned,
+      },
     })
   })
   if (ops.length) await prisma.$transaction(ops)

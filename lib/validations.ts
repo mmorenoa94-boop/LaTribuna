@@ -263,6 +263,8 @@ export const poolMatchUpdateSchema = z.object({
   status: z.enum(['SCHEDULED', 'OPEN', 'CLOSED', 'FINISHED']).optional(),
   homeScore: z.number().int().min(0).max(99).nullable().optional(),
   awayScore: z.number().int().min(0).max(99).nullable().optional(),
+  // Equipo que avanza en eliminación con empate a los 90' (prórroga/penales)
+  advancesReal: z.string().max(60).nullable().optional(),
 })
 
 // Pronóstico de marcadores del participante
@@ -273,6 +275,8 @@ export const poolMatchPredictionsSchema = z.object({
         matchId: z.string().cuid(),
         homePredict: z.number().int().min(0).max(99),
         awayPredict: z.number().int().min(0).max(99),
+        // Solo relevante en eliminación cuando se predice empate a los 90'
+        advancesPredict: z.string().max(60).nullable().optional(),
       })
     )
     .min(1)

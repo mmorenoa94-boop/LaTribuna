@@ -10,6 +10,7 @@ import {
   relativeDayLabel,
   pickDefaultDay,
 } from '@/lib/mundial-matches-pure'
+import { isKnockoutPhase } from '@/lib/mundial-scoring-pure'
 
 type AdminMatch = {
   id: string
@@ -22,6 +23,7 @@ type AdminMatch = {
   status: 'SCHEDULED' | 'OPEN' | 'CLOSED' | 'FINISHED'
   homeScore: number | null
   awayScore: number | null
+  advancesReal: string | null
   order: number
   _count: { predictions: number }
 }
@@ -997,7 +999,12 @@ function MatchRow({ m, onChange }: { m: AdminMatch; onChange: (msg: string) => v
   const [status, setStatus] = useState(m.status)
   const [hs, setHs] = useState(m.homeScore != null ? String(m.homeScore) : '')
   const [as, setAs] = useState(m.awayScore != null ? String(m.awayScore) : '')
+  const [adv, setAdv] = useState(m.advancesReal ?? '')
   const [busy, setBusy] = useState(false)
+
+  // En eliminación con empate a los 90' hay que indicar qué equipo avanzó (prórroga/penales).
+  const isDrawAt90 = hs !== '' && as !== '' && Number(hs) === Number(as)
+  const showAdvance = isKnockoutPhase(m.phase) && isDrawAt90
 
   async function patch(body: Record<string, unknown>, msg: string) {
     setBusy(true)
@@ -1061,10 +1068,15 @@ function MatchRow({ m, onChange }: { m: AdminMatch; onChange: (msg: string) => v
           placeholder="V"
         />
         <button
-          disabled={busy || hs === '' || as === ''}
+          disabled={busy || hs === '' || as === '' || (showAdvance && !adv)}
           onClick={() =>
             patch(
-              { status: 'FINISHED', homeScore: Number(hs), awayScore: Number(as) },
+              {
+                status: 'FINISHED',
+                homeScore: Number(hs),
+                awayScore: Number(as),
+                advancesReal: showAdvance ? adv || null : null,
+              },
               'Resultado guardado y puntos calculados'
             )
           }
@@ -1074,6 +1086,27 @@ function MatchRow({ m, onChange }: { m: AdminMatch; onChange: (msg: string) => v
           Guardar resultado
         </button>
       </div>
+
+      {/* Eliminación + empate a los 90' → qué equipo avanzó (define el bono "avanza") */}
+      {showAdvance && (
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <span className="text-[11px] text-lt-amber uppercase tracking-wider">¿Quién avanzó?</span>
+          {[m.homeTeam, m.awayTeam].map((team) => (
+            <button
+              key={team}
+              type="button"
+              onClick={() => setAdv(team)}
+              className={`text-xs px-3 py-1.5 rounded-btn border ${
+                adv === team
+                  ? 'bg-lt-green text-black border-lt-green font-bold'
+                  : 'bg-lt-card2 text-lt-white border-lt-card2'
+              }`}
+            >
+              {team}
+            </button>
+          ))}
+        </div>
+      )}
       <style jsx global>{styles}</style>
     </div>
   )

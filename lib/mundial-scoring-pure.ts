@@ -85,6 +85,68 @@ export function computeMatchPoints(
   return { outcomeCorrect, exactCorrect, earned }
 }
 
+// Fase por defecto de un partido (grupos). Cualquier otra fase es eliminación directa.
+export const GROUP_STAGE_PHASE = 'Fase de grupos'
+
+/** ¿El partido es de eliminación directa? (cualquier fase distinta a la de grupos). */
+export function isKnockoutPhase(phase: string | null | undefined): boolean {
+  if (!phase) return false
+  return normalizeAnswer(phase) !== normalizeAnswer(GROUP_STAGE_PHASE)
+}
+
+/**
+ * Equipo que el usuario "cree que avanza" según su predicción:
+ * - si predijo un ganador a los 90', ese ganador es el avanzador implícito;
+ * - si predijo empate, se usa su selección explícita (advancesPredict).
+ * Devuelve null si predijo empate y no eligió equipo.
+ */
+export function impliedAdvancer(
+  homePredict: number,
+  awayPredict: number,
+  homeTeam: string,
+  awayTeam: string,
+  advancesPredict: string | null
+): string | null {
+  const o = outcome(homePredict, awayPredict)
+  if (o === 'H') return homeTeam
+  if (o === 'A') return awayTeam
+  return advancesPredict ?? null
+}
+
+/**
+ * Bono por acertar qué equipo avanza. SOLO aplica en partidos de eliminación que
+ * terminaron empatados a los 90' (se definieron por prórroga/penales): ahí el resultado
+ * de los 90' no dice quién pasa. En partidos resueltos en los 90', el que avanza = el
+ * ganador, ya premiado por los puntos de resultado, así que no se otorga bono extra.
+ */
+export function computeAdvancePoints(args: {
+  isKnockout: boolean
+  homeScore: number
+  awayScore: number
+  advancesReal: string | null
+  homePredict: number
+  awayPredict: number
+  homeTeam: string
+  awayTeam: string
+  advancesPredict: string | null
+  ptsAdvance: number
+}): { advanceCorrect: boolean; earned: number } {
+  const { isKnockout, homeScore, awayScore, advancesReal, ptsAdvance } = args
+  if (!isKnockout || homeScore !== awayScore || !advancesReal) {
+    return { advanceCorrect: false, earned: 0 }
+  }
+  const implied = impliedAdvancer(
+    args.homePredict,
+    args.awayPredict,
+    args.homeTeam,
+    args.awayTeam,
+    args.advancesPredict
+  )
+  const advanceCorrect =
+    implied != null && normalizeAnswer(implied) === normalizeAnswer(advancesReal)
+  return { advanceCorrect, earned: advanceCorrect ? ptsAdvance : 0 }
+}
+
 // Campos mínimos necesarios para ordenar por la cascada de desempate
 export interface RankSortable {
   totalPoints: number

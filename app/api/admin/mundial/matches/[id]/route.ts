@@ -28,6 +28,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (d.status !== undefined) data.status = d.status
   if (d.homeScore !== undefined) data.homeScore = d.homeScore
   if (d.awayScore !== undefined) data.awayScore = d.awayScore
+  if (d.advancesReal !== undefined) data.advancesReal = d.advancesReal
 
   const match = await prisma.poolMatch.update({ where: { id: params.id }, data })
 
@@ -38,7 +39,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     // Si NO está finalizado, asegurar que no haya puntos colgando de este partido
     await prisma.poolMatchPrediction.updateMany({
       where: { matchId: match.id },
-      data: { pointsEarned: 0, outcomeCorrect: null, exactCorrect: null },
+      data: { pointsEarned: 0, outcomeCorrect: null, exactCorrect: null, advanceCorrect: null },
     })
     await recomputeEntryAggregates(match.poolId)
   }
