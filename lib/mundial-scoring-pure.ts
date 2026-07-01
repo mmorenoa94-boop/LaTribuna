@@ -114,10 +114,32 @@ export function impliedAdvancer(
 }
 
 /**
- * Bono por acertar qué equipo avanza. SOLO aplica en partidos de eliminación que
- * terminaron empatados a los 90' (se definieron por prórroga/penales): ahí el resultado
- * de los 90' no dice quién pasa. En partidos resueltos en los 90', el que avanza = el
- * ganador, ya premiado por los puntos de resultado, así que no se otorga bono extra.
+ * Equipo que realmente avanza en un partido de eliminación:
+ * - si hubo un ganador a los 90', avanza el ganador;
+ * - si terminó empatado a los 90' (prórroga/penales), lo define el admin (advancesReal).
+ * Devuelve null si fue empate y el admin aún no cargó quién avanzó.
+ */
+export function realAdvancer(
+  homeScore: number,
+  awayScore: number,
+  homeTeam: string,
+  awayTeam: string,
+  advancesReal: string | null
+): string | null {
+  const o = outcome(homeScore, awayScore)
+  if (o === 'H') return homeTeam
+  if (o === 'A') return awayTeam
+  return advancesReal ?? null
+}
+
+/**
+ * Bono por acertar qué equipo avanza. Aplica en TODO partido de eliminación directa
+ * (marcador exacto + avanzador correcto → hasta 7 puntos):
+ * - Si el partido se definió en los 90', el avanzador es el ganador; quien predijo a ese
+ *   ganador (avanzador implícito) recibe el bono.
+ * - Si terminó empatado a los 90' (prórroga/penales), el avanzador lo define el admin
+ *   (advancesReal); si aún no lo cargó, no se otorga bono.
+ * No aplica en fase de grupos.
  */
 export function computeAdvancePoints(args: {
   isKnockout: boolean
@@ -131,10 +153,12 @@ export function computeAdvancePoints(args: {
   advancesPredict: string | null
   ptsAdvance: number
 }): { advanceCorrect: boolean; earned: number } {
-  const { isKnockout, homeScore, awayScore, advancesReal, ptsAdvance } = args
-  if (!isKnockout || homeScore !== awayScore || !advancesReal) {
-    return { advanceCorrect: false, earned: 0 }
-  }
+  const { isKnockout, homeScore, awayScore, advancesReal, homeTeam, awayTeam, ptsAdvance } = args
+  if (!isKnockout) return { advanceCorrect: false, earned: 0 }
+
+  const real = realAdvancer(homeScore, awayScore, homeTeam, awayTeam, advancesReal)
+  if (!real) return { advanceCorrect: false, earned: 0 }
+
   const implied = impliedAdvancer(
     args.homePredict,
     args.awayPredict,
@@ -142,8 +166,7 @@ export function computeAdvancePoints(args: {
     args.awayTeam,
     args.advancesPredict
   )
-  const advanceCorrect =
-    implied != null && normalizeAnswer(implied) === normalizeAnswer(advancesReal)
+  const advanceCorrect = implied != null && normalizeAnswer(implied) === normalizeAnswer(real)
   return { advanceCorrect, earned: advanceCorrect ? ptsAdvance : 0 }
 }
 
