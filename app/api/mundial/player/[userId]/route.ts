@@ -58,6 +58,7 @@ export async function GET(_req: Request, { params }: { params: { userId: string 
           pointsEarned: true,
           outcomeCorrect: true,
           exactCorrect: true,
+          advanceCorrect: true,
         },
       },
     },
@@ -83,8 +84,52 @@ export async function GET(_req: Request, { params }: { params: { userId: string 
       pointsEarned: p?.pointsEarned ?? 0,
       outcomeCorrect: p?.outcomeCorrect ?? false,
       exactCorrect: p?.exactCorrect ?? false,
+      advanceCorrect: p?.advanceCorrect ?? false,
     }
   })
+
+  // --- "Otros puntos": bracket de grupos (pregunta 10) + preguntas ya resueltas ---
+  // Necesario para que la suma del desglose cuadre con el total (el modal solo mostraba
+  // partidos, pero el total también incluye el bracket y las preguntas con puntos).
+  const questions = await prisma.poolQuestion.findMany({
+    where: { poolId: pool.id },
+    select: { id: true, text: true, type: true, pointsValue: true, isTiebreaker: true, correctAnswer: true },
+    orderBy: { order: 'asc' },
+  })
+  const targetEntry = await prisma.poolEntry.findUnique({
+    where: { poolId_userId: { poolId: pool.id, userId: params.userId } },
+    select: {
+      groupsCorrect: true,
+      answers: { select: { questionId: true, pointsEarned: true, isCorrect: true } },
+    },
+  })
+  const ansByQ = new Map((targetEntry?.answers ?? []).map((a) => [a.questionId, a]))
+
+  const bracketQ = questions.find((q) => q.type === 'GROUP_RANK')
+  const bracket =
+    bracketQ && bracketQ.correctAnswer != null
+      ? {
+          positionsCorrect: targetEntry?.groupsCorrect ?? 0,
+          pointsPerPosition: bracketQ.pointsValue,
+          points: (targetEntry?.groupsCorrect ?? 0) * bracketQ.pointsValue,
+        }
+      : null
+
+  const questionPoints = questions
+    .filter(
+      (q) =>
+        !q.isTiebreaker &&
+        q.type !== 'GROUP_RANK' &&
+        q.pointsValue > 0 &&
+        q.correctAnswer != null &&
+        ansByQ.has(q.id)
+    )
+    .map((q) => {
+      const a = ansByQ.get(q.id)!
+      return { label: q.text, points: a.pointsEarned, correct: a.isCorrect ?? false }
+    })
+
+  const matchPoints = breakdown.reduce((s, b) => s + b.pointsEarned, 0)
 
   // --- Evolución de posición por jornada (reconstrucción al vuelo) ---
   const finishedIds = new Set(finishedMatches.map((m) => m.id))
@@ -117,6 +162,11 @@ export async function GET(_req: Request, { params }: { params: { userId: string 
       matchesCorrect: me.matchesCorrect,
       exactCorrect: me.exactCorrect,
       breakdown,
+      extras: {
+        matchPoints,
+        bracket,
+        questions: questionPoints,
+      },
       history: userHistory,
     },
   })

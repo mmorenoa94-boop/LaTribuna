@@ -205,7 +205,8 @@ export default function MatchesSection() {
       <div className="rounded-card bg-lt-amber/10 border border-lt-amber/40 px-3 py-2 mb-4">
         <p className="text-xs text-lt-amber leading-snug">
           ⚠️ En eliminación directa el marcador cuenta a los <b>90 minutos</b> (tiempo reglamentario).
-          La prórroga y los penales no suman — sí puede haber empate.
+          La prórroga y los penales no suman — sí puede haber empate. Acertar <b>quién avanza</b> suma{' '}
+          <b>+{data.pointsConfig.advance}</b> extra (hasta {data.pointsConfig.outcome + data.pointsConfig.exactBonus + data.pointsConfig.advance} pts por partido).
         </p>
       </div>
 

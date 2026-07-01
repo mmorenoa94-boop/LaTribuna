@@ -165,6 +165,59 @@ export default function PlayerDetailModal({
                 <PositionChart history={data.history} />
               </div>
 
+              {/* Conciliación del total: de dónde salen los puntos */}
+              {(() => {
+                const matchPts = data.extras.matchPoints
+                const bracketPts = data.extras.bracket?.points ?? 0
+                const questionsPts = data.extras.questions.reduce((s, q) => s + q.points, 0)
+                return (
+                  <div className="text-[11px] text-lt-muted mb-4 leading-snug">
+                    Partidos <b className="text-lt-white">{matchPts}</b> · Bracket{' '}
+                    <b className="text-lt-white">{bracketPts}</b> · Preguntas{' '}
+                    <b className="text-lt-white">{questionsPts}</b> ={' '}
+                    <b className="text-lt-green">{data.totalPoints}</b> pts
+                  </div>
+                )
+              })()}
+
+              {/* Otros puntos: bracket de grupos + preguntas ya resueltas */}
+              {(data.extras.bracket || data.extras.questions.length > 0) && (
+                <div className="mb-4">
+                  <div className="text-[11px] uppercase tracking-wider text-lt-muted mb-2">
+                    Otros puntos
+                  </div>
+                  <div className="space-y-1.5">
+                    {data.extras.bracket && (
+                      <div className="rounded-card bg-lt-card2/40 border border-lt-card2 px-3 py-2 flex items-center justify-between gap-2">
+                        <span className="text-sm text-lt-white">
+                          Bracket de grupos
+                          <span className="block text-[11px] text-lt-muted">
+                            {data.extras.bracket.positionsCorrect} posiciones ×{' '}
+                            {data.extras.bracket.pointsPerPosition}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-xs text-lt-white">
+                          +{data.extras.bracket.points}
+                        </span>
+                      </div>
+                    )}
+                    {data.extras.questions.map((q, i) => (
+                      <div
+                        key={i}
+                        className="rounded-card bg-lt-card2/40 border border-lt-card2 px-3 py-2 flex items-center justify-between gap-2"
+                      >
+                        <span className="text-sm text-lt-white truncate pr-2">{q.label}</span>
+                        <span
+                          className={`shrink-0 text-xs ${q.correct ? 'text-lt-green' : 'text-lt-muted'}`}
+                        >
+                          +{q.points}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Desglose por partido */}
               <div className="text-[11px] uppercase tracking-wider text-lt-muted mb-2">
                 Desglose por partido finalizado
@@ -202,7 +255,12 @@ export default function PlayerDetailModal({
                               ? `Pronóstico: ${b.predicted.home}-${b.predicted.away}`
                               : 'No pronosticó'}
                           </span>
-                          <span className={`text-[11px] ${tag.cls}`}>{tag.label}</span>
+                          <span className="text-[11px] flex items-center gap-1">
+                            {b.advanceCorrect && (
+                              <span className="text-lt-green">avanza ✓ ·</span>
+                            )}
+                            <span className={tag.cls}>{tag.label}</span>
+                          </span>
                         </div>
                       </div>
                     )

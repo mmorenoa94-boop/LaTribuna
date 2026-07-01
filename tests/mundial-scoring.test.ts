@@ -145,7 +145,7 @@ describe('impliedAdvancer', () => {
   })
 })
 
-describe('computeAdvancePoints (Alemania 1-1 Paraguay, avanza Paraguay por penales)', () => {
+describe('computeAdvancePoints — empate a 90 (Alemania 1-1 Paraguay, avanza Paraguay por penales)', () => {
   // Local = Alemania, Visitante = Paraguay. Real: empate 1-1 a los 90', avanza Paraguay.
   const base = {
     isKnockout: true,
@@ -177,17 +177,47 @@ describe('computeAdvancePoints (Alemania 1-1 Paraguay, avanza Paraguay por penal
     const r = computeAdvancePoints({ ...base, isKnockout: false, homePredict: 1, awayPredict: 1, advancesPredict: 'Paraguay' })
     expect(r.earned).toBe(0)
   })
-  it('NO aplica si el partido real NO terminó empatado a los 90', () => {
-    const r = computeAdvancePoints({ ...base, homeScore: 2, awayScore: 1, homePredict: 1, awayPredict: 1, advancesPredict: 'Paraguay' })
-    expect(r.earned).toBe(0)
-  })
-  it('NO aplica si el admin no cargó quién avanzó', () => {
+  it('empate a 90: NO aplica si el admin no cargó quién avanzó', () => {
     const r = computeAdvancePoints({ ...base, advancesReal: null, homePredict: 1, awayPredict: 1, advancesPredict: 'Paraguay' })
     expect(r.earned).toBe(0)
   })
   it('es laxo con tildes y mayúsculas en el nombre del equipo', () => {
     const r = computeAdvancePoints({ ...base, advancesReal: 'PARAGUAY', homePredict: 1, awayPredict: 1, advancesPredict: 'paraguay' })
     expect(r.advanceCorrect).toBe(true)
+  })
+})
+
+describe('computeAdvancePoints — definido en los 90 (aplica en toda eliminación)', () => {
+  // Eliminación resuelta en los 90': avanza el ganador (Colombia 2-1). advancesReal no hace falta.
+  const base = {
+    isKnockout: true,
+    homeScore: 2,
+    awayScore: 1,
+    advancesReal: null,
+    homeTeam: 'Colombia',
+    awayTeam: 'Uruguay',
+    ptsAdvance: 2,
+  }
+
+  it('predijo al ganador (Colombia) → avanzador implícito correcto → +2 (aunque no sea empate)', () => {
+    const r = computeAdvancePoints({ ...base, homePredict: 3, awayPredict: 0, advancesPredict: null })
+    expect(r).toEqual({ advanceCorrect: true, earned: 2 })
+  })
+  it('marcador exacto del ganador → el bono se suma (base 5 + 2 = 7 en scoreMatchPredictions)', () => {
+    const r = computeAdvancePoints({ ...base, homePredict: 2, awayPredict: 1, advancesPredict: null })
+    expect(r).toEqual({ advanceCorrect: true, earned: 2 })
+  })
+  it('predijo al perdedor (Uruguay) → avanzador implícito incorrecto → 0', () => {
+    const r = computeAdvancePoints({ ...base, homePredict: 0, awayPredict: 2, advancesPredict: null })
+    expect(r).toEqual({ advanceCorrect: false, earned: 0 })
+  })
+  it('predijo empate en un partido que se definió en 90 → avanza el ganador real; sin selección explícita → 0', () => {
+    const r = computeAdvancePoints({ ...base, homePredict: 1, awayPredict: 1, advancesPredict: null })
+    expect(r).toEqual({ advanceCorrect: false, earned: 0 })
+  })
+  it('predijo empate pero eligió al ganador real como avanzador → +2', () => {
+    const r = computeAdvancePoints({ ...base, homePredict: 1, awayPredict: 1, advancesPredict: 'Colombia' })
+    expect(r).toEqual({ advanceCorrect: true, earned: 2 })
   })
 })
 

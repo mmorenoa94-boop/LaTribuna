@@ -163,6 +163,19 @@ export interface PoolPlayerMatchBreakdown {
   pointsEarned: number
   outcomeCorrect: boolean
   exactCorrect: boolean
+  advanceCorrect: boolean // acertó quién avanza (solo eliminación directa)
+}
+
+// "Otros puntos" del total que no vienen de partidos: bracket de grupos (pregunta 10)
+// y preguntas con puntos ya resueltas. Permite que la suma del desglose cuadre con el total.
+export interface PoolPlayerExtras {
+  matchPoints: number // suma de los puntos de partidos finalizados
+  bracket: {
+    positionsCorrect: number
+    pointsPerPosition: number
+    points: number
+  } | null
+  questions: { label: string; points: number; correct: boolean }[]
 }
 
 export interface PoolPlayerHistoryPoint {
@@ -181,5 +194,6 @@ export interface PoolPlayerDetail {
   matchesCorrect: number
   exactCorrect: number
   breakdown: PoolPlayerMatchBreakdown[]
+  extras: PoolPlayerExtras
   history: PoolPlayerHistoryPoint[]
 }
